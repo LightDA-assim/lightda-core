@@ -2,22 +2,37 @@ from matplotlib import pyplot as plt
 import matplotlib.animation
 import numpy as np
 from advect1d import advance
-from scipy.signal import sawtooth, square
-#from enkf import analysis
+from scipy.signal import sawtooth, square, hann
+from scipy.ndimage.filters import convolve1d
+from enkf import lenkf_rsm
 
 def smooth(y,window_size):
-    box = np.ones(window_size)/window_size
-    y_smooth = np.convolve(y, box, mode='same')
+    #win = np.ones(window_size)/window_size
+    win=hann(window_size)
+    y_smooth = convolve1d(y, win, mode='wrap')
+    
     return y_smooth
 
-def build_ensemble(n,n_ensemble):
-    u=np.random.normal(0,2,[n,n_ensemble])
-    a=np.random.normal(0,6,[n,n_ensemble])
-    for i in range(n_ensemble):
-        a[:,i]=smooth(a[:,i],16)
-    for i in range(n_ensemble):
-        u[:,i]=smooth(u[:,i],8)
+def build_ensemble(n,n_ensemble,nghost=1):
+    u=np.random.normal(0,1,[n,n_ensemble])
+    a=np.random.normal(0,1,[n,n_ensemble])
+    #for i in range(n_ensemble):
+    #    a[nghost:-nghost,i]=smooth(a[nghost:-nghost,i],64)
+    #for i in range(n_ensemble):
+    #    u[nghost:-nghost,i]=smooth(u[nghost:-nghost,i],64)
+
+    updateboundary(u,a,nghost)
+    
     return np.vstack([u,a])
+
+def updateboundary(u,a,nghost=1):
+        
+    # Update ghost cells
+    for i in range(nghost):
+        u[i]=u[-nghost*2+i]
+        a[i]=a[-nghost*2+i]
+        u[i-nghost]=u[i+nghost]
+        a[i-nghost]=a[i+nghost]
 
 def advance_to_time(u,a,dx,dt,limiter):
     t=0
@@ -26,14 +41,11 @@ def advance_to_time(u,a,dx,dt,limiter):
         dt_max=cfl*np.abs(dx/a).min()
         this_dt=min(dt_max,dt-t)
         advance(u,a,dx,this_dt,limiter)
-        advance(a,a,dx,this_dt,limiter)
-        a=np.maximum(np.minimum(a,100),-100)
-        
-        # Update ghost cells
-        u[0]=u[-2]
-        a[0]=a[-2]
-        u[-1]=u[1]
-        a[-1]=a[1]
+        a_old=a.copy()
+        advance(a,a_old,dx,this_dt,limiter)
+        #a[:]=np.maximum(np.minimum(a,100),-100)[:]
+
+        updateboundary(u,a)
 
         t+=this_dt
 
