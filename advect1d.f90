@@ -67,7 +67,7 @@ contains
     implicit none
 
     real(kind=8), dimension(:) :: u, a
-    real(kind=8) :: sm,sp,ap,am,spm,smm,fp,fm,dx,dt,f
+    real(kind=8) :: sm,sp,ap,am,fp,fm,dx,dt,f
     integer, intent(in) :: i,limiter_type
 
     sm=(u(i)-u(i-1))/dx
@@ -77,11 +77,8 @@ contains
     ap=max(a(i-1),0.)
     am=min(a(i),0.)
 
-    spm=sp
-    smm=(u(i+2)-u(i+1))/dx
-
-    fp=ap*(u(i-1)+dx/2*(1-a(i-1)*dt/dx)*limiter(sm,sp,limiter_type))
-    fm=am*(u(i)+dx/2*(1-a(i)*dt/dx)*limiter(smm,spm,limiter_type))
+    fp=ap*(u(i-1)+dx/2.0*(1.0-a(i-1)*dt/dx)*limiter(sm,sp,limiter_type))
+    fm=am*(u(i)-dx/2.0*(1.0-abs(a(i))*dt/dx)*limiter(sm,sp,limiter_type))
     f=fp+fm
 
   end subroutine flux
