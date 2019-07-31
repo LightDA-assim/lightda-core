@@ -94,6 +94,12 @@ def localize_gaspari_cohn(dist,c):
 
 class ensemble_animator(object):
 
+    def add_obs_err(self,step,ind_p,HPH):
+        pass
+
+    def localize(self,step,ind_p,HP_p,HPH):
+        pass
+
     def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=1.0):
     
         self.n=n
@@ -110,7 +116,7 @@ class ensemble_animator(object):
         self.n_ensemble=n_ensemble
         self.n_obs=n_obs
 
-        self.ensemble=build_ensemble(self.n,self.n_ensemble)
+        self.ensemble=np.asfortranarray(build_ensemble(self.n,self.n_ensemble))
 
         self.inflation_factor=np.ones([n_obs,n*2])*1.12
         self.inflation_variance=0.03
@@ -180,7 +186,8 @@ class ensemble_animator(object):
         obs_w_errors=np.random.normal(obs_true,self.obs_errors)
 
         if i%self.assimilate_every==self.assimilate_every-1:
-            pass
+            resid=np.asfortranarray(np.dot(self.forward_operator,self.ensemble)-obs_w_errors[:,np.newaxis])
+            lenkf_rsm(i,0,self.ensemble,resid,self.add_obs_err,self.localize,1)
 
         modified_artists=[]
 
