@@ -165,20 +165,11 @@ class ensemble_animator(object):
         if not np.all(np.isfinite(self.ensemble)):
             raise(ValueError,'nan or inf found in ensemble state array')
 
-        print 'u:',np.max(np.abs(self.ensemble[:self.n,:]))
-        print 'du:',np.max(np.abs(self.ensemble[1:self.n+1,:]-self.ensemble[:self.n,:]))
-        print 'a:',np.max(np.abs(self.ensemble[self.n:,:]))
-        print 'da:',np.max(np.abs(self.ensemble[self.n+1:,:]-self.ensemble[self.n:-1,:]))
-
-        print 'advancing'
+        print_maxes(self.ensemble,self.n)
+        
         advance_to_time(self.u_true,self.a_true,self.dx,self.dt,self.limiter)
         advance_ensemble_to_time(self.ensemble,self.dx,self.dt,self.limiter)
-        
-        print 'u:',np.max(np.abs(self.ensemble[:self.n,:]))
-        print 'du:',np.max(np.abs(self.ensemble[1:self.n+1,:]-self.ensemble[:self.n,:]))
-        print 'a:',np.max(np.abs(self.ensemble[self.n:,:]))
-        print 'da:',np.max(np.abs(self.ensemble[self.n+1:,:]-self.ensemble[self.n:-1,:]))
-        
+
         if not np.all(np.isfinite(self.ensemble)):
             raise(ValueError,'nan or inf found in ensemble state array')
 
@@ -204,6 +195,14 @@ class ensemble_animator(object):
             self.artists['u']['true'],self.artists['a']['true'],self.artists['u']['obs']])
 
         return modified_artists
+
+def print_maxes(ensemble,n):
+    import numpy as np
+
+    print 'u:',np.max(np.abs(ensemble[:n,:])),np.argmax(np.abs(ensemble[:n,:]))
+    print 'du:',np.max(np.abs(ensemble[1:n+1,:]-ensemble[:n,:])),np.argmax(np.abs(ensemble[1:n+1,:]-ensemble[:n,:]))
+    print 'a:',np.max(np.abs(ensemble[n:,:])),np.argmax(np.abs(ensemble[n:,:]))
+    print 'da:',np.max(np.abs(ensemble[n+1:,:]-ensemble[n:-1,:])),np.argmax(np.abs(ensemble[n+1:,:]-ensemble[n:-1,:]))
 
 def plot_localization(localization=None):
     fig=plt.figure()
