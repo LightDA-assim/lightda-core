@@ -103,7 +103,9 @@ class ensemble_animator(object):
     def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=1.0):
     
         self.n=n
-        self.x=np.linspace(0,2*np.pi*(n+1)/n,n)
+        nghost=1
+        domain_width=2*np.pi
+        self.x=np.linspace(-float(nghost)/n*domain_width,domain_width*(n+nghost)/n,n)
         self.u_true=np.sin(8*self.x)
         self.a_true=np.ones(self.x.shape)+np.sin(self.x)*0.2
         self.cfl=0.8
