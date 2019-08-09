@@ -86,6 +86,46 @@ def localize_gaspari_cohn(dist,c):
     localization[dist==0]=1
     return localization
 
+def inflate_ensemble(ensemble,inflation_factor):
+    ensemble_mean=np.mean(ensemble,axis=1).reshape([ensemble.shape[0],1])
+    return (ensemble-ensemble_mean)*inflation_factor[:,np.newaxis]+ensemble_mean
+
+def update_inflation_factor_localized(ensemble,forward_operator,observations,obs_errors,prior_inflation_factor,inflation_variance,weight):
+    """
+    Adaptive inflation as described in Anderson (2009)
+    """
+    predictions=np.dot(forward_operator,ensemble)
+    ensemble_var=np.var(predictions,axis=1)
+    #expected_distance=np.sqrt(np.dot(prior_inflation_factor,ensemble_var)+obs_errors**2)
+    actual_distance=np.abs(np.mean(predictions,axis=1)-observations)
+    expected_lambda=(1+weight*(np.sqrt(prior_inflation_factor)-1))**2
+    n_observations=len(observations)
+    model_size=ensemble.shape[0]
+
+    thetabar=np.sqrt(expected_lambda*inflation_variance+obs_errors.reshape([n_observations,1])**2)
+    thetabar=np.maximum(thetabar,1e-10)
+    lbar=np.sqrt(2*np.pi*thetabar)*np.exp(-0.5*actual_distance.reshape([n_observations,1])**2*thetabar**-2)
+    dtheta_dlambda=0.5*inflation_variance*weight*(1-weight+weight*np.sqrt(prior_inflation_factor))/(thetabar/np.sqrt(prior_inflation_factor))
+    lprime=np.maximum((lbar*(actual_distance.reshape([n_observations,1])**2*thetabar**-2-1)/thetabar)*dtheta_dlambda,1e-10)
+    
+    coeffs=[
+        np.ones([n_observations,model_size]),
+        lbar/lprime-2*prior_inflation_factor,
+        prior_inflation_factor**2-inflation_variance-lbar*prior_inflation_factor/lprime
+    ]
+
+    coeffs=np.array(coeffs)
+    posterior_inflation_factor=np.empty([n_observations,model_size])
+    pm=np.array([1,-1])
+    for i in range(n_observations):
+        for j in range(model_size):
+            a,b,c=coeffs[:,i,j]
+            roots=(-b+pm*np.sqrt(b**2-4*a*c))/(2*a)
+            closest_root_ind=np.argmin(np.abs(roots-prior_inflation_factor[i,j]))
+            posterior_inflation_factor[i,j]=roots[closest_root_ind]
+
+    return posterior_inflation_factor
+
 class ensemble_animator(object):
 
     def add_obs_err(self,step,ind_p,HPH):
@@ -179,6 +219,15 @@ class ensemble_animator(object):
         predictions=np.dot(self.forward_operator,self.ensemble)
 
         if i%self.assimilate_every==self.assimilate_every-1:
+            resid_pred=predictions-np.mean(predictions,axis=1)[:,np.newaxis]
+            resid_ens=self.ensemble-np.mean(self.ensemble,axis=1)[:,np.newaxis]
+            hp=resid_pred.dot(resid_ens.T)
+            inflation_weight=self.localization_obs_model*hp
+            self.inflation_factor=update_inflation_factor_localized(self.ensemble,self.forward_operator,obs_w_errors,self.obs_errors,self.inflation_factor,self.inflation_variance,inflation_weight)
+            self.inflation_factor=np.minimum(self.inflation_factor,self.inflation_max)
+            self.inflation_factor=np.maximum(self.inflation_factor,self.inflation_min)
+            self.inflation_variance=np.var(self.inflation_factor)
+            self.ensemble=inflate_ensemble(self.ensemble,np.mean(self.inflation_factor,axis=0))
             obs_perturbations=np.random.normal(0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
             innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
             from lenkf_rsm_py import lenkf_rsm_py
