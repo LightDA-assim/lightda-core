@@ -154,6 +154,9 @@ class ensemble_animator(object):
         obs=np.dot(self.forward_operator,np.hstack([self.u_true,self.a_true]))
         self.artists['u']['obs'],=axes[0].plot(self.obs_locations,obs,linestyle='',marker='o')
 
+        predictions=np.dot(self.forward_operator,self.ensemble)
+        self.artists['u']['predictions']=axes[0].plot(self.obs_locations,predictions,linestyle='',marker='.')
+
         self.localization_obs_model=localize_gaspari_cohn(
             get_distances_periodic(self.obs_locations,np.tile(self.x,[2]),np.max(self.x)),
             cutoff)
@@ -204,6 +207,11 @@ class ensemble_animator(object):
             for j,member in enumerate(self.artists[variable]['ensemble']):
                 member.set_data(self.x,self.ensemble[i*self.n:(i+1)*self.n,j].T)
                 modified_artists.append(member)
+                
+        for j,member in enumerate(self.artists['u']['predictions']):
+            member.set_data(self.obs_locations,predictions[:,j])
+            modified_artists.append(member)
+            
         self.artists['u']['obs'].set_data(self.x[self.obs_positions],obs_w_errors)
 
         self.artists['u']['true'].set_data(self.x,self.u_true)
