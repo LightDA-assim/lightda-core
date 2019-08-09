@@ -4,7 +4,7 @@ import numpy as np
 from advect1d import advance
 from scipy.signal import sawtooth, square, hann
 from scipy.ndimage.filters import convolve1d
-from enkf import lenkf_rsm
+from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
 
 def smooth(y,window_size):
     #win = np.ones(window_size)/window_size
@@ -180,9 +180,23 @@ class ensemble_animator(object):
         obs_true=np.dot(self.forward_operator,np.hstack([self.u_true,self.a_true]))
         obs_w_errors=np.random.normal(obs_true,self.obs_errors)
 
+        predictions=np.dot(self.forward_operator,self.ensemble)
+
         if i%self.assimilate_every==self.assimilate_every-1:
-            resid=np.asfortranarray(np.dot(self.forward_operator,self.ensemble)-obs_w_errors[:,np.newaxis])
-            lenkf_rsm(i,0,self.ensemble,resid,self.add_obs_err,self.localize,1)
+            obs_perturbations=np.random.normal(0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
+            #obs_perturbations=0
+            innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
+            #print 'ens=',np.array2string(self.ensemble,separator=',')
+            #print 'innovations=',np.array2string(innovations,separator=',')
+            from lenkf_rsm_py import lenkf_rsm_py
+            #ensemble_new_python=np.asfortranarray(lenkf_rsm_py(np.asfortranarray(self.ensemble),np.asfortranarray(predictions),np.asfortranarray(innovations),self.localize,self.add_obs_err))
+            #self.ensemble=ensemble_new_python
+            #ensemble_old=self.ensemble.copy()
+            lenkf_rsm(i,0,np.asfortranarray(self.ensemble),np.asfortranarray(predictions),np.asfortranarray(innovations),self.add_obs_err,self.localize,1)
+            #self.ensemble=lenkf_rsm_from_obs_rust(np.ascontiguousarray(self.ensemble),self.forward_operator,obs_w_errors,self.obs_errors,self.localization_obs_obs,self.localization_obs_model)
+            #self.ensemble=lenkf_rsm_from_innovations_rust(np.ascontiguousarray(self.ensemble),np.ascontiguousarray(predictions),np.ascontiguousarray(innovations),self.localization_obs_obs,self.localization_obs_model)
+            predictions=np.dot(self.forward_operator,self.ensemble)
+
 
         modified_artists=[]
 
