@@ -4,7 +4,7 @@ ffi.cdef("""
 typedef void (*U_localize)(int,int,int,int,double*,double*);
 typedef void (*U_add_obs_err)(int,int,int,double*);
 
-void lenkf_analysis_rsm(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*);
+void lenkf_analysis_rsm(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*);
 """)
 import numpy as np
 
@@ -41,27 +41,33 @@ def ptr_to_array(ptr,shape,**kwargs):
           .reshape(shape, **kwargs)
     return a
 
-def lenkf_rsm(step,ind_p,ensemble_state,resid,add_obs_err,localization,forget):
+def lenkf_rsm(step,ind_p,ensemble_state,predictions,innovations,add_obs_err,localization,forget):
 
     import numpy as np
     
     assert ensemble_state.flags['F_CONTIGUOUS'], \
         "ensemble_state is not contiguous in memory (F order)"
-    assert resid.flags['F_CONTIGUOUS'], \
+    assert predictions.flags['F_CONTIGUOUS'], \
+        "resid is not contiguous in memory (F order)"
+    assert innovations.flags['F_CONTIGUOUS'], \
         "resid is not contiguous in memory (F order)"
 
     assert ensemble_state.dtype==np.float64
-    assert resid.dtype==np.float64
+    assert predictions.dtype==np.float64
+    assert innovations.dtype==np.float64
 
     model_size,n_ensemble=ensemble_state.shape
-    n_observations,n_ensemble_resid=resid.shape
+    n_observations,n_ensemble_resid=predictions.shape
 
     assert(n_ensemble==n_ensemble_resid)
+
+    assert(innovations.shape==predictions.shape)
     
     mean_state=np.empty([model_size])
     
     ensemble_state_ptr=ffi.cast('double*',ensemble_state.ctypes.data)
-    resid_ptr=ffi.cast('double*',resid.ctypes.data)
+    predictions_ptr=ffi.cast('double*',predictions.ctypes.data)
+    innovations_ptr=ffi.cast('double*',innovations.ctypes.data)
     mean_state_ptr=ffi.cast('double*',mean_state.ctypes.data)
 
     flag_ptr=ffi.new('int32_t*')
@@ -87,7 +93,8 @@ def lenkf_rsm(step,ind_p,ensemble_state,resid,add_obs_err,localization,forget):
         0,
         mean_state_ptr,
         ensemble_state_ptr,
-        resid_ptr,
+        predictions_ptr,
+        innovations_ptr,
         add_obs_err_cb,
         localization_cb,
         forget,
