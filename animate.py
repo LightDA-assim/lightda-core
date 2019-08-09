@@ -95,10 +95,12 @@ def localize_gaspari_cohn(dist,c):
 class ensemble_animator(object):
 
     def add_obs_err(self,step,ind_p,HPH):
-        pass
+        for i in range(self.n_obs):
+            HPH[i,i]+=self.obs_errors[i]**2
 
     def localize(self,step,ind_p,HP_p,HPH):
-        pass
+        HP_p[:,:]=HP_p*self.localization_obs_model
+        HPH[:,:]=HPH*self.localization_obs_obs
 
     def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=1.0):
     
