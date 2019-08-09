@@ -7,7 +7,6 @@ from scipy.ndimage.filters import convolve1d
 from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
 
 def smooth(y,window_size):
-    #win = np.ones(window_size)/window_size
     win=hann(window_size)
     y_smooth = convolve1d(y, win, mode='wrap')
     
@@ -16,10 +15,6 @@ def smooth(y,window_size):
 def build_ensemble(n,n_ensemble,nghost=1):
     u=np.random.normal(0,1,[n,n_ensemble])
     a=np.random.normal(0,1,[n,n_ensemble])
-    #for i in range(n_ensemble):
-    #    a[nghost:-nghost,i]=smooth(a[nghost:-nghost,i],64)
-    #for i in range(n_ensemble):
-    #    u[nghost:-nghost,i]=smooth(u[nghost:-nghost,i],64)
 
     updateboundary(u,a,nghost)
     
@@ -43,7 +38,6 @@ def advance_to_time(u,a,dx,dt,limiter):
         advance(u,a,dx,this_dt,limiter)
         a_old=a.copy()
         advance(a,a_old,dx,this_dt,limiter)
-        #a[:]=np.maximum(np.minimum(a,100),-100)[:]
 
         updateboundary(u,a)
 
@@ -165,7 +159,6 @@ class ensemble_animator(object):
             cutoff)
 
         self.obs_errors=np.random.lognormal(-3,1,self.n_obs)
-        #self.obs_errors=np.ones([self.n_obs])*0.01
 
     def render_frame(self,i):
 
@@ -187,17 +180,9 @@ class ensemble_animator(object):
 
         if i%self.assimilate_every==self.assimilate_every-1:
             obs_perturbations=np.random.normal(0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
-            #obs_perturbations=0
             innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
-            #print 'ens=',np.array2string(self.ensemble,separator=',')
-            #print 'innovations=',np.array2string(innovations,separator=',')
             from lenkf_rsm_py import lenkf_rsm_py
-            #ensemble_new_python=np.asfortranarray(lenkf_rsm_py(np.asfortranarray(self.ensemble),np.asfortranarray(predictions),np.asfortranarray(innovations),self.localize,self.add_obs_err))
-            #self.ensemble=ensemble_new_python
-            #ensemble_old=self.ensemble.copy()
             lenkf_rsm(i,0,np.asfortranarray(self.ensemble),np.asfortranarray(predictions),np.asfortranarray(innovations),self.add_obs_err,self.localize,1)
-            #self.ensemble=lenkf_rsm_from_obs_rust(np.ascontiguousarray(self.ensemble),self.forward_operator,obs_w_errors,self.obs_errors,self.localization_obs_obs,self.localization_obs_model)
-            #self.ensemble=lenkf_rsm_from_innovations_rust(np.ascontiguousarray(self.ensemble),np.ascontiguousarray(predictions),np.ascontiguousarray(innovations),self.localization_obs_obs,self.localization_obs_model)
             predictions=np.dot(self.forward_operator,self.ensemble)
 
 
@@ -249,7 +234,6 @@ def plot_localization(localization=None):
     
 if __name__=='__main__':
     animator=ensemble_animator()
-    #animator.render_frame(0)
     sort_inds=np.argsort(animator.obs_locations)
     plot_localization(animator.localization_obs_model[sort_inds,:])
     ani = matplotlib.animation.FuncAnimation(animator.fig, animator.render_frame)

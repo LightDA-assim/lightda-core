@@ -58,15 +58,11 @@ def analysis_with_pseudoinverse(HP,HPH,ens,innovations,rank):
     n_obs=innovations.shape[0]
     iupper=n_obs
     ilower=n_obs-rank
-    print 1-np.sum(eigvals[-rank:])/np.sum(eigvals)
     eigvals=eigvals[ilower:iupper]
     eigvecs=eigvecs[:,-rank:]
     eigvecs_scaled=eigvecs/eigvals
     HPH_inv=np.dot(eigvecs,eigvecs_scaled.T)
     repres=np.dot(HPH_inv,innovations)
-    print 'eigvals=',eigvals
-    print 'eigvecs=',eigvecs
-    print 'repres=',repres
     ens_new=ens+np.dot(HP.T,repres)
     return ens_new
 
@@ -77,27 +73,14 @@ def analysis_direct_solve(HP,HPH,ens,innovations):
     return ens_new
 
 def lenkf_rsm_py(ens,predictions,innovations,localize=None,add_obs_errors=None):
-    #resid_pred=innovations-np.mean(innovations,axis=1)[:,np.newaxis]
-    #resid_ens=ens-np.mean(ens,axis=1)[:,np.newaxis]
     resid_pred=compute_residual(predictions)
     resid_ens=compute_residual(ens)
     n_ens=ens.shape[1]
     alpha=1.0/float(n_ens-1)
-    HP=call_dgemm('n','t',alpha,0,resid_pred,resid_ens)
-    HPH=call_dgemm('n','t',alpha,0,resid_pred,resid_pred)
-    print('resid_pred={}'.format(resid_pred))
-    print('resid_ens={}'.format(resid_ens))
-    print('HP_dgemm={}'.format(HP))
-    print('HPH_dgemm={}'.format(HPH))
     HP=np.dot(resid_pred,resid_ens.T)/float(n_ens-1)
     HPH=np.dot(resid_pred,resid_pred.T)/float(n_ens-1)
-    print('HP_py={}'.format(HP))
-    print('HPH_py={}'.format(HPH))
     if localize:
         localize(0,0,HP,HPH)
         add_obs_errors(0,0,HPH)
-    print('HP_localized={}'.format(HP))
-    print('HPH_localized={}'.format(HPH))
-    #return analysis_with_pseudoinverse(HP,HPH,ens,innovations,20)
     return analysis_direct_solve(HP,HPH,ens,innovations)
     
