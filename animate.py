@@ -6,12 +6,6 @@ from scipy.signal import sawtooth, square, hann
 from scipy.ndimage.filters import convolve1d
 from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
 
-def smooth(y,window_size):
-    win=hann(window_size)
-    y_smooth = convolve1d(y, win, mode='wrap')
-    
-    return y_smooth
-
 def build_ensemble(n,n_ensemble,nghost=1):
     u=np.random.normal(0,1,[n,n_ensemble])
     a=np.random.normal(0,1,[n,n_ensemble])
