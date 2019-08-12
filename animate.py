@@ -204,7 +204,7 @@ class ensemble_animator(object):
         predictions=np.dot(self.forward_operator,self.ensemble)
         self.artists['u']['predictions']=axes[0].plot(self.obs_locations,predictions,linestyle='',marker='.')
 
-        cutoff_u_a=0.6
+        cutoff_u_a=0.4
 
         obs_model_distances=get_distances_periodic(
             self.obs_locations,np.tile(self.x,[2]),np.max(self.x))
