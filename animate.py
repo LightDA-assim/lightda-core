@@ -228,7 +228,9 @@ class ensemble_animator(object):
 
         predictions=np.dot(self.forward_operator,self.ensemble)
 
-        if i%self.assimilate_every==self.assimilate_every-1:
+        do_assimilation=(i%self.assimilate_every==self.assimilate_every-1)
+        
+        if do_assimilation:
             resid_pred=predictions-np.mean(predictions,axis=1)[:,np.newaxis]
             resid_ens=self.ensemble-np.mean(self.ensemble,axis=1)[:,np.newaxis]
             hp=resid_pred.dot(resid_ens.T)
