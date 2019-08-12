@@ -320,7 +320,10 @@ class ensemble_animator(object):
             self.x,np.mean(self.ensemble[self.n:],axis=1))
 
         modified_artists.extend([
-            self.artists['u']['true'],self.artists['a']['true'],self.artists['u']['obs']])
+            self.artists['u']['true'],self.artists['a']['true'],
+            self.artists['u']['obs'],
+            self.artists['u']['mean'],self.artists['a']['mean']
+        ])
 
         return modified_artists
 
