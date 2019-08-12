@@ -342,8 +342,10 @@ class ensemble_animator(object):
             self.x,self.ensemble[:self.n,:])
         self.artists['a']['ensemble']=axes[1].plot(
             self.x,self.ensemble[self.n:,:])
-        self.artists['a']['true'],=axes[1].plot(self.x,self.a_true,linewidth=6,color='fuchsia',alpha=0.5)
-        self.artists['u']['true'],=axes[0].plot(self.x,self.u_true,linewidth=6,color='fuchsia',alpha=0.5)
+        self.artists['a']['true'],=axes[1].plot(
+            self.x,self.a_true,linewidth=6,color='fuchsia',alpha=0.5)
+        self.artists['u']['true'],=axes[0].plot(
+            self.x,self.u_true,linewidth=6,color='fuchsia',alpha=0.5)
         self.artists['u']['mean'],=axes[0].plot(
             self.x,
             np.mean(self.ensemble[self.n:],axis=1),
