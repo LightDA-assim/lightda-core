@@ -257,8 +257,9 @@ class ensemble_animator(object):
         for j,member in enumerate(self.artists['u']['predictions']):
             member.set_data(self.obs_locations,predictions[:,j])
             modified_artists.append(member)
-            
-        self.artists['u']['obs'].set_data(self.x[self.obs_positions],obs_w_errors)
+
+        if do_assimilation:
+            self.artists['u']['obs'].set_data(self.x[self.obs_positions],obs_w_errors)
 
         self.artists['u']['true'].set_data(self.x,self.u_true)
         self.artists['a']['true'].set_data(self.x,self.a_true)
