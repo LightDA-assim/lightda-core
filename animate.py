@@ -7,8 +7,8 @@ from scipy.ndimage.filters import convolve1d
 from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
 
 def build_ensemble(n,n_ensemble,nghost=1):
-    u=np.random.normal(0,1,[n,n_ensemble])
-    a=np.random.normal(0,1,[n,n_ensemble])
+    u=np.random.normal(0,2,[n,n_ensemble])
+    a=np.random.normal(np.random.normal(0,2,[1,n_ensemble]),2,[n,n_ensemble])
 
     updateboundary(u,a,nghost)
     
