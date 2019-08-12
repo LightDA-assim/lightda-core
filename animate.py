@@ -141,7 +141,7 @@ class ensemble_animator(object):
         HP_p[:,:]=HP_p*self.localization_obs_model
         HPH[:,:]=HPH*self.localization_obs_obs
 
-    def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=1.0):
+    def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=0.35):
     
         self.n=n
         nghost=1
@@ -161,9 +161,9 @@ class ensemble_animator(object):
 
         self.ensemble=np.asfortranarray(build_ensemble(self.n,self.n_ensemble))
 
-        self.inflation_factor=np.ones([n_obs,n*2])*1.12
-        self.inflation_variance=0.03
-        self.inflation_max=1.4
+        self.inflation_factor=np.ones([n_obs,n*2])*1.13
+        self.inflation_variance=0.1
+        self.inflation_max=2
         self.inflation_min=1.0
 
         self.fig,axes=plt.subplots(2,1,sharex='all')
