@@ -171,8 +171,8 @@ class ensemble_animator(object):
         for ax in axes:
             ax.set_xlim(0,2*np.pi)
 
-        axes[0].set_ylim(-2,2)
-        axes[1].set_ylim(-2,4)
+        axes[0].set_ylim(-4,4)
+        axes[1].set_ylim(-3,5)
 
         self.artists={}
 
