@@ -263,32 +263,61 @@ class ensemble_animator(object):
         do_assimilation=(i%self.assimilate_every==self.assimilate_every-1)
         
         if do_assimilation:
+
+            # Covariance inflation
             self.apply_inflation(predictions,obs_w_errors)
-            obs_perturbations=np.random.normal(0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
+
+            # Get observation perturbations
+            obs_perturbations=np.random.normal(
+                0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
+
+            # Compute innovations
             innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
+
+            # Compute new ensemble state
             from lenkf_rsm_py import lenkf_rsm_py
-            lenkf_rsm(i,0,np.asfortranarray(self.ensemble),np.asfortranarray(predictions),np.asfortranarray(innovations),self.add_obs_err,self.localize,1)
+            lenkf_rsm(
+                i,
+                0,
+                np.asfortranarray(self.ensemble),
+                np.asfortranarray(predictions),
+                np.asfortranarray(innovations),
+                self.add_obs_err,
+                self.localize,
+                1)
+
+            # Update predictions
             predictions=np.dot(self.forward_operator,self.ensemble)
 
-
+        # Array of artists that were updated in this frame
         modified_artists=[]
 
+        # Update plots of ensemble members
         for i,variable in enumerate(['u','a']):
             for j,member in enumerate(self.artists[variable]['ensemble']):
-                member.set_data(self.x,self.ensemble[i*self.n:(i+1)*self.n,j].T)
+                member.set_data(
+                    self.x,
+                    self.ensemble[i*self.n:(i+1)*self.n,j].T)
                 modified_artists.append(member)
-                
+
+        # Update plots of ensemble predictions
         for j,member in enumerate(self.artists['u']['predictions']):
             member.set_data(self.obs_locations,predictions[:,j])
             modified_artists.append(member)
 
+        # Update plots of observations
         if do_assimilation:
             self.artists['u']['obs'].set_data(self.x[self.obs_positions],obs_w_errors)
 
+        # Update plots of true state
         self.artists['u']['true'].set_data(self.x,self.u_true)
         self.artists['a']['true'].set_data(self.x,self.a_true)
-        self.artists['u']['mean'].set_data(self.x,np.mean(self.ensemble[:self.n],axis=1))
-        self.artists['a']['mean'].set_data(self.x,np.mean(self.ensemble[self.n:],axis=1))
+
+        # Update plots of ensemble mean
+        self.artists['u']['mean'].set_data(
+            self.x,np.mean(self.ensemble[:self.n],axis=1))
+        self.artists['a']['mean'].set_data(
+            self.x,np.mean(self.ensemble[self.n:],axis=1))
 
         modified_artists.extend([
             self.artists['u']['true'],self.artists['a']['true'],self.artists['u']['obs']])
