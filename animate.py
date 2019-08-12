@@ -220,6 +220,30 @@ class ensemble_animator(object):
 
         self.obs_errors=np.random.lognormal(-3,1,self.n_obs)
 
+    def apply_inflation(self,predictions,obs_w_errors):
+        # Compute residuals
+        resid_pred=predictions-np.mean(predictions,axis=1)[:,np.newaxis]
+        resid_ens=self.ensemble-np.mean(self.ensemble,axis=1)[:,np.newaxis]
+
+        # Weight factors for inflation
+        hp=resid_pred.dot(resid_ens.T)
+        inflation_weight=self.localization_obs_model*hp
+
+        # Update inflation factor
+        self.inflation_factor=update_inflation_factor_localized(self.ensemble,self.forward_operator,obs_w_errors,self.obs_errors,self.inflation_factor,self.inflation_variance,inflation_weight)
+
+        # Apply inflation limits
+        self.inflation_factor=np.minimum(
+            self.inflation_factor,self.inflation_max)
+        self.inflation_factor=np.maximum(
+            self.inflation_factor,self.inflation_min)
+
+        # Get new inflation variance
+        self.inflation_variance=np.var(self.inflation_factor)
+
+        # Inflate ensemble
+        self.ensemble=inflate_ensemble(self.ensemble,np.mean(self.inflation_factor,axis=0))
+
     def render_frame(self,i):
 
         if not np.all(np.isfinite(self.ensemble)):
@@ -239,15 +263,7 @@ class ensemble_animator(object):
         do_assimilation=(i%self.assimilate_every==self.assimilate_every-1)
         
         if do_assimilation:
-            resid_pred=predictions-np.mean(predictions,axis=1)[:,np.newaxis]
-            resid_ens=self.ensemble-np.mean(self.ensemble,axis=1)[:,np.newaxis]
-            hp=resid_pred.dot(resid_ens.T)
-            inflation_weight=self.localization_obs_model*hp
-            self.inflation_factor=update_inflation_factor_localized(self.ensemble,self.forward_operator,obs_w_errors,self.obs_errors,self.inflation_factor,self.inflation_variance,inflation_weight)
-            self.inflation_factor=np.minimum(self.inflation_factor,self.inflation_max)
-            self.inflation_factor=np.maximum(self.inflation_factor,self.inflation_min)
-            self.inflation_variance=np.var(self.inflation_factor)
-            self.ensemble=inflate_ensemble(self.ensemble,np.mean(self.inflation_factor,axis=0))
+            self.apply_inflation(predictions,obs_w_errors)
             obs_perturbations=np.random.normal(0,self.obs_errors,[self.n_ensemble,self.n_obs]).T
             innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
             from lenkf_rsm_py import lenkf_rsm_py
