@@ -25,7 +25,7 @@ def updateboundary(u,a,nghost=1):
 
 def advance_to_time(u,a,dx,dt,limiter):
     t=0
-    cfl=0.8
+    cfl=0.5
     while t<dt:
         dt_max=cfl*np.abs(dx/a).min()
         this_dt=min(dt_max,dt-t)
