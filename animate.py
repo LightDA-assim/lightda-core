@@ -284,12 +284,19 @@ def plot_localization(localization=None):
     img=ax.imshow(localization)
     plt.colorbar(img)
 
+def plot_correlation():
+    fig=plt.figure()
+    ax=fig.add_subplot(1,1,1)
 
+    x=np.linspace(0,1,200)
+    y=localize_gaspari_cohn(x,0.5)
+    ax.plot(x,y)
     
 if __name__=='__main__':
     animator=ensemble_animator()
     sort_inds=np.argsort(animator.obs_locations)
     plot_localization(animator.localization_obs_model[sort_inds,:])
+    plot_correlation()
     ani = matplotlib.animation.FuncAnimation(animator.fig, animator.render_frame)
 
     
