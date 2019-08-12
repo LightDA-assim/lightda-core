@@ -75,8 +75,19 @@ def gaspari_cohn_close(z,c):
 
 def localize_gaspari_cohn(dist,c):
     localization=np.zeros(dist.shape)
-    localization[dist<=2*c]=gaspari_cohn_mid(dist[dist<=2*c],c)
-    localization[(dist<=c)&(dist>0)]=gaspari_cohn_close(dist[(dist<=c)&(dist>0)],c)
+    close_mask=(dist<=2*c)
+    try:
+        c_close=c[close_mask]
+    except TypeError:
+        c_close=c
+    close_weights=gaspari_cohn_mid(dist[close_mask],c_close)
+    localization[close_mask]=close_weights
+    mid_mask=(dist<=c)&(dist>0)
+    try:
+        c_mid=c[mid_mask]
+    except TypeError:
+        c_mid=c
+    localization[mid_mask]=gaspari_cohn_close(dist[mid_mask],c_mid)
     localization[dist==0]=1
     return localization
 
