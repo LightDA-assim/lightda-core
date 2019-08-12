@@ -61,7 +61,7 @@ def get_distances_periodic(x1,x2,periodic_dimensions):
     displacements=x2[:]-x1[:,np.newaxis]
     if len(x1.shape)==1:
         distances=np.minimum(np.abs(displacements),
-                             periodic_dimensions-np.abs(displacements))
+                             np.abs(periodic_dimensions-np.abs(displacements)))
     else:
         raise NotImplementedError('get_displacements_periodic only works with 1-dimensional values')
     return distances
