@@ -185,6 +185,14 @@ class ensemble_animator(object):
             self.x,self.ensemble[self.n:,:])
         self.artists['a']['true'],=axes[1].plot(self.x,self.a_true,linewidth=6,color='fuchsia',alpha=0.5)
         self.artists['u']['true'],=axes[0].plot(self.x,self.u_true,linewidth=6,color='fuchsia',alpha=0.5)
+        self.artists['u']['mean'],=axes[0].plot(
+            self.x,
+            np.mean(self.ensemble[self.n:],axis=1),
+            linewidth=2,color='k')
+        self.artists['a']['mean'],=axes[1].plot(
+            self.x,
+            np.mean(self.ensemble[:self.n],axis=1),
+            linewidth=2,color='k')
 
         self.obs_positions=np.random.randint(0,self.n-1,self.n_obs)
         self.obs_locations=self.x[self.obs_positions]
@@ -263,6 +271,8 @@ class ensemble_animator(object):
 
         self.artists['u']['true'].set_data(self.x,self.u_true)
         self.artists['a']['true'].set_data(self.x,self.a_true)
+        self.artists['u']['mean'].set_data(self.x,np.mean(self.ensemble[:self.n],axis=1))
+        self.artists['a']['mean'].set_data(self.x,np.mean(self.ensemble[self.n:],axis=1))
 
         modified_artists.extend([
             self.artists['u']['true'],self.artists['a']['true'],self.artists['u']['obs']])
