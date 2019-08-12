@@ -196,11 +196,18 @@ class ensemble_animator(object):
         predictions=np.dot(self.forward_operator,self.ensemble)
         self.artists['u']['predictions']=axes[0].plot(self.obs_locations,predictions,linestyle='',marker='.')
 
+        cutoff_u_a=0.6
+
+        obs_model_distances=get_distances_periodic(
+            self.obs_locations,np.tile(self.x,[2]),np.max(self.x))
         self.localization_obs_model=localize_gaspari_cohn(
-            get_distances_periodic(self.obs_locations,np.tile(self.x,[2]),np.max(self.x)),
-            cutoff)
+            obs_model_distances,
+            np.hstack([np.ones([n_obs,n])*cutoff,np.ones([n_obs,n])*cutoff_u_a]))
+        
+        obs_obs_distances=get_distances_periodic(
+            self.obs_locations,self.obs_locations,np.max(self.x))
         self.localization_obs_obs=localize_gaspari_cohn(
-            get_distances_periodic(self.obs_locations,self.obs_locations,np.max(self.x)),
+            obs_obs_distances,
             cutoff)
 
         self.obs_errors=np.random.lognormal(-3,1,self.n_obs)
