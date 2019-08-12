@@ -7,15 +7,39 @@ from scipy.ndimage.filters import convolve1d
 from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
 
 def build_ensemble(n,n_ensemble,nghost=1):
+    """
+    Generate an initial ensemble state.
+
+    Arguments:
+    - n: Number of points in model grid
+    - n_ensemble: Number of ensemble members
+    - nghost: Number of ghost cells
+    """
+
+    # u is a normally distributed random variable
     u=np.random.normal(0,2,[n,n_ensemble])
+
+    # a consists of a normally distributed random constant value for each
+    # ensemble member, plus a normally distributed random component within
+    # each ensemble member
     a=np.random.normal(np.random.normal(0,2,[1,n_ensemble]),2,[n,n_ensemble])
 
+    # Update ghost cells
     updateboundary(u,a,nghost)
-    
+
+    # Combine u and a into a single array and return
     return np.vstack([u,a])
 
 def updateboundary(u,a,nghost=1):
-        
+    """
+    Update ghost cells for u and a
+
+    Arguments:
+    - u: Passively advected variable
+    - a: Flow velocity
+    - nghost: Number of ghost cells
+    """
+    
     # Update ghost cells
     for i in range(nghost):
         u[i]=u[-nghost*2+i]
@@ -24,20 +48,50 @@ def updateboundary(u,a,nghost=1):
         a[i-nghost]=a[i+nghost]
 
 def advance_to_time(u,a,dx,dt,limiter):
+    """
+    Advance the model state to the time increment specified by dt
+
+    Arguments:
+    - u: Passively advected variable
+    - a: Flow velocity
+    - dx: Grid cell size
+    - dt: Time increment
+    - limiter: Limiter type (integer from 0 to 5)
+    """
+    
+    # Set initial time
     t=0
+
+    # Set CFL
     cfl=0.5
+    
     while t<dt:
+        # Find maximum stable time step
         dt_max=cfl*np.abs(dx/a).min()
+
+        # Time step to move toward dt but not cross it
         this_dt=min(dt_max,dt-t)
+
+        # Advance u and a
         advance(u,a,dx,this_dt,limiter)
         a_old=a.copy()
         advance(a,a_old,dx,this_dt,limiter)
 
+        # Update boundary conditions
         updateboundary(u,a)
 
         t+=this_dt
 
 def advance_ensemble_to_time(ensemble,dx,dt,limiter):
+    """
+    Advance all ensemble members to the time specified by dt
+
+    Arguments:
+    - ensemble: Ensemble state array
+    - dx: Grid cell size
+    - dt: Time increment
+    - limiter: Limiter type (integer from 0 to 5)
+    """
 
     model_size,n_ensemble=ensemble.shape
     n=model_size/2
@@ -50,83 +104,164 @@ def advance_ensemble_to_time(ensemble,dx,dt,limiter):
         ensemble[n:,imember]=a
 
 def get_distances(x1,x2):
+    """
+    Get the distances between the points in two arrays x1 and x2 as a 2-D matrix
+    """
+
+    # Displacements between all points
     displacements=x2[:]-x1[:,np.newaxis]
+    
     if len(x1.shape)==1:
+        # 1-D points, so distances are just the absolute value of the
+        # displacements
         distances=np.abs(displacements)
     else:
+        # Untested, but in general np.linalg.norm should return the
+        # Cartesian distance between points of arbitrary dimension
         distances=np.linalg.norm(displacements,axis=range(len(x1.shape)-1))
+
     return distances
 
 def get_distances_periodic(x1,x2,periodic_dimensions):
+    """
+    Get distances between points in a periodic domain
+    """
+    
     displacements=x2[:]-x1[:,np.newaxis]
     if len(x1.shape)==1:
         distances=np.minimum(np.abs(displacements),
                              np.abs(periodic_dimensions-np.abs(displacements)))
     else:
         raise NotImplementedError('get_displacements_periodic only works with 1-dimensional values')
+    
     return distances
 
 def gaspari_cohn_mid(z,c):
+    """
+    Gaspari-Cohn correlation function for middle distances (between c and 2*c)
+    
+    Arguments:
+    - z: Points to be evaluated
+    - c: Cutoff value
+    """
     return 1./12*(z/c)**5 - 0.5*(z/c)**4 + 5./8*(z/c)**3 \
         + 5./3*(z/c)**2 - 5*z/c - 2./3*c/z + 4
 
 def gaspari_cohn_close(z,c):
+    """
+    Gaspari-Cohn correlation function for middle distances (z<=c)
+    
+    Arguments:
+    - z: Points to be evaluated
+    - c: Cutoff value
+    """
     return -0.25*(z/c)**5 + 0.5*(z/c)**4 + 5./8*(z/c)**3 - 5./3*(z/c)**2 + 1
 
 def localize_gaspari_cohn(dist,c):
+    """
+    Gaspari-Cohn correlation function
+    
+    Arguments:
+    - z: Points to be evaluated
+    - c: Cutoff value
+    """
+
+    # Initialize localization array
     localization=np.zeros(dist.shape)
-    close_mask=(dist<=2*c)
-    try:
-        c_close=c[close_mask]
-    except TypeError:
-        c_close=c
-    close_weights=gaspari_cohn_mid(dist[close_mask],c_close)
-    localization[close_mask]=close_weights
-    mid_mask=(dist<=c)&(dist>0)
+
+    # Mask for mid-distance points
+    mid_mask=(dist<=2*c)
+
+    # c for mid-distance points (array indexed by mid_mask, or
+    # fallback to scalar)
     try:
         c_mid=c[mid_mask]
     except TypeError:
         c_mid=c
-    localization[mid_mask]=gaspari_cohn_close(dist[mid_mask],c_mid)
+
+    # Compute weights for mid-distance points
+    close_weights=gaspari_cohn_mid(dist[mid_mask],c_mid)
+    localization[mid_mask]=close_weights
+    
+    # Mask for close points
+    close_mask=(dist<=c)&(dist>0)
+    
+    # c for mid-distance points (array indexed by close_mask, or
+    # fallback to scalar)
+    try:
+        c_close=c[close_mask]
+    except TypeError:
+        c_close=c
+    localization[close_mask]=gaspari_cohn_close(dist[close_mask],c_close)
     localization[dist==0]=1
     return localization
 
 def inflate_ensemble(ensemble,inflation_factor):
+    """
+    Apply covariance inflation to the ensemble state
+
+    Arguments:
+    - ensemble: Ensemble state array
+    - inflation_factor: Inflation factor
+    """
+
     ensemble_mean=np.mean(ensemble,axis=1).reshape([ensemble.shape[0],1])
-    return (ensemble-ensemble_mean)*inflation_factor[:,np.newaxis]+ensemble_mean
+    
+    inflated_state=(
+        (ensemble-ensemble_mean)*inflation_factor[:,np.newaxis]
+        +ensemble_mean)
+    
+    return inflated_state
 
 def update_inflation_factor_localized(ensemble,forward_operator,observations,obs_errors,prior_inflation_factor,inflation_variance,weight):
     """
     Adaptive inflation as described in Anderson (2009)
     """
+
     predictions=np.dot(forward_operator,ensemble)
     ensemble_var=np.var(predictions,axis=1)
-    #expected_distance=np.sqrt(np.dot(prior_inflation_factor,ensemble_var)+obs_errors**2)
+
     actual_distance=np.abs(np.mean(predictions,axis=1)-observations)
     expected_lambda=(1+weight*(np.sqrt(prior_inflation_factor)-1))**2
     n_observations=len(observations)
     model_size=ensemble.shape[0]
 
-    thetabar=np.sqrt(expected_lambda*inflation_variance+obs_errors.reshape([n_observations,1])**2)
+    thetabar=np.sqrt(
+        expected_lambda*inflation_variance
+        +obs_errors.reshape([n_observations,1])**2)
     thetabar=np.maximum(thetabar,1e-10)
-    lbar=np.sqrt(2*np.pi*thetabar)*np.exp(-0.5*actual_distance.reshape([n_observations,1])**2*thetabar**-2)
-    dtheta_dlambda=0.5*inflation_variance*weight*(1-weight+weight*np.sqrt(prior_inflation_factor))/(thetabar/np.sqrt(prior_inflation_factor))
-    lprime=np.maximum((lbar*(actual_distance.reshape([n_observations,1])**2*thetabar**-2-1)/thetabar)*dtheta_dlambda,1e-10)
+    lbar=np.sqrt(2*np.pi*thetabar)*np.exp(
+        -0.5*actual_distance.reshape(
+            [n_observations,1])**2*thetabar**-2)
+    dtheta_dlambda=0.5*inflation_variance*weight*(
+        1-weight+weight*np.sqrt(prior_inflation_factor))/ \
+        (thetabar/np.sqrt(prior_inflation_factor))
+    lprime=np.maximum(
+        (lbar*(actual_distance.reshape([n_observations,1])**2*thetabar**-2-1)
+         /thetabar)*dtheta_dlambda,1e-10)
     
     coeffs=[
         np.ones([n_observations,model_size]),
         lbar/lprime-2*prior_inflation_factor,
-        prior_inflation_factor**2-inflation_variance-lbar*prior_inflation_factor/lprime
+        (prior_inflation_factor**2-inflation_variance
+         -lbar*prior_inflation_factor/lprime)
     ]
 
     coeffs=np.array(coeffs)
     posterior_inflation_factor=np.empty([n_observations,model_size])
+
+    # Array of positive and negative for use in quadratic equation
     pm=np.array([1,-1])
+    
     for i in range(n_observations):
         for j in range(model_size):
             a,b,c=coeffs[:,i,j]
+            # Find roots using quadratic equation
             roots=(-b+pm*np.sqrt(b**2-4*a*c))/(2*a)
-            closest_root_ind=np.argmin(np.abs(roots-prior_inflation_factor[i,j]))
+
+            # Pick the root closest to the prior inflation factor
+            closest_root_ind=np.argmin(
+                np.abs(roots-prior_inflation_factor[i,j]))
             posterior_inflation_factor[i,j]=roots[closest_root_ind]
 
     return posterior_inflation_factor
@@ -166,6 +301,30 @@ class ensemble_animator(object):
         self.inflation_max=2
         self.inflation_min=1.0
 
+        self.obs_positions=np.random.randint(0,self.n-1,self.n_obs)
+        self.obs_locations=self.x[self.obs_positions]
+        self.forward_operator=np.zeros([self.n_obs,self.n*2])
+        self.forward_operator[np.arange(self.n_obs),self.obs_positions]=1
+
+        cutoff_u_a=0.4
+
+        obs_model_distances=get_distances_periodic(
+            self.obs_locations,np.tile(self.x,[2]),np.max(self.x))
+        self.localization_obs_model=localize_gaspari_cohn(
+            obs_model_distances,
+            np.hstack([np.ones([n_obs,n])*cutoff,np.ones([n_obs,n])*cutoff_u_a]))
+        
+        obs_obs_distances=get_distances_periodic(
+            self.obs_locations,self.obs_locations,np.max(self.x))
+        self.localization_obs_obs=localize_gaspari_cohn(
+            obs_obs_distances,
+            cutoff)
+
+        self.obs_errors=np.random.lognormal(-3,1,self.n_obs)
+
+        self.create_figure()
+
+    def create_figure(self):
         self.fig,axes=plt.subplots(2,1,sharex='all')
         self.fig.set_size_inches([16,9])
         for ax in axes:
@@ -193,32 +352,13 @@ class ensemble_animator(object):
             self.x,
             np.mean(self.ensemble[:self.n],axis=1),
             linewidth=2,color='k')
-
-        self.obs_positions=np.random.randint(0,self.n-1,self.n_obs)
-        self.obs_locations=self.x[self.obs_positions]
-        self.forward_operator=np.zeros([self.n_obs,self.n*2])
-        self.forward_operator[np.arange(self.n_obs),self.obs_positions]=1
+        
         obs=np.dot(self.forward_operator,np.hstack([self.u_true,self.a_true]))
         self.artists['u']['obs'],=axes[0].plot(self.obs_locations,obs,linestyle='',marker='o')
 
         predictions=np.dot(self.forward_operator,self.ensemble)
         self.artists['u']['predictions']=axes[0].plot(self.obs_locations,predictions,linestyle='',marker='.')
 
-        cutoff_u_a=0.4
-
-        obs_model_distances=get_distances_periodic(
-            self.obs_locations,np.tile(self.x,[2]),np.max(self.x))
-        self.localization_obs_model=localize_gaspari_cohn(
-            obs_model_distances,
-            np.hstack([np.ones([n_obs,n])*cutoff,np.ones([n_obs,n])*cutoff_u_a]))
-        
-        obs_obs_distances=get_distances_periodic(
-            self.obs_locations,self.obs_locations,np.max(self.x))
-        self.localization_obs_obs=localize_gaspari_cohn(
-            obs_obs_distances,
-            cutoff)
-
-        self.obs_errors=np.random.lognormal(-3,1,self.n_obs)
 
     def apply_inflation(self,predictions,obs_w_errors):
         # Compute residuals
@@ -328,6 +468,9 @@ class ensemble_animator(object):
         return modified_artists
 
 def plot_localization(localization=None):
+    """
+    Plot a localization array
+    """
     fig=plt.figure()
     ax=fig.add_subplot(1,1,1)
 
