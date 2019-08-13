@@ -4,7 +4,7 @@ import numpy as np
 from advect1d import advance
 from scipy.signal import sawtooth, square, hann
 from scipy.ndimage.filters import convolve1d
-from enkf import lenkf_rsm, lenkf_rsm_from_obs_rust, lenkf_rsm_from_innovations_rust
+from enkf import lenkf_rsm
 
 def build_ensemble(n,n_ensemble,nghost=1):
     """
