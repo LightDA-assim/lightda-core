@@ -13,7 +13,7 @@ lib=ffi.dlopen('./libassim'+libsuffix.suffix)
 def compute_residual(a):
 
     assert a.flags['F_CONTIGUOUS'], \
-        "ensemble_state is not contiguous in memory (F order)"
+        "a is not contiguous in memory (F order)"
 
     n,m=a.shape
     resid=np.asfortranarray(np.empty(a.shape))
