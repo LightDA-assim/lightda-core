@@ -15,6 +15,9 @@ def compute_residual(a):
     assert a.flags['F_CONTIGUOUS'], \
         "a is not contiguous in memory (F order)"
 
+    assert a.dtype==np.float64, \
+        "a must have dtype np.float64"
+
     n,m=a.shape
     resid=np.asfortranarray(np.empty(a.shape))
     a_ptr=ffi.cast('double*',a.ctypes.data)
