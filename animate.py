@@ -325,8 +325,7 @@ class ensemble_animator(object):
         self.create_figure()
 
     def create_figure(self):
-        self.fig,axes=plt.subplots(2,1,sharex='all')
-        self.fig.set_size_inches([16,9])
+        self.fig,axes=plt.subplots(2,1,sharex='all',figsize=[16,9])
         for ax in axes:
             ax.set_xlim(0,2*np.pi)
 
