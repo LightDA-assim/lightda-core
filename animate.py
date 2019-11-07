@@ -273,7 +273,7 @@ class ensemble_animator(object):
             HPH[i,i]+=self.obs_errors[i]**2
 
     def localize(self,step,ind_p,HP_p,HPH):
-        HP_p[:,:]=HP_p*self.localization_obs_model
+        HP_p[:,:]=HP_p*self.localization_obs_model[:,self.batch_boundaries[ind_p]:self.batch_boundaries[ind_p+1]]
         HPH[:,:]=HPH*self.localization_obs_obs
 
     def __init__(self,n=100,n_ensemble=15,n_obs=80,cutoff=0.35):
@@ -305,6 +305,12 @@ class ensemble_animator(object):
         self.obs_locations=self.x[self.obs_positions]
         self.forward_operator=np.zeros([self.n_obs,self.n*2])
         self.forward_operator[np.arange(self.n_obs),self.obs_positions]=1
+
+        assim_batchsize=50
+
+        batch_boundaries=np.arange(0,self.ensemble.shape[0],assim_batchsize)
+        self.batch_boundaries=np.concatenate([batch_boundaries,[self.ensemble.shape[0]]])
+        print(self.batch_boundaries)
 
         cutoff_u_a=0.4
 
@@ -415,17 +421,28 @@ class ensemble_animator(object):
             # Compute innovations
             innovations=np.asfortranarray(obs_w_errors[:,np.newaxis]+obs_perturbations-predictions)
 
-            # Compute new ensemble state
-            from lenkf_rsm_py import lenkf_rsm_py
-            lenkf_rsm(
-                i,
-                0,
-                np.asfortranarray(self.ensemble),
-                np.asfortranarray(predictions),
-                np.asfortranarray(innovations),
-                self.add_obs_err,
-                self.localize,
-                1)
+            for ibatch in range(len(self.batch_boundaries)-1):
+                print('Batch {} of {}'.format(ibatch+1,len(self.batch_boundaries)-1))
+                print(self.batch_boundaries[ibatch],self.batch_boundaries[ibatch+1])
+
+                batch_ensemble=np.asfortranarray(self.ensemble[
+                    self.batch_boundaries[ibatch]:self.batch_boundaries[ibatch+1],:])
+
+                # Compute new ensemble state
+                from lenkf_rsm_py import lenkf_rsm_py
+                lenkf_rsm(
+                    i,
+                    ibatch,
+                    batch_ensemble,
+                    np.asfortranarray(predictions.copy()),
+                    np.asfortranarray(innovations.copy()),
+                    self.add_obs_err,
+                    self.localize,
+                    1)
+
+                self.ensemble[
+                    self.batch_boundaries[ibatch]:self.batch_boundaries[ibatch+1],:
+                ]=batch_ensemble
 
             # Update predictions
             predictions=np.dot(self.forward_operator,self.ensemble)
