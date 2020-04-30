@@ -94,7 +94,7 @@ def advance_ensemble_to_time(ensemble,dx,dt,limiter):
     """
 
     model_size,n_ensemble=ensemble.shape
-    n=model_size/2
+    n=int(model_size/2)
     
     for imember in range(n_ensemble):
         u=ensemble[:n,imember].flatten()
