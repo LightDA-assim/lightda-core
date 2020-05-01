@@ -1,7 +1,8 @@
 module assimilate
-  implicit none
 
-  include 'mpif.h'
+  use mpi
+
+  implicit none
 
 contains
 

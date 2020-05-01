@@ -1,5 +1,5 @@
 module advect1d_assimilate_interfaces
-  include 'mpif.h'
+  use mpi
 
 contains
 
