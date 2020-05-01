@@ -78,7 +78,7 @@ contains
 
   end function get_rank_batch_count
 
-  subroutine assimilate_parallel(istep,hrut,n_ensemble,batch_size,state_size,comm,U_load_ensemble_state)
+  subroutine assimilate_parallel(istep,n_ensemble,batch_size,state_size,comm,U_load_ensemble_state)
 
     abstract interface
 
@@ -98,7 +98,6 @@ contains
     end interface
 
     integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm
-    real(kind=8) :: hrut
     integer,dimension(:),allocatable :: io_ranks, batch_ranks
     real(kind=8),dimension(:,:,:),allocatable::local_batches(:,:,:)
 
