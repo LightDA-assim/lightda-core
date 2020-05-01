@@ -1,6 +1,7 @@
 module assimilate
 
   use mpi
+  use iso_c_binding
 
   implicit none
 
@@ -78,32 +79,41 @@ contains
 
   end function get_rank_batch_count
 
-  subroutine assimilate_parallel(istep,n_ensemble,batch_size,state_size,comm,U_load_ensemble_state)
+  subroutine assimilate_parallel(interface_info,istep,n_ensemble,batch_size, &
+       state_size,comm,U_load_ensemble_state,U_transmit_results)
 
     abstract interface
 
-       subroutine load_ensemble_state(istep,rank,comm,state_size,batch_ranks, &
-            local_batches,n_batches,n_local_batches,batch_size,n_ensemble)
+       subroutine load_ensemble_state(interface_info,istep,rank,comm, &
+            state_size,batch_ranks,local_batches,n_batches,n_local_batches, &
+            batch_size,n_ensemble)
 
-         integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches
+         use iso_c_binding
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches,n_ensemble
          integer,intent(in)::batch_ranks(n_batches)
          real(kind=8),intent(out)::local_batches(n_local_batches,state_size,n_ensemble)
          
        end subroutine load_ensemble_state
 
        subroutine transmit_results()
+         implicit none
          
        end subroutine transmit_results
 
     end interface
 
     integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm
+    type(c_ptr)::interface_info
     integer,dimension(:),allocatable :: io_ranks, batch_ranks
     real(kind=8),dimension(:,:,:),allocatable::local_batches(:,:,:)
 
     integer::rank,ierr,comm_size,n_batches,n_local_batches
 
     procedure(load_ensemble_state) :: U_load_ensemble_state
+    procedure(transmit_results) :: U_transmit_results
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
@@ -122,8 +132,9 @@ contains
     allocate(local_batches(n_local_batches,state_size,n_ensemble))
 
     ! Load the ensemble state
-    call U_load_ensemble_state(istep,rank,comm,state_size,batch_ranks, &
-         local_batches,n_batches,n_local_batches,state_size,n_ensemble)
+    call U_load_ensemble_state(interface_info,istep,rank,comm,state_size, &
+         batch_ranks,local_batches,n_batches,n_local_batches,batch_size, &
+         n_ensemble)
 
   end subroutine assimilate_parallel
 
