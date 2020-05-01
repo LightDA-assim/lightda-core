@@ -67,11 +67,27 @@ contains
     offset=batch_size*ibatch
   end function get_batch_offset
 
+  function get_rank_batch_count(n_batches,batch_ranks,rank) result(count)
+    integer,intent(in)::n_batches,batch_ranks(n_batches),rank
+    integer::ibatch,count
+    count=0
+
+    do ibatch=1,n_batches
+       if(batch_ranks(ibatch)==rank) count=count+1
+    end do
+
+  end function get_rank_batch_count
+
   subroutine assimilate_parallel(istep,hrut,n_ensemble,batch_size,state_size,comm,U_load_ensemble_state)
 
     abstract interface
 
-       subroutine load_ensemble_state()
+       subroutine load_ensemble_state(istep,rank,comm,state_size,batch_ranks, &
+            local_batches,n_batches,n_local_batches,batch_size,n_ensemble)
+
+         integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches
+         integer,intent(in)::batch_ranks(n_batches)
+         real(kind=8),intent(out)::local_batches(n_local_batches,state_size,n_ensemble)
          
        end subroutine load_ensemble_state
 
@@ -84,9 +100,9 @@ contains
     integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm
     real(kind=8) :: hrut
     integer,dimension(:),allocatable :: io_ranks, batch_ranks
-    !real(kind=8),dimension(:,:),allocatable::
+    real(kind=8),dimension(:,:,:),allocatable::local_batches(:,:,:)
 
-    integer::rank,ierr,comm_size,n_batches
+    integer::rank,ierr,comm_size,n_batches,n_local_batches
 
     procedure(load_ensemble_state) :: U_load_ensemble_state
 
@@ -100,8 +116,15 @@ contains
     ! Assign batches to process ranks
     call get_batch_ranks(comm_size,batch_ranks)
 
+    ! Get number of local batches
+    n_local_batches=get_rank_batch_count(n_batches,batch_ranks,rank)
+
+    ! Allocate array to hold local ensemble state
+    allocate(local_batches(n_local_batches,state_size,n_ensemble))
+
     ! Load the ensemble state
-    call U_load_ensemble_state()
+    call U_load_ensemble_state(istep,rank,comm,state_size,batch_ranks, &
+         local_batches,n_batches,n_local_batches,state_size,n_ensemble)
 
   end subroutine assimilate_parallel
 

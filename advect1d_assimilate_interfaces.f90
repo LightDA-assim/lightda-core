@@ -29,7 +29,12 @@ contains
 
   end function get_rank_io_size
 
-  subroutine load_ensemble_state(comm)
+  subroutine load_ensemble_state(istep,rank,comm,state_size,batch_ranks, &
+       local_batches,n_batches,n_local_batches,batch_size,n_ensemble)
+
+    integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches
+    integer,intent(in)::batch_ranks(n_batches)
+    real(kind=8),intent(out)::local_batches(n_local_batches,state_size,n_ensemble)
 
     
     
