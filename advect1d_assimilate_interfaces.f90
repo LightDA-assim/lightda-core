@@ -42,7 +42,7 @@ contains
     stride=max(comm_size/n_ensemble,1)
 
     do i=1,n_ensemble
-       io_ranks(i)=mod(i,comm_size)*stride+1
+       io_ranks(i)=mod(i,comm_size)*stride
     end do
 
   end subroutine get_io_ranks
