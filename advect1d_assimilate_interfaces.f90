@@ -2,6 +2,8 @@ module advect1d_assimilate_interfaces
   use mpi
   use iso_c_binding
 
+  use hdf5
+
   implicit none
 
   type :: io_info
@@ -28,6 +30,8 @@ contains
 
     ! Assign ranks to processors for i/o purposes
     call get_io_ranks(comm_size,n_ensemble,info%io_ranks)
+
+    call h5open_f(ierr)
 
   end subroutine init_interface
 
@@ -64,6 +68,43 @@ contains
     integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches,n_ensemble
     integer,intent(in)::batch_ranks(n_batches)
     real(kind=8),intent(out)::local_batches(n_local_batches,state_size,n_ensemble)
+    type(io_info),pointer::info
+    integer::i,ierr,io_rank
+    character(len=50)::preassim_filename
+    integer(HID_T)::h5file_h,dset_h,dataspace,memspace
+    real(kind=8)::member_state(state_size)
+    integer(HSIZE_T)::offset(2),count(2),stride(2),block(2)
+
+    call c_f_pointer(info_c_ptr,info)
+
+    call mpi_comm_rank(info%comm,io_rank,ierr)
+
+    do i=1,n_ensemble
+       if(info%io_ranks(i)==io_rank) then
+
+          stride=(/2,1/)
+          offset=(/i-1,0/)
+          count=(/1,1/)
+          block=(/1,state_size/)
+
+          ! Set the HDF5 filename
+          write(preassim_filename,"(A,I0,A)") &
+               'ensembles/',istep,'/preassim.h5'
+
+          ! Open the file
+          call h5fopen_f(preassim_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
+
+          ! Open the dataset
+          call h5dopen_f(h5file_h,'ensemble_state',dset_h,ierr)
+          call h5dget_space_f(dset_h,dataspace,ierr)
+          call h5screate_simple_f(2,block,memspace,ierr)
+          call h5sselect_hyperslab_f(dataspace,H5S_SELECT_SET_F, &
+               offset,count,ierr,stride,block)
+          call h5dread_f(dset_h,H5T_IEEE_F64LE,member_state,block,ierr,file_space_id=dataspace,mem_space_id=memspace)
+          call h5dclose_f(dset_h,ierr)
+
+       end if
+    end do
 
   end subroutine load_ensemble_state
 
