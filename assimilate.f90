@@ -31,15 +31,15 @@ contains
 
     ! Start at highest rank (so if distribution is uneven, rank 0 gets
     ! fewer batches)
-    rank=comm_size+1
+    rank=comm_size
 
     ! 
     do ibatch=1,size(batch_ranks)
        ! Decrement rank
        rank=rank-1
 
-       ! raise to comm_size if we reach zero
-       if(rank<1) rank=comm_size
+       ! raise to comm_size-1 if we reach zero
+       if(rank<0) rank=comm_size-1
 
        batch_ranks(ibatch)=rank
     end do
@@ -67,6 +67,13 @@ contains
     integer::offset
     offset=batch_size*ibatch
   end function get_batch_offset
+
+  function get_batch_length(batch_size,ibatch,state_size) result(length)
+    integer,intent(in)::batch_size,ibatch,state_size
+    integer::offset,length
+    offset=get_batch_offset(batch_size,ibatch)
+    length=min(state_size,offset+batch_size)-offset
+  end function get_batch_length
 
   function get_rank_batch_count(n_batches,batch_ranks,rank) result(count)
     integer,intent(in)::n_batches,batch_ranks(n_batches),rank
@@ -119,7 +126,8 @@ contains
     call mpi_comm_size(comm, comm_size, ierr)
 
     ! Get the number of batches and allocate batch arrays
-    n_batches=get_batch_count(n_ensemble,batch_size)
+    n_batches=get_batch_count(state_size,batch_size)
+
     allocate(batch_ranks(n_batches))
 
     ! Assign batches to process ranks
