@@ -87,7 +87,7 @@ contains
   end function get_rank_batch_count
 
   subroutine assimilate_parallel(interface_info,istep,n_ensemble,batch_size, &
-       state_size,comm,U_load_ensemble_state,U_transmit_results)
+       state_size,comm,U_load_ensemble_state,U_transmit_results,U_store_results)
 
     abstract interface
 
@@ -110,6 +110,17 @@ contains
          
        end subroutine transmit_results
 
+       subroutine store_results(interface_info,istep,rank,comm,state_size)
+
+         use iso_c_binding
+
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,rank,comm,state_size
+
+       end subroutine store_results
+
     end interface
 
     integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm
@@ -121,6 +132,7 @@ contains
 
     procedure(load_ensemble_state) :: U_load_ensemble_state
     procedure(transmit_results) :: U_transmit_results
+    procedure(store_results) :: U_store_results
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
@@ -143,6 +155,9 @@ contains
     call U_load_ensemble_state(interface_info,istep,rank,comm,state_size, &
          batch_ranks,local_batches,n_batches,n_local_batches,batch_size, &
          n_ensemble)
+
+    ! Write the ensemble state
+    call U_store_results(interface_info,istep,rank,comm,state_size)
 
   end subroutine assimilate_parallel
 

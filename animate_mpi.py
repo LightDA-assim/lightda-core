@@ -446,8 +446,11 @@ class ensemble_animator(object):
                                 '--n_ensemble',str(self.ensemble.shape[1])])
             p.wait()
 
-            #with tables.open_file(os.path.join(path,'postassim.h5')) as h5file:
-            #    self.ensemble=h5file.root.ensemble_state
+            for i in range(self.ensemble.shape[1]):
+                with tables.open_file(
+                        os.path.join(path,'postassim_{}.h5'.format(i))
+                ) as h5file:
+                    self.ensemble[:,i]=h5file.root.ensemble_state
 
             # Update predictions
             predictions=np.dot(self.forward_operator,self.ensemble)
