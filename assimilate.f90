@@ -87,7 +87,11 @@ contains
   end function get_rank_batch_count
 
   subroutine assimilate_parallel(interface_info,istep,n_ensemble,batch_size, &
-       state_size,comm,U_load_ensemble_state,U_transmit_results,U_store_results)
+       state_size,n_observations,n_obs_batch_max,comm,U_load_ensemble_state,U_transmit_results, &
+       U_store_results,U_get_batch_observation_count,U_get_batch_observations, &
+       U_get_batch_predictions,U_get_batch_innovations,U_add_obs_err,U_localize)
+
+    use lenkf_rsm, ONLY: lenkf_analysis_rsm
 
     abstract interface
 
@@ -121,26 +125,108 @@ contains
 
        end subroutine store_results
 
-    end interface
+       function get_batch_observation_count(interface_info,istep,ibatch, &
+            batch_size,comm,rank) result(n_obs_batch)
 
-    integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm
+         use iso_c_binding
+
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,ibatch,batch_size,comm,rank
+         integer::n_obs_batch
+
+       end function get_batch_observation_count
+
+       subroutine get_batch_predictions(interface_info,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,predictions)
+
+         use iso_c_binding
+
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
+              n_obs_batch
+         real(kind=8),intent(inout)::predictions(n_obs_batch,n_ensemble)
+
+       end subroutine get_batch_predictions
+
+       subroutine get_batch_innovations(interface_info,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,innovations)
+
+         use iso_c_binding
+
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
+              n_obs_batch
+         real(kind=8),intent(inout)::innovations(n_obs_batch,n_ensemble)
+
+       end subroutine get_batch_innovations
+
+       subroutine get_batch_observations(interface_info,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
+
+         use iso_c_binding
+
+         implicit none
+
+         type(c_ptr),intent(inout)::interface_info
+         integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_obs_batch
+         real(kind=8),intent(inout)::observations(n_obs_batch)
+
+       end subroutine get_batch_observations
+
+       SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH,info_ptr)
+         ! Add observation error covariance matrix
+         USE iso_c_binding
+         type(c_ptr),intent(inout)::info_ptr
+         INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+         REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
+       END SUBROUTINE add_obs_err
+
+       SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info_ptr)
+         ! Apply localization to HP and HPH^T
+         USE iso_c_binding
+         INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+         REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
+         type(c_ptr),intent(inout)::info_ptr
+       END SUBROUTINE localize
+
+  end interface
+
+    integer,intent(in) :: istep,n_ensemble,batch_size,state_size,comm,n_observations,n_obs_batch_max
     type(c_ptr)::interface_info
     integer,dimension(:),allocatable :: io_ranks, batch_ranks
-    real(kind=8),dimension(:,:,:),allocatable::local_batches(:,:,:)
+    real(kind=8),allocatable::local_batches(:,:,:)
+    real(kind=8),allocatable::innovations(:,:),predictions(:,:),observations(:)
+    real(kind=8),allocatable::batch_mean_state(:)
+    real(kind=8)::forget
 
-    integer::rank,ierr,comm_size,n_batches,n_local_batches
+    integer::rank,ierr,comm_size,n_batches,n_local_batches,ibatch,n_obs_batch
 
     procedure(load_ensemble_state) :: U_load_ensemble_state
     procedure(transmit_results) :: U_transmit_results
     procedure(store_results) :: U_store_results
+    procedure(get_batch_observation_count) :: U_get_batch_observation_count
+    procedure(get_batch_predictions) :: U_get_batch_predictions
+    procedure(get_batch_innovations) :: U_get_batch_innovations
+    procedure(get_batch_observations) :: U_get_batch_observations
+    procedure(add_obs_err) :: U_add_obs_err
+    procedure(localize) :: U_localize
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
+
+    forget=1
 
     ! Get the number of batches and allocate batch arrays
     n_batches=get_batch_count(state_size,batch_size)
 
     allocate(batch_ranks(n_batches))
+    allocate(innovations(n_obs_batch_max,n_ensemble))
+    allocate(predictions(n_obs_batch_max,n_ensemble))
+    allocate(observations(n_obs_batch_max))
+    allocate(batch_mean_state(batch_size))
 
     ! Assign batches to process ranks
     call get_batch_ranks(comm_size,batch_ranks)
@@ -156,8 +242,38 @@ contains
          batch_ranks,local_batches,n_batches,n_local_batches,batch_size, &
          n_ensemble)
 
+    ! Assimilate local batches
+    do ibatch=1,n_local_batches
+
+       ! Get number of predictions for this batch
+       n_obs_batch=U_get_batch_observation_count(interface_info,istep,ibatch,batch_size,comm,rank)
+
+       if(size(innovations,1)<=n_obs_batch) then
+          deallocate(observations)
+          allocate(observations(n_obs_batch))
+          deallocate(innovations)
+          allocate(innovations(n_obs_batch,n_ensemble))
+          deallocate(predictions)
+          allocate(predictions(n_obs_batch,n_ensemble))
+       end if
+
+       call U_get_batch_predictions(interface_info,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,predictions)
+       call U_get_batch_innovations(interface_info,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,innovations)
+       call U_get_batch_observations(interface_info,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
+
+       call lenkf_analysis_rsm(istep,ibatch,batch_size,n_obs_batch, &
+            n_obs_batch,n_ensemble,int(0),batch_mean_state,local_batches(ibatch,:,:), &
+            predictions,innovations,U_add_obs_err,U_localize,forget,ierr,interface_info)
+    end do
+
     ! Write the ensemble state
     call U_store_results(interface_info,istep,rank,comm,state_size)
+
+    deallocate(local_batches)
+    deallocate(batch_ranks)
+    deallocate(observations)
+    deallocate(innovations)
+    deallocate(predictions)
 
   end subroutine assimilate_parallel
 

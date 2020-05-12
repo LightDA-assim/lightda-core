@@ -2,6 +2,7 @@ module advect1d_assimilate_interfaces
   use mpi
   use iso_c_binding
   use assimilate, ONLY: get_batch_offset, get_batch_length
+  use random, ONLY: random_normal
 
   use hdf5
 
@@ -78,6 +79,131 @@ contains
     end do
 
   end function get_rank_io_size
+
+  function get_batch_observation_count(info_ptr,istep,ibatch, &
+       batch_size,comm,rank) result(n_obs_batch)
+
+    use iso_c_binding
+
+    implicit none
+
+    type(c_ptr),intent(inout)::info_ptr
+    integer,intent(in)::istep,ibatch,batch_size,comm,rank
+    integer::n_obs_batch
+    type(io_info),pointer::info
+
+    call c_f_pointer(info_ptr,info)
+
+    if(.not.info%observations_read) call read_observations(info,istep)
+
+    n_obs_batch=info%n_observations
+
+  end function get_batch_observation_count
+
+  subroutine get_batch_predictions(info_ptr,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,predictions)
+
+    use iso_c_binding
+    use mpi
+
+    implicit none
+
+    type(c_ptr),intent(inout)::info_ptr
+    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
+         n_obs_batch
+    real(kind=8),intent(inout)::predictions(n_obs_batch,n_ensemble)
+    integer::i,imember,ierr
+    type(io_info),pointer::info
+
+    call c_f_pointer(info_ptr,info)
+
+    if(n_obs_batch /= info%n_observations) then
+       print '(A,I0,A,I0,A,I0)', &
+            'Wrong n_obs_batch passed to get_batch_predictions for batch ', &
+            ibatch,'. Expected ',info%n_observations,', got ',n_obs_batch
+       call mpi_abort(comm,1,ierr)
+    end if
+
+    call c_f_pointer(info_ptr,info)
+
+    predictions=info%predictions
+
+  end subroutine get_batch_predictions
+
+  subroutine get_batch_innovations(info_c_ptr,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,innovations)
+
+    use iso_c_binding
+
+    implicit none
+
+    type(c_ptr),intent(inout)::info_c_ptr
+    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
+         n_obs_batch
+    real(kind=8),intent(inout)::innovations(n_obs_batch,n_ensemble)
+    type(io_info),pointer::info
+    integer::imember,iobs
+
+    call c_f_pointer(info_c_ptr,info)
+
+    do imember=1,n_ensemble
+       do iobs=1,n_obs_batch
+          innovations(iobs,imember)=info%observations(iobs) - &
+               info%predictions(iobs,imember) + &
+               random_normal()*info%obs_errors(iobs)
+       end do
+    end do
+
+  end subroutine get_batch_innovations
+
+  subroutine get_batch_observations(info_c_ptr,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
+
+    use iso_c_binding
+    use mpi
+
+    implicit none
+
+    type(c_ptr),intent(inout)::info_c_ptr
+    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_obs_batch
+    real(kind=8),intent(inout)::observations(n_obs_batch)
+    type(io_info),pointer::info
+    integer::ierr
+
+    call c_f_pointer(info_c_ptr,info)
+
+    if(n_obs_batch /= info%n_observations) then
+       print '(A,I0,A,I0,A,I0)', &
+            'Wrong n_obs_batch passed to get_batch_observations for batch ', &
+            ibatch,'. Expected ',info%n_observations,', got ',n_obs_batch
+       call mpi_abort(comm,1,ierr)
+    end if
+
+    observations=info%observations
+
+  end subroutine get_batch_observations
+
+  SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH,info_ptr)
+    ! Add observation error covariance matrix
+    USE iso_c_binding
+    type(c_ptr),intent(inout)::info_ptr
+    INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+    REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
+    type(io_info),pointer::info
+    integer::iobs
+
+    call c_f_pointer(info_ptr,info)
+
+    do iobs=1,dim_obs
+       HPH(iobs,iobs)=HPH(iobs,iobs)+info%obs_errors(iobs)
+    end do
+
+  END SUBROUTINE add_obs_err
+
+  SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info_ptr)
+    ! Apply localization to HP and HPH^T
+    USE iso_c_binding
+    INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+    REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
+    type(c_ptr),intent(inout)::info_ptr
+  END SUBROUTINE localize
 
   subroutine read_observations(info,istep)
     type(io_info),intent(inout), pointer :: info
