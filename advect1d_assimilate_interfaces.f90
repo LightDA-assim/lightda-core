@@ -194,37 +194,38 @@ contains
     block=(/1,state_size/)
 
     ! Set the HDF5 filename
-      write(preassim_filename,"(A,I0,A)") &
-           'ensembles/',istep,'/preassim.h5'
+    write(preassim_filename,"(A,I0,A)") &
+         'ensembles/',istep,'/preassim.h5'
 
-      ! Open the file
-      call h5fopen_f(preassim_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
+    ! Open the file
+    call h5fopen_f(preassim_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
 
-      ! Open the dataset
-      call h5dopen_f(h5file_h,'ensemble_state',dset_h,ierr)
+    ! Open the dataset
+    call h5dopen_f(h5file_h,'ensemble_state',dset_h,ierr)
 
-      ! Define a dataspace within the dataset so we only read the
-      ! specified ensemble member
-      call h5dget_space_f(dset_h,dataspace,ierr)
-      call h5sselect_hyperslab_f(dataspace,H5S_SELECT_SET_F, &
-           offset,count,ierr,stride,block)
+    ! Define a dataspace within the dataset so we only read the
+    ! specified ensemble member
+    call h5dget_space_f(dset_h,dataspace,ierr)
+    call h5sselect_hyperslab_f(dataspace,H5S_SELECT_SET_F, &
+         offset,count,ierr,stride,block)
 
-      ! Memory dataspace (needed since the local array shape differs
-      ! from the dataspace in the file)
-      call h5screate_simple_f(2,block,memspace,ierr)
+    ! Memory dataspace (needed since the local array shape differs
+    ! from the dataspace in the file)
+    call h5screate_simple_f(2,block,memspace,ierr)
 
-      ! Read the data
-      call h5dread_f(dset_h,H5T_IEEE_F64LE,member_state,block,ierr,file_space_id=dataspace,mem_space_id=memspace)
+    ! Read the data
+    call h5dread_f(dset_h,H5T_IEEE_F64LE,member_state,block,ierr,file_space_id=dataspace,mem_space_id=memspace)
 
-      ! Close the dataspaces
-      call h5sclose_f(dataspace,ierr)
-      call h5sclose_f(memspace,ierr)
+    ! Close the dataspaces
+    call h5sclose_f(dataspace,ierr)
+    call h5sclose_f(memspace,ierr)
 
-      ! Close the dataset
-      call h5dclose_f(dset_h,ierr)
+    ! Close the dataset
+    call h5dclose_f(dset_h,ierr)
 
-      ! Close the file
-      call h5fclose_f(h5file_h,ierr)
+    ! Close the file
+    call h5fclose_f(h5file_h,ierr)
+
   end subroutine read_state
 
   subroutine load_ensemble_state(info_c_ptr,istep,rank,comm,state_size, &
@@ -283,6 +284,7 @@ contains
                 call MPI_Isend(batch_state(1:batch_length),batch_length, &
                      MPI_DOUBLE_PRECISION,batch_ranks(ibatch),ibatch,comm, &
                      request,ierr)
+
              end if
           end do
 
