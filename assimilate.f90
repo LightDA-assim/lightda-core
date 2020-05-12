@@ -65,7 +65,7 @@ contains
   function get_batch_offset(batch_size,ibatch) result(offset)
     integer,intent(in)::batch_size,ibatch
     integer::offset
-    offset=batch_size*ibatch
+    offset=batch_size*(ibatch-1)
   end function get_batch_offset
 
   function get_batch_length(batch_size,ibatch,state_size) result(length)

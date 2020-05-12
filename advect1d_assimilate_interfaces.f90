@@ -395,7 +395,7 @@ contains
              batch_length=get_batch_length(batch_size,ibatch,state_size)
 
              ! Array containing the state for this batch
-             batch_state=member_state(ibatch)
+             batch_state=member_state(batch_offset+1:batch_offset+batch_length+1)
 
              if(batch_ranks(ibatch)==rank) then
 
