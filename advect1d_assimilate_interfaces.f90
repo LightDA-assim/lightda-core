@@ -504,6 +504,8 @@ contains
 
              batch_rank=batch_ranks(ibatch)
 
+             if(info%batch_results_received(ibatch)) cycle
+
              call mpi_iprobe(batch_rank,ibatch,comm,flag,status,ierr)
 
              if(flag.eqv..false.) cycle
@@ -516,6 +518,8 @@ contains
                   batch_offset+1:batch_offset+batch_length,local_io_index), &
                   batch_length,MPI_DOUBLE_PRECISION,batch_rank,ibatch,comm, &
                   status,ierr)
+
+             info%batch_results_received(ibatch)=.true.
 
           end do
        end if
