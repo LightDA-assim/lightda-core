@@ -429,6 +429,11 @@ class ensemble_animator(object):
             if not os.path.exists(path):
                 os.makedirs(path)
 
+            with tables.open_file(os.path.join(path,'observations.h5'),'w') as h5file:
+                h5file.create_array(h5file.root,'observations',obs_w_errors)
+                h5file.create_array(h5file.root,'obs_positions',self.obs_positions)
+                h5file.create_array(h5file.root,'obs_errors',self.obs_errors)
+
             with tables.open_file(os.path.join(path,'preassim.h5'),'w') as h5file:
                 h5file.create_array(h5file.root,'ensemble_state',self.ensemble)
                 h5file.create_array(h5file.root,'predictions',predictions)

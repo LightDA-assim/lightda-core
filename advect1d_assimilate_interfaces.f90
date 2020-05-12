@@ -9,8 +9,12 @@ module advect1d_assimilate_interfaces
 
   type :: io_info
      integer,allocatable::io_ranks(:)
-     integer::comm_size,n_ensemble,state_size,local_io_size
+     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations
      real(kind=8),allocatable::local_io_data(:,:)
+     real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
+     integer,allocatable::obs_positions(:)
+     logical::observations_read
+     logical::predictions_computed
   end type io_info
 
 contains
@@ -25,6 +29,10 @@ contains
     allocate(info)
     info%n_ensemble=n_ensemble
     info%state_size=state_size
+    info%n_observations=0
+
+    info%observations_read=.false.
+    info%predictions_computed=.false.
 
     allocate(info%io_ranks(n_ensemble))
 
@@ -32,6 +40,10 @@ contains
     call get_io_ranks(comm_size,n_ensemble,info%io_ranks)
 
     info%local_io_size=get_rank_io_size(n_ensemble,info%io_ranks,rank)
+
+    allocate(info%observations(info%n_observations))
+    allocate(info%obs_errors(info%n_observations))
+    allocate(info%obs_positions(info%n_observations))
 
     allocate(info%local_io_data(state_size,info%local_io_size))
 
@@ -66,6 +78,106 @@ contains
     end do
 
   end function get_rank_io_size
+
+  subroutine read_observations(info,istep)
+    type(io_info),intent(inout), pointer :: info
+    integer,intent(in)::istep
+    character(len=50)::obs_filename
+    integer(HID_T)::h5file_h,dset_h,dataspace
+    integer(HSIZE_T)::dims(1),maxdims(1)
+    integer::ierr,rank
+
+    ! Set the HDF5 filename
+    write(obs_filename,"(A,I0,A)") &
+         'ensembles/',istep,'/observations.h5'
+
+    ! Open the file
+    call h5fopen_f(obs_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
+
+    ! Open the observations dataset
+    call h5dopen_f(h5file_h,'observations',dset_h,ierr)
+
+    ! Get the dataspace handle
+    call h5dget_space_f(dset_h,dataspace,ierr)
+
+    ! Get the dataset size
+    call h5sget_simple_extent_dims_f(dataspace,dims,maxdims,ierr)
+
+    info%n_observations=dims(1)
+
+    ! Close the dataspace
+    call h5sclose_f(dataspace,ierr)
+
+    deallocate(info%observations)
+    allocate(info%observations(info%n_observations))
+
+    ! Read the data
+    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,info%observations,dims,ierr)
+
+    ! Close the dataset
+    call h5dclose_f(dset_h,ierr)
+
+    ! Open the obs_positions dataset
+    call h5dopen_f(h5file_h,'obs_positions',dset_h,ierr)
+
+    deallocate(info%obs_positions)
+    allocate(info%obs_positions(info%n_observations))
+
+    ! Read the data
+    call h5dread_f(dset_h,H5T_NATIVE_INTEGER,info%obs_positions,dims,ierr)
+
+    ! Close the dataset
+    call h5dclose_f(dset_h,ierr)
+
+    ! Open the obs_errors dataset
+    call h5dopen_f(h5file_h,'obs_errors',dset_h,ierr)
+
+    deallocate(info%obs_errors)
+    allocate(info%obs_errors(info%n_observations))
+
+    ! Read the data
+    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,info%obs_errors,dims,ierr)
+
+    ! Close the dataset
+    call h5dclose_f(dset_h,ierr)
+
+    ! Close the file
+    call h5fclose_f(h5file_h,ierr)
+
+    info%observations_read=.true.
+
+  end subroutine read_observations
+
+  subroutine load_observations_parallel(info,istep,comm,rank)
+    type(io_info),intent(inout), pointer :: info
+    integer,intent(in)::istep,comm
+    integer::ierr,rank
+
+    if(info%observations_read) return
+
+    if(rank==0) call read_observations(info,istep)
+
+    call mpi_bcast(info%n_observations,1,MPI_INTEGER,0,comm,ierr)
+
+    if(rank>0) then
+       deallocate(info%observations)
+       allocate(info%observations(info%n_observations))
+       deallocate(info%obs_positions)
+       allocate(info%obs_positions(info%n_observations))
+       deallocate(info%obs_errors)
+       allocate(info%obs_errors(info%n_observations))
+    end if
+
+    call mpi_bcast(info%observations,info%n_observations,MPI_INTEGER,0,comm, &
+         ierr)
+    call mpi_bcast(info%obs_positions,info%n_observations,MPI_INTEGER,0,comm, &
+         ierr)
+    call mpi_bcast(info%obs_errors,info%n_observations,MPI_INTEGER,0,comm, &
+         ierr)
+
+    info%observations_read=.true.
+
+  end subroutine load_observations_parallel
 
   subroutine read_state(istep,imember,member_state,state_size)
     
@@ -124,7 +236,7 @@ contains
     real(kind=8),intent(out)::local_batches(n_local_batches,batch_size,n_ensemble)
     real(kind=8)::batch_state(batch_size)
     type(io_info),pointer::info
-    integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size,batch_length,batch_offset,local_io_counter
+    integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size,batch_length,batch_offset,local_io_counter,iobs
     real(kind=8)::member_state(state_size)
     integer::status(MPI_STATUS_SIZE)
     integer::request
@@ -202,6 +314,25 @@ contains
           end do
        end if
     end do
+
+    ! Load observations
+    call load_observations_parallel(info,istep,comm,rank)
+    allocate(info%predictions(info%n_observations,n_ensemble))
+
+    local_io_counter=1
+    do imember=1,n_ensemble
+       if(info%io_ranks(imember)==rank) then
+          do iobs=1,info%n_observations
+             info%predictions(iobs,imember)=info%local_io_data( &
+                  info%obs_positions(iobs)+1,local_io_counter)
+          end do
+          local_io_counter=local_io_counter+1
+       end if
+       call mpi_bcast(info%predictions(:,imember),info%n_observations, &
+            MPI_DOUBLE,info%io_ranks(imember),comm,ierr)
+    end do
+
+    info%predictions_computed=.true.
 
   end subroutine load_ensemble_state
 
@@ -284,6 +415,12 @@ contains
     type(io_info), pointer ::info
 
     call c_f_pointer(info_ptr,info)
+
+    deallocate(info%observations)
+    deallocate(info%obs_positions)
+    deallocate(info%obs_errors)
+
+    if(info%predictions_computed) deallocate(info%predictions)
 
     deallocate(info%io_ranks)
     deallocate(info%local_io_data)
