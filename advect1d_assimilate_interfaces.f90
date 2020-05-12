@@ -14,6 +14,7 @@ module advect1d_assimilate_interfaces
      real(kind=8),allocatable::local_io_data(:,:)
      real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
      integer,allocatable::obs_positions(:)
+     logical,allocatable::batch_results_received(:)
      logical::observations_read
      logical::predictions_computed
   end type io_info
@@ -47,6 +48,7 @@ contains
     allocate(info%obs_positions(info%n_observations))
 
     allocate(info%local_io_data(state_size,info%local_io_size))
+    allocate(info%batch_results_received(info%local_io_size))
 
     info_ptr=c_loc(info)
 
@@ -79,6 +81,27 @@ contains
     end do
 
   end function get_rank_io_size
+
+  function get_local_io_index(n_ensemble,io_ranks,rank,imember) result(index)
+    integer,intent(in)::n_ensemble,rank,imember
+    integer,intent(in)::io_ranks(n_ensemble)
+    integer::i,local_io_counter,index
+
+    index=-1
+
+    local_io_counter=0
+
+    do i=1,n_ensemble
+       if(io_ranks(i)==rank) then
+          local_io_counter=local_io_counter+1
+          if(i==imember) then
+             index=local_io_counter
+             exit
+          end if
+       end if
+    end do
+
+  end function get_local_io_index
 
   function get_batch_observation_count(info_ptr,istep,ibatch, &
        batch_size,comm,rank) result(n_obs_batch)
@@ -464,7 +487,73 @@ contains
 
   end subroutine load_ensemble_state
 
-  subroutine transmit_results()
+  subroutine receive_results(info,istep,batch_size,batch_ranks,n_batches,n_ensemble,rank,comm)
+    type(io_info),pointer::info
+    integer,intent(in)::istep,batch_size,rank,comm,n_ensemble
+    integer,intent(in)::batch_ranks(n_batches)
+    integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
+         member_rank,local_io_index,status(MPI_STATUS_SIZE),ierr
+    logical::flag
+
+    do imember=1,n_ensemble
+       member_rank=info%io_ranks(imember)
+       if(member_rank==rank) then
+          local_io_index=get_local_io_index(n_ensemble,info%io_ranks, &
+               rank,imember)
+          do ibatch=1,n_batches
+
+             batch_rank=batch_ranks(ibatch)
+
+             call mpi_iprobe(batch_rank,ibatch,comm,flag,status,ierr)
+
+             if(flag.eqv..false.) cycle
+
+             ! Locate batch in the state array
+             batch_offset=get_batch_offset(batch_size,ibatch)
+             batch_length=get_batch_length(batch_size,ibatch,info%state_size)
+
+             call mpi_recv(info%local_io_data( &
+                  batch_offset+1:batch_offset+batch_length,local_io_index), &
+                  batch_length,MPI_DOUBLE_PRECISION,batch_rank,ibatch,comm, &
+                  status,ierr)
+
+          end do
+       end if
+    end do
+
+  end subroutine receive_results
+
+  subroutine transmit_results(info_ptr,istep,ibatch,batch_state,batch_size,n_ensemble,batch_ranks,n_batches,comm,rank)
+    type(c_ptr),intent(inout)::info_ptr
+    integer,intent(in)::istep,ibatch,comm,rank,batch_size,n_ensemble,n_batches
+    integer,intent(in)::batch_ranks(n_batches)
+    real(kind=8),intent(in)::batch_state(batch_size,n_ensemble)
+    type(io_info),pointer::info
+    integer::ierr,imember,member_rank,offset,batch_length,batch_offset,local_io_index,ibatch_recv
+    integer::req
+
+    call c_f_pointer(info_ptr,info)
+
+    ! Locate batch in the state array
+    batch_offset=get_batch_offset(batch_size,ibatch)
+    batch_length=get_batch_length(batch_size,ibatch,info%state_size)
+
+    do imember=1,n_ensemble
+       member_rank=info%io_ranks(imember)
+       if(member_rank==rank) then
+          local_io_index=get_local_io_index(n_ensemble,info%io_ranks, &
+               rank,imember)
+
+          info%local_io_data(batch_offset+1:batch_offset+batch_length, &
+               local_io_index)=batch_state(1:batch_length,imember)
+       else
+          call mpi_isend(batch_state(1:batch_length,imember),batch_length,MPI_DOUBLE_PRECISION, &
+               member_rank,ibatch,comm,req,ierr)
+       end if
+    end do
+
+    call receive_results(info,istep,batch_size,batch_ranks,n_batches,n_ensemble,rank,comm)
+
   end subroutine transmit_results
 
   subroutine write_state(istep,imember,n_ensemble,comm,member_state,state_size)
@@ -547,6 +636,7 @@ contains
     deallocate(info%observations)
     deallocate(info%obs_positions)
     deallocate(info%obs_errors)
+    deallocate(info%batch_results_received)
 
     if(info%predictions_computed) deallocate(info%predictions)
 

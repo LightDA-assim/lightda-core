@@ -109,8 +109,13 @@ contains
          
        end subroutine load_ensemble_state
 
-       subroutine transmit_results()
+       subroutine transmit_results(info_ptr,istep,ibatch,batch_state,batch_size,n_ensemble,batch_ranks,n_batches,comm,rank)
+         use iso_c_binding
          implicit none
+         type(c_ptr),intent(inout)::info_ptr
+         real(kind=8),intent(in)::batch_state(batch_size,n_ensemble)
+         integer,intent(in)::istep,ibatch,batch_size,n_ensemble,comm,rank,n_batches
+         integer,intent(in)::batch_ranks(n_batches)
          
        end subroutine transmit_results
 
@@ -202,7 +207,8 @@ contains
     real(kind=8),allocatable::batch_mean_state(:)
     real(kind=8)::forget
 
-    integer::rank,ierr,comm_size,n_batches,n_local_batches,ibatch,n_obs_batch
+    integer::rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
+         n_obs_batch,ibatch_local, batch_length
 
     procedure(load_ensemble_state) :: U_load_ensemble_state
     procedure(transmit_results) :: U_transmit_results
@@ -242,11 +248,17 @@ contains
          batch_ranks,local_batches,n_batches,n_local_batches,batch_size, &
          n_ensemble)
 
+    ibatch_local=1
+
     ! Assimilate local batches
-    do ibatch=1,n_local_batches
+    do ibatch=1,n_batches
+
+       if(batch_ranks(ibatch)/=rank) cycle
 
        ! Get number of predictions for this batch
        n_obs_batch=U_get_batch_observation_count(interface_info,istep,ibatch,batch_size,comm,rank)
+
+       batch_length=get_batch_length(batch_size,ibatch,state_size)
 
        if(size(innovations,1)<=n_obs_batch) then
           deallocate(observations)
@@ -264,6 +276,13 @@ contains
        call lenkf_analysis_rsm(istep,ibatch,batch_size,n_obs_batch, &
             n_obs_batch,n_ensemble,int(0),batch_mean_state,local_batches(ibatch,:,:), &
             predictions,innovations,U_add_obs_err,U_localize,forget,ierr,interface_info)
+
+       call U_transmit_results(interface_info,istep,ibatch, &
+            local_batches(ibatch,:,:),batch_size,n_ensemble,batch_ranks, &
+            n_batches,comm,rank)
+
+       ibatch_local=ibatch_local+1
+
     end do
 
     ! Write the ensemble state
