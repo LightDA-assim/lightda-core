@@ -275,11 +275,11 @@ contains
        call U_get_batch_observations(interface_info,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
 
        call lenkf_analysis_rsm(istep,ibatch,batch_size,n_obs_batch, &
-            n_obs_batch,n_ensemble,int(0),batch_mean_state,local_batches(ibatch,:,:), &
+            n_obs_batch,n_ensemble,int(0),batch_mean_state,local_batches(ibatch_local,:,:), &
             predictions,innovations,U_add_obs_err,U_localize,forget,ierr,interface_info)
 
        call U_transmit_results(interface_info,istep,ibatch, &
-            local_batches(ibatch,:,:),batch_size,n_ensemble,batch_ranks, &
+            local_batches(ibatch_local,:,:),batch_size,n_ensemble,batch_ranks, &
             n_batches,comm,rank)
 
        ibatch_local=ibatch_local+1
