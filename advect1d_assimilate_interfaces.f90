@@ -613,17 +613,22 @@ contains
 
   end subroutine write_state
 
-  subroutine store_results(info_c_ptr,istep,rank,comm,state_size)
+  subroutine store_results(info_c_ptr,istep,batch_size,batch_ranks,n_batches,rank,comm,state_size)
     implicit none
 
     type(c_ptr),intent(inout)::info_c_ptr
-    integer,intent(in)::istep,rank,comm,state_size
+    integer,intent(in)::istep,rank,comm,state_size,batch_size,n_batches
+    integer,intent(in)::batch_ranks(n_batches)
     type(io_info),pointer::info
     integer::imember,local_io_counter
 
     call c_f_pointer(info_c_ptr,info)
 
     local_io_counter=1
+
+    do while(count(info%batch_results_received)<info%local_io_size)
+       call receive_results(info,istep,batch_size,batch_ranks,n_batches,info%n_ensemble,rank,comm)
+    end do
 
     do imember=1,info%n_ensemble
        if(info%io_ranks(imember)==rank) then

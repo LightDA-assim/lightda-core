@@ -119,14 +119,15 @@ contains
          
        end subroutine transmit_results
 
-       subroutine store_results(interface_info,istep,rank,comm,state_size)
+       subroutine store_results(interface_info,istep,batch_size,batch_ranks,n_batches,rank,comm,state_size)
 
          use iso_c_binding
 
          implicit none
 
          type(c_ptr),intent(inout)::interface_info
-         integer,intent(in)::istep,rank,comm,state_size
+         integer,intent(in)::istep,rank,comm,state_size,batch_size,n_batches
+         integer,intent(in)::batch_ranks(n_batches)
 
        end subroutine store_results
 
@@ -286,7 +287,7 @@ contains
     end do
 
     ! Write the ensemble state
-    call U_store_results(interface_info,istep,rank,comm,state_size)
+    call U_store_results(interface_info,istep,batch_size,batch_ranks,n_batches,rank,comm,state_size)
 
     deallocate(local_batches)
     deallocate(batch_ranks)
