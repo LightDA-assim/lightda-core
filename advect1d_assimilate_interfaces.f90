@@ -1,7 +1,7 @@
 module advect1d_assimilate_interfaces
   use mpi
   use iso_c_binding
-  use assimilate, ONLY: get_batch_offset, get_batch_length
+  use assimilate, ONLY: get_batch_offset, get_batch_length, get_batch_count
   use random, ONLY: random_normal
 
   use hdf5
@@ -10,20 +10,20 @@ module advect1d_assimilate_interfaces
 
   type :: io_info
      integer,allocatable::io_ranks(:)
-     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations
+     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations,n_batches
      real(kind=8),allocatable::local_io_data(:,:)
      real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
      integer,allocatable::obs_positions(:)
-     logical,allocatable::batch_results_received(:)
+     logical,allocatable::batch_results_received(:,:)
      logical::observations_read
      logical::predictions_computed
   end type io_info
 
 contains
 
-  subroutine init_interface(info_ptr,n_ensemble,state_size,comm_size,rank)
+  subroutine init_interface(info_ptr,n_ensemble,state_size,batch_size,comm_size,rank)
     type(c_ptr),intent(out)::info_ptr
-    integer(c_int),intent(in)::n_ensemble,state_size,comm_size
+    integer(c_int),intent(in)::n_ensemble,state_size,batch_size,comm_size
     type(io_info), pointer ::info
     integer::ierr,rank
 
@@ -43,12 +43,16 @@ contains
 
     info%local_io_size=get_rank_io_size(n_ensemble,info%io_ranks,rank)
 
+    info%n_batches=get_batch_count(state_size,batch_size)
+
     allocate(info%observations(info%n_observations))
     allocate(info%obs_errors(info%n_observations))
     allocate(info%obs_positions(info%n_observations))
 
     allocate(info%local_io_data(state_size,info%local_io_size))
-    allocate(info%batch_results_received(info%local_io_size))
+    allocate(info%batch_results_received(info%local_io_size,info%n_batches))
+
+    info%batch_results_received=.false.
 
     info_ptr=c_loc(info)
 
@@ -504,7 +508,7 @@ contains
 
              batch_rank=batch_ranks(ibatch)
 
-             if(info%batch_results_received(ibatch)) cycle
+             if(info%batch_results_received(local_io_index,ibatch)) cycle
 
              call mpi_iprobe(batch_rank,ibatch,comm,flag,status,ierr)
 
@@ -519,7 +523,7 @@ contains
                   batch_length,MPI_DOUBLE_PRECISION,batch_rank,ibatch,comm, &
                   status,ierr)
 
-             info%batch_results_received(ibatch)=.true.
+             info%batch_results_received(local_io_index,ibatch)=.true.
 
           end do
        end if
