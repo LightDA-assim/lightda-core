@@ -219,7 +219,7 @@ contains
     call c_f_pointer(info_ptr,info)
 
     do iobs=1,dim_obs
-       HPH(iobs,iobs)=HPH(iobs,iobs)+info%obs_errors(iobs)
+       HPH(iobs,iobs)=HPH(iobs,iobs)+info%obs_errors(iobs)**2
     end do
 
   END SUBROUTINE add_obs_err
