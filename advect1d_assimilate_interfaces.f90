@@ -615,6 +615,9 @@ contains
 
           info%local_io_data(batch_offset+1:batch_offset+batch_length, &
                local_io_index)=batch_state(1:batch_length,imember)
+
+          ! Record that batch was received
+          info%batch_results_received(local_io_index,ibatch)=.true.
        else
           call mpi_isend(batch_state(1:batch_length,imember),batch_length,MPI_DOUBLE_PRECISION, &
                member_rank,ibatch,comm,req,ierr)
