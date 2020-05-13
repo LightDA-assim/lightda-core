@@ -227,9 +227,57 @@ contains
   SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info_ptr)
     ! Apply localization to HP and HPH^T
     USE iso_c_binding
+    use localization,ONLY: localize_gaspari_cohn
     INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
     type(c_ptr),intent(inout)::info_ptr
+    type(io_info),pointer::info
+    real(kind=8)::cutoff,cutoff_u_a,cutoff_a_a,pos1,pos2,c,distance
+    integer::domain_size,iobs,ipos,jpos,pos_obs
+
+    cutoff=0.35
+    cutoff_u_a=0.4
+    cutoff_a_a=0.35
+
+    call c_f_pointer(info_ptr,info)
+
+    domain_size=info%state_size/2
+
+    do ipos=1,info%state_size
+       pos1=real(mod(ipos,domain_size))/domain_size
+       do jpos=1,info%state_size
+          pos2=real(mod(jpos,domain_size))/domain_size
+          distance=min(abs(pos1-pos2),1-abs(pos1-pos2))
+
+          if(pos1<=domain_size .and. pos2<=domain_size) then
+             c=cutoff
+          else if(pos1>domain_size .and. pos2>domain_size) then
+             c=cutoff_a_a
+          else
+             c=cutoff_u_a
+          end if
+
+          HPH(ipos,jpos)=HPH(ipos,jpos)*localize_gaspari_cohn(distance,c)
+
+       end do
+
+       do iobs=1,info%n_observations
+
+          pos_obs=real(info%obs_positions(iobs))/domain_size
+
+          distance=min(abs(pos_obs-pos1),1-abs(pos_obs-pos1))
+
+          if(pos1<=domain_size) then
+             c=cutoff
+          else
+             c=cutoff_u_a
+          end if
+
+          HP_p(iobs,ipos)=HP_p(iobs,ipos)*localize_gaspari_cohn(distance,c)
+
+       end do
+    end do
+
   END SUBROUTINE localize
 
   subroutine read_observations(info,istep)
