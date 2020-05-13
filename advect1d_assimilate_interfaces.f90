@@ -10,7 +10,7 @@ module advect1d_assimilate_interfaces
 
   type :: io_info
      integer,allocatable::io_ranks(:)
-     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations,n_batches
+     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations,n_batches,batch_size
      real(kind=8),allocatable::local_io_data(:,:)
      real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
      integer,allocatable::obs_positions(:)
@@ -32,6 +32,7 @@ contains
     info%n_ensemble=n_ensemble
     info%state_size=state_size
     info%n_observations=0
+    info%batch_size=batch_size
 
     info%observations_read=.false.
     info%predictions_computed=.false.
@@ -232,8 +233,8 @@ contains
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
     type(c_ptr),intent(inout)::info_ptr
     type(io_info),pointer::info
-    real(kind=8)::cutoff,cutoff_u_a,cutoff_a_a,pos1,pos2,c,distance
-    integer::domain_size,iobs,ipos,jpos,pos_obs
+    real(kind=8)::cutoff,cutoff_u_a,cutoff_a_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta
+    integer::domain_size,iobs1,iobs2,ipos,batch_offset
 
     cutoff=0.35
     cutoff_u_a=0.4
@@ -243,37 +244,46 @@ contains
 
     domain_size=info%state_size/2
 
-    do ipos=1,info%state_size
-       pos1=real(mod(ipos,domain_size))/domain_size
-       do jpos=1,info%state_size
-          pos2=real(mod(jpos,domain_size))/domain_size
-          distance=min(abs(pos1-pos2),1-abs(pos1-pos2))
+    if(dim_p/=info%batch_size) then
+       print *,'Inconsistent batch size'
+       stop
+    end if
 
-          if(pos1<=domain_size .and. pos2<=domain_size) then
-             c=cutoff
-          else if(pos1>domain_size .and. pos2>domain_size) then
-             c=cutoff_a_a
-          else
-             c=cutoff_u_a
-          end if
+    if(dim_obs/=info%n_observations) then
+       print *,'Inconsistent observation extent'
+       stop
+    end if
 
-          HPH(ipos,jpos)=HPH(ipos,jpos)*localize_gaspari_cohn(distance,c)
+    batch_offset=get_batch_offset(info%batch_size,ind_p)
+
+    do iobs1=1,dim_obs
+       pos_obs1=real(info%obs_positions(iobs1)-1)/domain_size
+
+       do iobs2=1,dim_p
+          pos_obs2=real(info%obs_positions(iobs2)-1)/domain_size
+          delta=abs(pos_obs1-pos_obs2)
+          distance=min(delta,1-delta)
+
+          c=cutoff_a_a
+
+          HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*localize_gaspari_cohn(distance,c)
 
        end do
 
-       do iobs=1,info%n_observations
+       do ipos=1,dim_p
 
-          pos_obs=real(info%obs_positions(iobs))/domain_size
+          pos=real(mod(ipos+batch_offset-1,domain_size))/domain_size
 
-          distance=min(abs(pos_obs-pos1),1-abs(pos_obs-pos1))
+          delta=abs(pos_obs1-pos)
+          distance=min(delta,1-delta)
 
-          if(pos1<=domain_size) then
+          if(pos<domain_size) then
              c=cutoff
           else
              c=cutoff_u_a
           end if
 
-          HP_p(iobs,ipos)=HP_p(iobs,ipos)*localize_gaspari_cohn(distance,c)
+          HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*localize_gaspari_cohn(distance,c)
 
        end do
     end do
