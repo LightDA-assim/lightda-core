@@ -508,21 +508,24 @@ contains
 
              batch_rank=batch_ranks(ibatch)
 
+             ! Check whether batch has already been received
              if(info%batch_results_received(local_io_index,ibatch)) cycle
 
+             ! Check whether data is ready to receive
              call mpi_iprobe(batch_rank,ibatch,comm,flag,status,ierr)
-
              if(flag.eqv..false.) cycle
 
              ! Locate batch in the state array
              batch_offset=get_batch_offset(batch_size,ibatch)
              batch_length=get_batch_length(batch_size,ibatch,info%state_size)
 
+             ! Receive data
              call mpi_recv(info%local_io_data( &
                   batch_offset+1:batch_offset+batch_length,local_io_index), &
                   batch_length,MPI_DOUBLE_PRECISION,batch_rank,ibatch,comm, &
                   status,ierr)
 
+             ! Record that batch was received
              info%batch_results_received(local_io_index,ibatch)=.true.
 
           end do
