@@ -568,6 +568,12 @@ contains
 
     end do
 
+    if(local_io_counter-1/=info%local_io_size) then
+       print '(A,I0,A,I0)','Inconsistency in number of local predictions. Expected ', &
+            info%local_io_size,', got ',local_io_counter-1
+       stop
+    end if
+
     info%predictions_computed=.true.
 
   end subroutine load_ensemble_state
