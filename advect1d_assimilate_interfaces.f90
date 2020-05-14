@@ -233,7 +233,7 @@ contains
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
     type(c_ptr),intent(inout)::info_ptr
     type(io_info),pointer::info
-    real(kind=8)::cutoff,cutoff_u_a,cutoff_a_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta
+    real(kind=8)::cutoff,cutoff_u_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta,w
     integer::domain_size,iobs1,iobs2,ipos,batch_offset
 
     cutoff=0.35
@@ -266,7 +266,9 @@ contains
 
           c=cutoff_a_a
 
-          HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*localize_gaspari_cohn(distance,c)
+          w=localize_gaspari_cohn(distance,c)
+
+          HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*w
 
        end do
 
@@ -283,7 +285,9 @@ contains
              c=cutoff_u_a
           end if
 
-          HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*localize_gaspari_cohn(distance,c)
+          w=localize_gaspari_cohn(distance,c)
+
+          HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*w
 
        end do
     end do
