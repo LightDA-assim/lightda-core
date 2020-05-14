@@ -558,10 +558,14 @@ contains
              info%predictions(iobs,imember)=info%local_io_data( &
                   info%obs_positions(iobs)+1,local_io_counter)
           end do
+
           local_io_counter=local_io_counter+1
+
        end if
+
        call mpi_bcast(info%predictions(:,imember),info%n_observations, &
             MPI_DOUBLE,info%io_ranks(imember),comm,ierr)
+
     end do
 
     info%predictions_computed=.true.
