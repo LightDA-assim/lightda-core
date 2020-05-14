@@ -172,6 +172,11 @@ contains
 
     call c_f_pointer(info_c_ptr,info)
 
+    if(n_obs_batch/=info%n_observations) then
+       print *,'Inconsistent observation count'
+       stop
+    end if
+
     do imember=1,n_ensemble
        do iobs=1,n_obs_batch
           innovations(iobs,imember)=info%observations(iobs) - &
