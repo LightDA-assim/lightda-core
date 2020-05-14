@@ -507,6 +507,11 @@ contains
              end if
           end do
 
+          if(ibatch_local-1/=n_local_batches) then
+             print '(A,I0,A,I0)','Inconsistency in the local batch count. Expected ',n_local_batches,' found ',ibatch_local-1
+             stop
+          end if
+
        end if
     end do
 
@@ -533,6 +538,12 @@ contains
 
              end if
           end do
+
+          if(ibatch_local-1/=n_local_batches) then
+             print '(A,I0,A,I0)','Inconsistency in the local batch count. Expected ',n_local_batches,' found ',ibatch_local-1
+             stop
+          end if
+
        end if
     end do
 
