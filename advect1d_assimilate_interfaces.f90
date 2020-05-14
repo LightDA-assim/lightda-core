@@ -236,9 +236,8 @@ contains
     real(kind=8)::cutoff,cutoff_u_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta,w
     integer::domain_size,iobs1,iobs2,ipos,batch_offset
 
-    cutoff=0.35
-    cutoff_u_a=0.4
-    cutoff_a_a=0.35
+    cutoff=0.1
+    cutoff_u_a=0.2
 
     call c_f_pointer(info_ptr,info)
 
@@ -264,7 +263,7 @@ contains
           delta=abs(pos_obs1-pos_obs2)
           distance=min(delta,1-delta)
 
-          c=cutoff_a_a
+          c=cutoff
 
           w=localize_gaspari_cohn(distance,c)
 
