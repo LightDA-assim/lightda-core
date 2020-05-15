@@ -224,7 +224,7 @@ contains
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
 
-    forget=1
+    forget=0.6
 
     ! Get the number of batches and allocate batch arrays
     n_batches=get_batch_count(state_size,batch_size)
