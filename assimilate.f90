@@ -205,7 +205,7 @@ contains
     integer,dimension(:),allocatable :: io_ranks, batch_ranks
     real(kind=8),allocatable::local_batches(:,:,:)
     real(kind=8),allocatable::innovations(:,:),predictions(:,:),observations(:)
-    real(kind=8),allocatable::batch_mean_state(:)
+    real(kind=8),allocatable::batch_mean_state(:),batch_states(:,:)
     real(kind=8)::forget
 
     integer::rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
@@ -234,6 +234,7 @@ contains
     allocate(predictions(n_obs_batch_max,n_ensemble))
     allocate(observations(n_obs_batch_max))
     allocate(batch_mean_state(batch_size))
+    allocate(batch_states(batch_size,n_ensemble))
 
     ! Assign batches to process ranks
     call get_batch_ranks(comm_size,batch_ranks)
@@ -274,12 +275,14 @@ contains
        call U_get_batch_innovations(interface_info,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,innovations)
        call U_get_batch_observations(interface_info,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
 
+       batch_states=local_batches(ibatch_local,:,:)
+
        call lenkf_analysis_rsm(istep,ibatch,batch_size,n_obs_batch, &
-            n_obs_batch,n_ensemble,int(0),batch_mean_state,local_batches(ibatch_local,:,:), &
+            n_obs_batch,n_ensemble,int(0),batch_mean_state,batch_states, &
             predictions,innovations,U_add_obs_err,U_localize,forget,ierr,interface_info)
 
        call U_transmit_results(interface_info,istep,ibatch, &
-            local_batches(ibatch_local,:,:),batch_size,n_ensemble,batch_ranks, &
+            batch_states,batch_size,n_ensemble,batch_ranks, &
             n_batches,comm,rank)
 
        ibatch_local=ibatch_local+1
@@ -294,6 +297,7 @@ contains
     deallocate(observations)
     deallocate(innovations)
     deallocate(predictions)
+    deallocate(batch_states)
 
   end subroutine assimilate_parallel
 
