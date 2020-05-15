@@ -131,7 +131,6 @@ contains
   subroutine get_batch_predictions(info_ptr,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,predictions)
 
     use iso_c_binding
-    use mpi
 
     implicit none
 
@@ -190,7 +189,6 @@ contains
   subroutine get_batch_observations(info_c_ptr,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
 
     use iso_c_binding
-    use mpi
 
     implicit none
 
