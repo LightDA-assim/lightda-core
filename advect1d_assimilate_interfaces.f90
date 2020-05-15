@@ -263,7 +263,7 @@ contains
     do iobs1=1,dim_obs
        pos_obs1=real(info%obs_positions(iobs1)-1)/domain_size
 
-       do iobs2=1,dim_p
+       do iobs2=1,dim_obs
           pos_obs2=real(info%obs_positions(iobs2)-1)/domain_size
           delta=abs(pos_obs1-pos_obs2)
           distance=min(delta,1-delta)
