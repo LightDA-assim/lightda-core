@@ -87,9 +87,10 @@ contains
   end function get_rank_batch_count
 
   subroutine assimilate_parallel(interface_info,istep,n_ensemble,batch_size, &
-       state_size,n_observations,n_obs_batch_max,comm,U_load_ensemble_state,U_transmit_results, &
-       U_store_results,U_get_batch_observation_count,U_get_batch_observations, &
-       U_get_batch_predictions,U_get_batch_innovations,U_add_obs_err,U_localize)
+       state_size,n_observations,n_obs_batch_max,comm,U_load_ensemble_state, &
+       U_transmit_results, U_store_results,U_get_batch_observation_count, &
+       U_get_batch_observations, U_get_batch_predictions, &
+       U_get_batch_innovations,U_add_obs_err,U_localize)
 
     use lenkf_rsm, ONLY: lenkf_analysis_rsm
 
