@@ -2,7 +2,7 @@ program advect1d_assimmilate
 
   use advect1d_assimilate_interfaces
   use assimilate
-  use mpi
+  use system_mpi
   use iso_c_binding
 
   implicit none

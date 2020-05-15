@@ -1,5 +1,5 @@
 module advect1d_assimilate_interfaces
-  use mpi
+  use system_mpi
   use iso_c_binding
   use assimilate, ONLY: get_batch_offset, get_batch_length, get_batch_count
   use random, ONLY: random_normal

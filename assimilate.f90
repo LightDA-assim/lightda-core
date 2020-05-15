@@ -1,6 +1,6 @@
 module assimilate
 
-  use mpi
+  use system_mpi
   use iso_c_binding
 
   implicit none
