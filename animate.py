@@ -412,7 +412,7 @@ class ensemble_animator(object):
         if do_assimilation:
 
             # Covariance inflation
-            self.apply_inflation(predictions,obs_w_errors)
+            #self.apply_inflation(predictions,obs_w_errors)
 
             # Get observation perturbations
             obs_perturbations=np.random.normal(
