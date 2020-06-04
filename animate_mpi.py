@@ -394,13 +394,13 @@ class ensemble_animator(object):
     def render_frame(self,i):
 
         if not np.all(np.isfinite(self.ensemble)):
-            raise(ValueError,'nan or inf found in ensemble state array')
+            raise ValueError('nan or inf found in ensemble state array')
 
         advance_to_time(self.u_true,self.a_true,self.dx,self.dt,self.limiter)
         advance_ensemble_to_time(self.ensemble,self.dx,self.dt,self.limiter)
 
         if not np.all(np.isfinite(self.ensemble)):
-            raise(ValueError,'nan or inf found in ensemble state array')
+            raise ValueError('nan or inf found in ensemble state array')
 
         obs_true=np.dot(self.forward_operator,np.hstack([self.u_true,self.a_true]))
         obs_w_errors=np.random.normal(obs_true,self.obs_errors)
