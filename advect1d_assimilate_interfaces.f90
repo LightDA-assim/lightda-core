@@ -537,7 +537,26 @@ contains
     end if
 
   end subroutine get_member_state
-   
+
+  subroutine after_ensemble_results_received(this,istep)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep
+    integer::imember,rank,ierr
+
+    call MPI_Comm_rank(this%comm,rank,ierr)
+
+    do imember=1,this%n_ensemble
+
+       if(this%io_ranks(imember)==rank) then
+
+          call write_state(this,istep,imember,this%n_ensemble,this%comm,this%local_io_data(:,imember),this%state_size)
+
+       end if
+
+    end do
+
+  end subroutine after_ensemble_results_received
+
   subroutine write_state(this,istep,imember,n_ensemble,comm,member_state,state_size)
 
     type(advect1d_interface)::this
