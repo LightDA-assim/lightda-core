@@ -30,6 +30,7 @@ module advect1d_assimilate_interfaces
      procedure::before_loading_ensemble_state
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
+     procedure::after_ensemble_results_received
   end type advect1d_interface
 
 contains
@@ -502,13 +503,13 @@ contains
 
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
-    real(kind=8),pointer::buffer
+    real(kind=8),pointer::buffer(:)
     integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
     buffer=>this%local_io_data( &
-         subset_offset+1, &
+         subset_offset+1:subset_offset+subset_size+1, &
          get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
 
   end function get_receive_buffer

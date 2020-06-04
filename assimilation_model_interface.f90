@@ -80,7 +80,7 @@ module assimilation_model_interface
 
        class(base_model_interface)::this
        integer,intent(in)::istep,imember,subset_offset,subset_size
-       real(kind=8),pointer::buffer
+       real(kind=8),pointer::buffer(:)
 
      end function I_get_receive_buffer
 
