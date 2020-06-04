@@ -1,6 +1,7 @@
 program advect1d_assimmilate
 
-  use advect1d_assimilate_interfaces
+  use advect1d_assimilate_interfaces, ONLY: advect1d_interface, new_advect1d_interface
+  use assimilation_batch_manager, ONLY: assim_batch_manager, new_batch_manager
   use assimilate
   use system_mpi
   use iso_c_binding
@@ -10,7 +11,8 @@ program advect1d_assimmilate
   integer::ierr,istep,batch_size,n_ensemble,state_size,comm_size,rank, &
        n_observations
 
-  type(c_ptr)::interface_ptr
+  type(advect1d_interface)::model_interface
+  type(assim_batch_manager)::batch_manager
 
   call mpi_init(ierr)
 
@@ -19,39 +21,28 @@ program advect1d_assimmilate
   call mpi_comm_rank(mpi_comm_world,rank,ierr)
 
   ! Parse command line arguments
-  call parse_arguments(istep,n_ensemble,batch_size,state_size)
+  call parse_arguments(istep,n_ensemble,n_observations,batch_size,state_size)
 
   ! Initialize i/o interface for accessing data for assimilation
-  call init_interface(interface_ptr,n_ensemble,state_size,batch_size,comm_size,rank)
+  model_interface=new_advect1d_interface(n_ensemble,n_observations,state_size,mpi_comm_world)
 
-  n_observations=get_batch_observation_count(interface_ptr,istep,1,batch_size,MPI_COMM_WORLD,rank)
+  batch_manager=new_batch_manager(model_interface,n_ensemble,state_size,batch_size,mpi_comm_world)
 
   ! Run the assimilation
-  call assimilate_parallel(interface_ptr,istep,n_ensemble,batch_size, &
-       state_size,n_observations,n_observations,MPI_COMM_WORLD, &
-       load_ensemble_state,u_transmit_results=transmit_results, &
-       u_store_results=store_results, &
-       u_get_batch_observation_count=get_batch_observation_count, &
-       u_get_batch_observations=get_batch_observations, &
-       u_get_batch_predictions=get_batch_predictions, &
-       u_get_batch_innovations=get_batch_innovations, &
-       u_add_obs_err=add_obs_err, &
-       u_localize=localize)
-
-  ! Cleanup i/o interface
-  call cleanup_interface(interface_ptr)
+  call assimilate_parallel(batch_manager,istep,n_observations,n_observations)
 
   call mpi_finalize(ierr)
 
 end program advect1d_assimmilate
 
-subroutine parse_arguments(istep,n_ensemble,batch_size,state_size)
+subroutine parse_arguments(istep,n_ensemble,n_observations,batch_size,state_size)
 
-  integer::i,istep,batch_size,n_ensemble,state_size
+  integer::i,istep,batch_size,n_ensemble,state_size,n_observations
   character(len=32) :: arg
 
   state_size=0
   n_ensemble=0
+  n_observations=0
   batch_size=1
   istep=0
 
@@ -74,6 +65,12 @@ subroutine parse_arguments(istep,n_ensemble,batch_size,state_size)
         i=i+1
         call get_command_argument(i,arg)
         read(arg,*) n_ensemble
+
+     case('-o','--n_observations')
+
+        i=i+1
+        call get_command_argument(i,arg)
+        read(arg,*) n_observations
 
      case('-s','--state_size')
 

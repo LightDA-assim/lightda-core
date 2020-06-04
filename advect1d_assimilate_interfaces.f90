@@ -1,65 +1,78 @@
 module advect1d_assimilate_interfaces
+  use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use iso_c_binding
-  use assimilate, ONLY: get_batch_offset, get_batch_length, get_batch_count
   use random, ONLY: random_normal
 
   use hdf5
 
   implicit none
 
-  type :: io_info
-     integer,allocatable::io_ranks(:)
-     integer::comm_size,n_ensemble,state_size,local_io_size,n_observations,n_batches,batch_size
-     real(kind=8),allocatable::local_io_data(:,:)
+  type, extends(base_model_interface)::advect1d_interface
+     private
      real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
-     integer,allocatable::obs_positions(:)
-     logical,allocatable::batch_results_received(:,:)
-     logical::observations_read
-     logical::predictions_computed
-  end type io_info
+     real(kind=8),pointer::local_io_data(:,:)
+     real(kind=8)::cutoff,cutoff_u_a
+     integer,allocatable::obs_positions(:),io_ranks(:)
+     integer::n_observations,state_size,comm,local_io_size
+     logical::observations_read,predictions_computed,state_loaded
+   contains
+     procedure::get_member_state
+     procedure::get_subset_io_segment_data
+     procedure::get_receive_buffer
+     procedure::get_subset_obs_count
+     procedure::get_subset_predictions
+     procedure::get_subset_observations
+     procedure::get_subset_obs_err
+     procedure::get_weight_obs_obs
+     procedure::get_weight_model_obs
+     procedure::read_observations
+     procedure::before_loading_ensemble_state
+     procedure,private::compute_predictions
+     procedure,private::load_ensemble_state
+  end type advect1d_interface
 
 contains
 
-  subroutine init_interface(info_ptr,n_ensemble,state_size,batch_size,comm_size,rank)
-    type(c_ptr),intent(out)::info_ptr
-    integer(c_int),intent(in)::n_ensemble,state_size,batch_size,comm_size
-    type(io_info), pointer ::info
-    integer::ierr,rank
+  function new_advect1d_interface(n_ensemble,n_observations,state_size,comm) result(this)
 
-    ! Initialize state info
-    allocate(info)
-    info%n_ensemble=n_ensemble
-    info%state_size=state_size
-    info%n_observations=0
-    info%batch_size=batch_size
+    integer(c_int),intent(in)::n_ensemble,n_observations,state_size,comm
+    type(advect1d_interface)::this
+    integer::ierr,rank,comm_size
 
-    info%observations_read=.false.
-    info%predictions_computed=.false.
+    this%n_ensemble=n_ensemble
+    this%n_observations=n_observations
+    this%state_size=state_size
+    this%comm=comm
 
-    allocate(info%io_ranks(n_ensemble))
+    this%cutoff=0.1
+    this%cutoff_u_a=0.2
 
-    ! Assign ranks to processors for i/o purposes
-    call get_io_ranks(comm_size,n_ensemble,info%io_ranks)
+    this%observations_read=.false.
+    this%predictions_computed=.false.
+    this%state_loaded=.false.
 
-    info%local_io_size=get_rank_io_size(n_ensemble,info%io_ranks,rank)
+    call mpi_comm_rank(comm,rank,ierr)
+    call mpi_comm_size(comm,comm_size,ierr)
 
-    info%n_batches=get_batch_count(state_size,batch_size)
+    allocate(this%observations(this%n_observations))
+    allocate(this%obs_errors(this%n_observations))
+    allocate(this%obs_positions(this%n_observations))
+    allocate(this%predictions(this%n_observations,this%n_ensemble))
+    allocate(this%io_ranks(n_ensemble))
 
-    allocate(info%observations(info%n_observations))
-    allocate(info%obs_errors(info%n_observations))
-    allocate(info%obs_positions(info%n_observations))
+    ! Assign ensemble members to processors for i/o purposes
+    call get_io_ranks(comm_size,n_ensemble,this%io_ranks)
 
-    allocate(info%local_io_data(state_size,info%local_io_size))
-    allocate(info%batch_results_received(info%local_io_size,info%n_batches))
+    ! Get the number of ensemble members read and written locally
+    this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
 
-    info%batch_results_received=.false.
-
-    info_ptr=c_loc(info)
+    ! Allocate array for local i/o data
+    allocate(this%local_io_data(state_size,this%local_io_size))
 
     call h5open_f(ierr)
 
-  end subroutine init_interface
+  end function new_advect1d_interface
 
   subroutine get_io_ranks(comm_size,n_ensemble,io_ranks)
     integer,intent(in)::comm_size,n_ensemble
@@ -108,196 +121,134 @@ contains
 
   end function get_local_io_index
 
-  function get_batch_observation_count(info_ptr,istep,ibatch, &
-       batch_size,comm,rank) result(n_obs_batch)
-
-    use iso_c_binding
+  function get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
 
     implicit none
 
-    type(c_ptr),intent(inout)::info_ptr
-    integer,intent(in)::istep,ibatch,batch_size,comm,rank
-    integer::n_obs_batch
-    type(io_info),pointer::info
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size
+    integer::obs_count
 
-    call c_f_pointer(info_ptr,info)
+    obs_count=this%n_observations
 
-    if(.not.info%observations_read) call read_observations(info,istep)
+  end function get_subset_obs_count
 
-    n_obs_batch=info%n_observations
-
-  end function get_batch_observation_count
-
-  subroutine get_batch_predictions(info_ptr,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,predictions)
+  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
 
     use iso_c_binding
 
-    implicit none
-
-    type(c_ptr),intent(inout)::info_ptr
-    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
-         n_obs_batch
-    real(kind=8),intent(inout)::predictions(n_obs_batch,n_ensemble)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size
+    real(kind=8),intent(inout)::predictions(:,:)
     integer::i,imember,ierr
-    type(io_info),pointer::info
 
-    call c_f_pointer(info_ptr,info)
-
-    if(n_obs_batch /= info%n_observations) then
-       print '(A,I0,A,I0,A,I0)', &
-            'Wrong n_obs_batch passed to get_batch_predictions for batch ', &
-            ibatch,'. Expected ',info%n_observations,', got ',n_obs_batch
-       call mpi_abort(comm,1,ierr)
+    if(size(predictions,1) /= this%n_observations .or. &
+       size(predictions,2) /= this%n_ensemble) then
+       print '(A,I0,A,I0,A,I0,A,I0,A)', &
+            'Wrong shape passed to predictions argument of get_subset_predictions. Expected (', &
+            this%n_observations,',',this%n_ensemble, &
+            '), got (',size(predictions,1),',',size(predictions,2),').'
+       call mpi_abort(this%comm,1,ierr)
     end if
 
-    call c_f_pointer(info_ptr,info)
+    if(.not. this%observations_read) call this%read_observations(istep)
 
-    predictions=info%predictions
+    if(.not. this%predictions_computed) call this%compute_predictions(istep)
 
-  end subroutine get_batch_predictions
+    predictions=this%predictions
 
-  subroutine get_batch_innovations(info_c_ptr,istep,ibatch,batch_size,n_ensemble,n_obs_batch,rank,comm,innovations)
+  end subroutine get_subset_predictions
+
+  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations)
 
     use iso_c_binding
 
     implicit none
 
-    type(c_ptr),intent(inout)::info_c_ptr
-    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_ensemble, &
-         n_obs_batch
-    real(kind=8),intent(inout)::innovations(n_obs_batch,n_ensemble)
-    type(io_info),pointer::info
-    integer::imember,iobs
-
-    call c_f_pointer(info_c_ptr,info)
-
-    if(n_obs_batch/=info%n_observations) then
-       print *,'Inconsistent observation count'
-       stop
-    end if
-
-    do imember=1,n_ensemble
-       do iobs=1,n_obs_batch
-          innovations(iobs,imember)=info%observations(iobs) - &
-               info%predictions(iobs,imember) + &
-               random_normal()*info%obs_errors(iobs)
-       end do
-    end do
-
-  end subroutine get_batch_innovations
-
-  subroutine get_batch_observations(info_c_ptr,istep,ibatch,batch_size,n_obs_batch,rank,comm,observations)
-
-    use iso_c_binding
-
-    implicit none
-
-    type(c_ptr),intent(inout)::info_c_ptr
-    integer,intent(in)::istep,ibatch,rank,comm,batch_size,n_obs_batch
-    real(kind=8),intent(inout)::observations(n_obs_batch)
-    type(io_info),pointer::info
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size
+    real(kind=8),intent(out)::observations(:)
     integer::ierr
 
-    call c_f_pointer(info_c_ptr,info)
-
-    if(n_obs_batch /= info%n_observations) then
+    if(size(observations) /= this%n_observations) then
        print '(A,I0,A,I0,A,I0)', &
-            'Wrong n_obs_batch passed to get_batch_observations for batch ', &
-            ibatch,'. Expected ',info%n_observations,', got ',n_obs_batch
-       call mpi_abort(comm,1,ierr)
+            'Wrong size array passed to observations argument of get_batch_observations. Expected size=', &
+            this%n_observations,', got size=',size(observations)
+       call mpi_abort(this%comm,1,ierr)
     end if
 
-    observations=info%observations
+    if(.not. this%observations_read) call this%read_observations(istep)
 
-  end subroutine get_batch_observations
+    observations=this%observations
 
-  SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH,info_ptr)
-    ! Add observation error covariance matrix
+  end subroutine get_subset_observations
+
+  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err)
     USE iso_c_binding
-    type(c_ptr),intent(inout)::info_ptr
-    INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
-    REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
-    type(io_info),pointer::info
-    integer::iobs
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size
+    REAL(c_double), INTENT(out) :: obs_err(:)
 
-    call c_f_pointer(info_ptr,info)
+    if(.not. this%observations_read) call this%read_observations(istep)
 
-    do iobs=1,dim_obs
-       HPH(iobs,iobs)=HPH(iobs,iobs)+info%obs_errors(iobs)**2
-    end do
+    obs_err=this%obs_errors
 
-  END SUBROUTINE add_obs_err
+  END SUBROUTINE get_subset_obs_err
 
-  SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info_ptr)
-    ! Apply localization to HP and HPH^T
-    USE iso_c_binding
-    use localization,ONLY: localize_gaspari_cohn
-    INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
-    REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
-    type(c_ptr),intent(inout)::info_ptr
-    type(io_info),pointer::info
-    real(kind=8)::cutoff,cutoff_u_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta,w
-    integer::domain_size,iobs1,iobs2,ipos,batch_offset
+  function get_weight_obs_obs(this,istep,subset_offset,subset_size,iobs1,iobs2) result(weight)
 
-    cutoff=0.1
-    cutoff_u_a=0.2
+    use localization, ONLY: localize_gaspari_cohn
 
-    call c_f_pointer(info_ptr,info)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size,iobs1,iobs2
+    real(kind=8)::weight
+    real(kind=8)::pos1,pos2,delta,distance
+    integer::domain_size
 
-    domain_size=info%state_size/2
+    if(.not. this%observations_read) call this%read_observations(istep)
 
-    if(dim_p/=info%batch_size) then
-       print *,'Inconsistent batch size'
-       stop
+    domain_size=this%state_size/2
+
+    pos1=real(this%obs_positions(iobs1)-1)/domain_size
+    pos2=real(this%obs_positions(iobs2)-1)/domain_size
+    delta=abs(pos1-pos2)
+    distance=min(delta,1-delta)
+
+    weight=localize_gaspari_cohn(distance,this%cutoff)
+
+  end function get_weight_obs_obs
+
+  function get_weight_model_obs(this,istep,subset_offset,subset_size,imodel,iobs) result(weight)
+
+    use localization, ONLY: localize_gaspari_cohn
+
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size,imodel,iobs
+    real(kind=8)::weight
+    real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
+    integer::domain_size
+
+
+
+    domain_size=this%state_size/2
+
+    pos_obs=real(this%obs_positions(iobs)-1)/domain_size
+    pos_model=real(mod(imodel-1,domain_size))/domain_size
+    delta=abs(pos_obs-pos_model)
+    distance=min(delta,1-delta)
+
+    if(imodel<domain_size) then
+       cutoff=this%cutoff
+    else
+       cutoff=this%cutoff_u_a
     end if
 
-    if(dim_obs/=info%n_observations) then
-       print *,'Inconsistent observation extent'
-       stop
-    end if
+    weight=localize_gaspari_cohn(distance,cutoff)
 
-    batch_offset=get_batch_offset(info%batch_size,ind_p)
+  end function get_weight_model_obs
 
-    do iobs1=1,dim_obs
-       pos_obs1=real(info%obs_positions(iobs1)-1)/domain_size
-
-       do iobs2=1,dim_obs
-          pos_obs2=real(info%obs_positions(iobs2)-1)/domain_size
-          delta=abs(pos_obs1-pos_obs2)
-          distance=min(delta,1-delta)
-
-          c=cutoff
-
-          w=localize_gaspari_cohn(distance,c)
-
-          HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*w
-
-       end do
-
-       do ipos=1,dim_p
-
-          pos=real(mod(ipos+batch_offset-1,domain_size))/domain_size
-
-          delta=abs(pos_obs1-pos)
-          distance=min(delta,1-delta)
-
-          if(pos<domain_size) then
-             c=cutoff
-          else
-             c=cutoff_u_a
-          end if
-
-          w=localize_gaspari_cohn(distance,c)
-
-          HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*w
-
-       end do
-    end do
-
-  END SUBROUTINE localize
-
-  subroutine read_observations(info,istep)
-    type(io_info),intent(inout), pointer :: info
+  subroutine read_observations(this,istep)
+    class(advect1d_interface)::this
     integer,intent(in)::istep
     character(len=50)::obs_filename
     integer(HID_T)::h5file_h,dset_h,dataspace
@@ -320,16 +271,16 @@ contains
     ! Get the dataset size
     call h5sget_simple_extent_dims_f(dataspace,dims,maxdims,ierr)
 
-    info%n_observations=dims(1)
+    this%n_observations=dims(1)
 
     ! Close the dataspace
     call h5sclose_f(dataspace,ierr)
 
-    deallocate(info%observations)
-    allocate(info%observations(info%n_observations))
+    deallocate(this%observations)
+    allocate(this%observations(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,info%observations,dims,ierr)
+    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,this%observations,dims,ierr)
 
     ! Close the dataset
     call h5dclose_f(dset_h,ierr)
@@ -337,11 +288,11 @@ contains
     ! Open the obs_positions dataset
     call h5dopen_f(h5file_h,'obs_positions',dset_h,ierr)
 
-    deallocate(info%obs_positions)
-    allocate(info%obs_positions(info%n_observations))
+    deallocate(this%obs_positions)
+    allocate(this%obs_positions(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_INTEGER,info%obs_positions,dims,ierr)
+    call h5dread_f(dset_h,H5T_NATIVE_INTEGER,this%obs_positions,dims,ierr)
 
     ! Close the dataset
     call h5dclose_f(dset_h,ierr)
@@ -349,11 +300,11 @@ contains
     ! Open the obs_errors dataset
     call h5dopen_f(h5file_h,'obs_errors',dset_h,ierr)
 
-    deallocate(info%obs_errors)
-    allocate(info%obs_errors(info%n_observations))
+    deallocate(this%obs_errors)
+    allocate(this%obs_errors(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,info%obs_errors,dims,ierr)
+    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,this%obs_errors,dims,ierr)
 
     ! Close the dataset
     call h5dclose_f(dset_h,ierr)
@@ -361,38 +312,40 @@ contains
     ! Close the file
     call h5fclose_f(h5file_h,ierr)
 
-    info%observations_read=.true.
+    this%observations_read=.true.
 
   end subroutine read_observations
 
-  subroutine load_observations_parallel(info,istep,comm,rank)
-    type(io_info),intent(inout), pointer :: info
-    integer,intent(in)::istep,comm
+  subroutine load_observations_parallel(this,istep)
+    type(advect1d_interface)::this
+    integer,intent(in)::istep
     integer::ierr,rank
 
-    if(info%observations_read) return
+    call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(rank==0) call read_observations(info,istep)
+    if(this%observations_read) return
 
-    call mpi_bcast(info%n_observations,1,MPI_INTEGER,0,comm,ierr)
+    if(rank==0) call read_observations(this,istep)
+
+    call mpi_bcast(this%n_observations,1,MPI_INTEGER,0,this%comm,ierr)
 
     if(rank>0) then
-       deallocate(info%observations)
-       allocate(info%observations(info%n_observations))
-       deallocate(info%obs_positions)
-       allocate(info%obs_positions(info%n_observations))
-       deallocate(info%obs_errors)
-       allocate(info%obs_errors(info%n_observations))
+       deallocate(this%observations)
+       allocate(this%observations(this%n_observations))
+       deallocate(this%obs_positions)
+       allocate(this%obs_positions(this%n_observations))
+       deallocate(this%obs_errors)
+       allocate(this%obs_errors(this%n_observations))
     end if
 
-    call mpi_bcast(info%observations,info%n_observations,MPI_INTEGER,0,comm, &
-         ierr)
-    call mpi_bcast(info%obs_positions,info%n_observations,MPI_INTEGER,0,comm, &
-         ierr)
-    call mpi_bcast(info%obs_errors,info%n_observations,MPI_INTEGER,0,comm, &
-         ierr)
+    call mpi_bcast(this%observations,this%n_observations,MPI_INTEGER,0, &
+         this%comm,ierr)
+    call mpi_bcast(this%obs_positions,this%n_observations,MPI_INTEGER,0, &
+         this%comm,ierr)
+    call mpi_bcast(this%obs_errors,this%n_observations,MPI_INTEGER,0, &
+         this%comm,ierr)
 
-    info%observations_read=.true.
+    this%observations_read=.true.
 
   end subroutine load_observations_parallel
 
@@ -445,218 +398,148 @@ contains
 
   end subroutine read_state
 
-  subroutine load_ensemble_state(info_c_ptr,istep,rank,comm,state_size, &
-    batch_ranks,local_batches,n_batches,n_local_batches,batch_size,n_ensemble)
+  subroutine load_ensemble_state(this,istep)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep
+    integer::imember,local_io_counter,rank,ierr
 
-    type(c_ptr),intent(inout)::info_c_ptr
-    integer,intent(in)::istep,rank,comm,n_local_batches,state_size,batch_size,n_batches,n_ensemble
-    integer,intent(in)::batch_ranks(n_batches)
-    real(kind=8),intent(out)::local_batches(n_local_batches,batch_size,n_ensemble)
-    real(kind=8)::batch_state(batch_size)
-    type(io_info),pointer::info
-    integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size,batch_length,batch_offset,local_io_counter,iobs
-    real(kind=8)::member_state(state_size)
-    integer::status(MPI_STATUS_SIZE)
-    integer::request
-
-    call c_f_pointer(info_c_ptr,info)
-
-    call mpi_comm_size(comm,comm_size,ierr)
+    call mpi_comm_rank(this%comm,rank,ierr)
 
     local_io_counter=1
 
-    do imember=1,n_ensemble
-       if(info%io_ranks(imember)==rank) then
-
-          ! Read batch data from disk
-          call read_state(istep,imember,member_state,state_size)
-
-          ! Copy data to local io array for later use
-          info%local_io_data(:,local_io_counter)=member_state
-
+    do imember=1,this%n_ensemble
+       if(this%io_ranks(imember)==rank) then
+          call read_state(istep,imember, &
+               this%local_io_data(:,local_io_counter),this%state_size)
           local_io_counter=local_io_counter+1
-
-          ! Reset the local batch counter
-          ibatch_local=1
-
-          do ibatch=1,n_batches
-
-             ! Locate batch in the state array
-             batch_offset=get_batch_offset(batch_size,ibatch)
-             batch_length=get_batch_length(batch_size,ibatch,state_size)
-
-             ! Array containing the state for this batch
-             batch_state(1:batch_length)=member_state(batch_offset+1:batch_offset+batch_length)
-
-             if(batch_ranks(ibatch)==rank) then
-
-                ! Copy batch state into the local_batches array
-                local_batches(ibatch_local,:,imember)=batch_state
-
-                ! Increment the local batch counter
-                ibatch_local=ibatch_local+1
-
-             else
-                ! Send the batch to the appropriate process
-                call MPI_Isend(batch_state(1:batch_length),batch_length, &
-                     MPI_DOUBLE_PRECISION,batch_ranks(ibatch),ibatch,comm, &
-                     request,ierr)
-
-             end if
-          end do
-
-          if(ibatch_local-1/=n_local_batches) then
-             print '(A,I0,A,I0)','Inconsistency in the local batch count. Expected ',n_local_batches,' found ',ibatch_local-1
-             stop
-          end if
-
        end if
     end do
 
-    do imember=1,n_ensemble
-       if(info%io_ranks(imember)/=rank) then
-
-          ! Reset the local batch counter
-          ibatch_local=1
-
-          do ibatch=1,n_batches
-             if(batch_ranks(ibatch)==rank) then
-
-                ! Determine the length of this batch
-                batch_length=get_batch_length(batch_size,ibatch,state_size)
-
-                ! Receive the batch data from the i/o process
-                call MPI_Recv( &
-                     local_batches( ibatch_local,1:batch_length,imember), &
-                     batch_length,MPI_DOUBLE_PRECISION,info%io_ranks(imember), &
-                     ibatch,comm,status,ierr)
-
-                ! Increment the local batch counter
-                ibatch_local=ibatch_local+1
-
-             end if
-          end do
-
-          if(ibatch_local-1/=n_local_batches) then
-             print '(A,I0,A,I0)','Inconsistency in the local batch count. Expected ',n_local_batches,' found ',ibatch_local-1
-             stop
-          end if
-
-       end if
-    end do
-
-    ! Load observations
-    call load_observations_parallel(info,istep,comm,rank)
-    allocate(info%predictions(info%n_observations,n_ensemble))
-
-    local_io_counter=1
-    do imember=1,n_ensemble
-       if(info%io_ranks(imember)==rank) then
-          do iobs=1,info%n_observations
-             info%predictions(iobs,imember)=info%local_io_data( &
-                  info%obs_positions(iobs)+1,local_io_counter)
-          end do
-
-          local_io_counter=local_io_counter+1
-
-       end if
-
-       call mpi_bcast(info%predictions(:,imember),info%n_observations, &
-            MPI_DOUBLE,info%io_ranks(imember),comm,ierr)
-
-    end do
-
-    if(local_io_counter-1/=info%local_io_size) then
-       print '(A,I0,A,I0)','Inconsistency in number of local predictions. Expected ', &
-            info%local_io_size,', got ',local_io_counter-1
-       stop
-    end if
-
-    info%predictions_computed=.true.
+    this%state_loaded=.true.
 
   end subroutine load_ensemble_state
 
-  subroutine receive_results(info,istep,batch_size,batch_ranks,n_batches,n_ensemble,rank,comm)
-    type(io_info),pointer::info
-    integer,intent(in)::istep,batch_size,rank,comm,n_ensemble
-    integer,intent(in)::batch_ranks(n_batches)
-    integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
-         member_rank,local_io_index,status(MPI_STATUS_SIZE),ierr
-    logical::flag
+  subroutine compute_predictions(this,istep)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep
+    integer::imember,local_io_counter,rank,ierr,iobs
+    real(kind=8)::member_predictions(this%n_observations)
 
-    do imember=1,n_ensemble
-       member_rank=info%io_ranks(imember)
-       if(member_rank==rank) then
-          local_io_index=get_local_io_index(n_ensemble,info%io_ranks, &
-               rank,imember)
-          do ibatch=1,n_batches
+    call mpi_comm_rank(this%comm,rank,ierr)
 
-             batch_rank=batch_ranks(ibatch)
+    if(.not. this%observations_read) call this%read_observations(istep)
+    if(.not. this%state_loaded) call this%load_ensemble_state(istep)
 
-             ! Check whether batch has already been received
-             if(info%batch_results_received(local_io_index,ibatch)) cycle
+    local_io_counter=1
 
-             ! Check whether data is ready to receive
-             call mpi_iprobe(batch_rank,ibatch,comm,flag,status,ierr)
-             if(flag.eqv..false.) cycle
+    do imember=1,this%n_ensemble
+       if(this%io_ranks(imember)==rank) then
 
-             ! Locate batch in the state array
-             batch_offset=get_batch_offset(batch_size,ibatch)
-             batch_length=get_batch_length(batch_size,ibatch,info%state_size)
-
-             ! Receive data
-             call mpi_recv(info%local_io_data( &
-                  batch_offset+1:batch_offset+batch_length,local_io_index), &
-                  batch_length,MPI_DOUBLE_PRECISION,batch_rank,ibatch,comm, &
-                  status,ierr)
-
-             ! Record that batch was received
-             info%batch_results_received(local_io_index,ibatch)=.true.
-
+          ! Compute predictions for this ensemble member
+          do iobs=1,this%n_observations
+             member_predictions(iobs)=this%local_io_data( &
+                  this%obs_positions(iobs)+1,local_io_counter)
           end do
+
+          local_io_counter=local_io_counter+1
        end if
+
+       ! Broadcast to all processors
+       call mpi_bcast(member_predictions,this%n_observations, &
+            MPI_DOUBLE_PRECISION,this%io_ranks(imember),this%comm,ierr)
+
+       this%predictions(:,imember)=member_predictions
+
     end do
+  end subroutine compute_predictions
 
-  end subroutine receive_results
+  subroutine before_loading_ensemble_state(this,istep)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep
+    integer::imember,local_io_counter,rank,ierr,iobs
 
-  subroutine transmit_results(info_ptr,istep,ibatch,batch_state,batch_size,n_ensemble,batch_ranks,n_batches,comm,rank)
-    type(c_ptr),intent(inout)::info_ptr
-    integer,intent(in)::istep,ibatch,comm,rank,batch_size,n_ensemble,n_batches
-    integer,intent(in)::batch_ranks(n_batches)
-    real(kind=8),intent(in)::batch_state(batch_size,n_ensemble)
-    type(io_info),pointer::info
-    integer::ierr,imember,member_rank,offset,batch_length,batch_offset,local_io_index,ibatch_recv
-    integer::req
+    call mpi_comm_rank(this%comm,rank,ierr)
 
-    call c_f_pointer(info_ptr,info)
+    if(.not. this%observations_read) call this%read_observations(istep)
 
-    ! Locate batch in the state array
-    batch_offset=get_batch_offset(batch_size,ibatch)
-    batch_length=get_batch_length(batch_size,ibatch,info%state_size)
+    call this%load_ensemble_state(istep)
 
-    do imember=1,n_ensemble
-       member_rank=info%io_ranks(imember)
-       if(member_rank==rank) then
-          local_io_index=get_local_io_index(n_ensemble,info%io_ranks, &
-               rank,imember)
+    call this%compute_predictions(istep)
 
-          info%local_io_data(batch_offset+1:batch_offset+batch_length, &
-               local_io_index)=batch_state(1:batch_length,imember)
+  end subroutine before_loading_ensemble_state
 
-          ! Record that batch was received
-          info%batch_results_received(local_io_index,ibatch)=.true.
-       else
-          call mpi_isend(batch_state(1:batch_length,imember),batch_length,MPI_DOUBLE_PRECISION, &
-               member_rank,ibatch,comm,req,ierr)
-       end if
-    end do
+  subroutine get_subset_io_segment_data(this,istep,imember,subset_offset,subset_size,counts,offsets)
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,imember,subset_offset,subset_size
+    integer,intent(out)::counts(:),offsets(:)
+    integer::comm_size,ierr
 
-    call receive_results(info,istep,batch_size,batch_ranks,n_batches,n_ensemble,rank,comm)
+    call mpi_comm_size(this%comm,comm_size,ierr)
 
-  end subroutine transmit_results
+    if(size(counts)/=comm_size) then
+       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
+            comm_size,', got ',size(counts),'.'
+       error stop
+    end if
 
-  subroutine write_state(istep,imember,n_ensemble,comm,member_state,state_size)
+    if(size(offsets)/=comm_size) then
+       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
+            comm_size,', got ',size(offsets),'.'
+       error stop
+    end if
 
+    ! Fill counts with zeros
+    counts=0
+    offsets=0
+
+    ! Set counts for the rank assigned to do i/o for requested ensemble member
+    counts(this%io_ranks(imember)+1)=subset_size
+    offsets(this%io_ranks(imember)+1)=0
+
+  end subroutine get_subset_io_segment_data
+
+  function get_receive_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,imember,subset_offset,subset_size
+    real(kind=8),pointer::buffer
+    integer::rank,ierr
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    buffer=>this%local_io_data( &
+         subset_offset+1, &
+         get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+
+  end function get_receive_buffer
+
+  subroutine get_member_state(this,istep,imember,subset_offset,subset_size,subset_state)
+
+    implicit none
+
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,imember,subset_offset,subset_size
+    real(kind=8),intent(out)::subset_state(subset_size)
+    integer::local_io_index,rank,ierr
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    local_io_index=get_local_io_index( &
+         this%n_ensemble,this%io_ranks,rank,imember)
+
+    if(local_io_index>0) then
+
+       subset_state=this%local_io_data( &
+            subset_offset+1:subset_offset+subset_size+1, &
+            local_io_index)
+
+    end if
+
+  end subroutine get_member_state
+   
+  subroutine write_state(this,istep,imember,n_ensemble,comm,member_state,state_size)
+
+    type(advect1d_interface)::this
     integer,intent(in)::istep,imember,n_ensemble,state_size
     real(kind=8),intent(in)::member_state(state_size)
     character(len=80)::postassim_filename
@@ -700,54 +583,5 @@ contains
     call h5fclose_f(h5file_h,ierr)
 
   end subroutine write_state
-
-  subroutine store_results(info_c_ptr,istep,batch_size,batch_ranks,n_batches,rank,comm,state_size)
-    implicit none
-
-    type(c_ptr),intent(inout)::info_c_ptr
-    integer,intent(in)::istep,rank,comm,state_size,batch_size,n_batches
-    integer,intent(in)::batch_ranks(n_batches)
-    type(io_info),pointer::info
-    integer::imember,local_io_counter
-
-    call c_f_pointer(info_c_ptr,info)
-
-    local_io_counter=1
-
-    do while(count(info%batch_results_received)<info%local_io_size)
-       call receive_results(info,istep,batch_size,batch_ranks,n_batches,info%n_ensemble,rank,comm)
-    end do
-
-    do imember=1,info%n_ensemble
-       if(info%io_ranks(imember)==rank) then
-
-          call write_state(istep,imember,info%n_ensemble,comm, &
-               info%local_io_data(:,local_io_counter),state_size)
-
-          local_io_counter=local_io_counter+1
-
-       end if
-    end do
-
-  end subroutine store_results
-
-  subroutine cleanup_interface(info_ptr)
-    type(c_ptr),intent(in)::info_ptr
-    type(io_info), pointer ::info
-
-    call c_f_pointer(info_ptr,info)
-
-    deallocate(info%observations)
-    deallocate(info%obs_positions)
-    deallocate(info%obs_errors)
-    deallocate(info%batch_results_received)
-
-    if(info%predictions_computed) deallocate(info%predictions)
-
-    deallocate(info%io_ranks)
-    deallocate(info%local_io_data)
-    deallocate(info)
-
-  end subroutine cleanup_interface
 
 end module advect1d_assimilate_interfaces

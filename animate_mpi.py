@@ -448,7 +448,8 @@ class ensemble_animator(object):
                                 '--state_size',str(self.ensemble.shape[0]),
                                 '--batch_size',str(int(
                                     self.ensemble.shape[0]/10)),
-                                '--n_ensemble',str(self.ensemble.shape[1])])
+                                '--n_ensemble',str(self.ensemble.shape[1]),
+                                '--n_observations',str(len(self.obs_positions))])
             p.wait()
 
             for i in range(self.ensemble.shape[1]):
