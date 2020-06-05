@@ -508,9 +508,17 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    buffer=>this%local_io_data( &
-         subset_offset+1:subset_offset+subset_size+1, &
-         get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+    if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
+
+       ! Point to the appropriate position in local_io_data
+       buffer=>this%local_io_data( &
+            subset_offset+1:subset_offset+subset_size+1, &
+            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+
+    else
+       ! Return a null pointer
+       buffer=>null()
+    end if
 
   end function get_receive_buffer
 
