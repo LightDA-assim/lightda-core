@@ -549,15 +549,19 @@ contains
   subroutine after_ensemble_results_received(this,istep)
     class(advect1d_interface)::this
     integer,intent(in)::istep
-    integer::imember,rank,ierr
+    integer::imember,rank,ierr,imember_local
 
     call MPI_Comm_rank(this%comm,rank,ierr)
+
+    imember_local=1
 
     do imember=1,this%n_ensemble
 
        if(this%io_ranks(imember)==rank) then
 
-          call write_state(this,istep,imember,this%n_ensemble,this%comm,this%local_io_data(:,imember),this%state_size)
+          call write_state(this,istep,imember,this%n_ensemble,this%comm,this%local_io_data(:,imember_local),this%state_size)
+
+          imember_local=imember_local+1
 
        end if
 
