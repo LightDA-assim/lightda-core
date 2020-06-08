@@ -116,7 +116,7 @@ contains
             n_obs_batch,n_ensemble,int(0),batch_mean_state,batch_states, &
             predictions,innovations,add_obs_err,localize,forget,ierr,batch_manager)
 
-       !print *,'Rank',rank,'completed batch',ibatch
+       local_batches(ibatch_local,:,:)=batch_states
 
        !call batch_manager%transmit_results(istep,ibatch, &
        !     batch_states)
@@ -125,7 +125,7 @@ contains
 
     ! Write the ensemble state
     print *,'Rank',rank,'completed all batches, storing results'
-    call batch_manager%store_results(istep)
+    call batch_manager%store_results(istep,local_batches)
 
     deallocate(local_batches)
     deallocate(observations)

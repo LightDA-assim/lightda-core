@@ -320,7 +320,7 @@ contains
     batch_offset=this%get_batch_offset(ibatch)
     batch_length=this%get_batch_length(ibatch)
 
-    if(size(sendbuf)/=batch_length) then
+    if(size(sendbuf)/=batch_length .and. rank==this%batch_ranks(ibatch)) then
        print '(A,I0,A,I0,A)','Wrong buffer size passed to scatter_batch. Expected ', &
             batch_length,', got ',size(sendbuf),'.'
        error stop
@@ -339,67 +339,80 @@ contains
 
     call MPI_Iscatterv(sendbuf,batch_io_counts,batch_io_offsets, &
          MPI_DOUBLE_PRECISION,recvbuf,batch_io_counts(rank+1), &
-         MPI_DOUBLE_PRECISION,rank,this%comm, &
+         MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),this%comm, &
          this%batch_receive_reqs(imember,ibatch),ierr)
 
   end subroutine scatter_batch
 
-  subroutine receive_results(this,istep)
+  subroutine receive_results(this,istep,local_batches)
 
     class(assim_batch_manager)::this
     integer,intent(in)::istep
+    real(kind=8),intent(in),target::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
          member_rank,local_io_index,status(MPI_STATUS_SIZE),ierr
-    integer::rank,comm_size,ireq,completed_req_count,req_ind
+    integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
     integer::statuses(MPI_STATUS_SIZE,this%n_ensemble*this%n_batches)
     real(kind=8),pointer::recvbuf(:)
-    real(kind=8)::sendbuf(this%batch_size)
+    real(kind=8),pointer::sendbuf(:)
     logical::flag
 
     call mpi_comm_size(this%comm,comm_size,ierr)
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
+    allocate(batch_io_counts(comm_size))
+    allocate(batch_io_offsets(comm_size))
+
+    ibatch_local=1
     do ibatch=1,this%n_batches
 
        do imember=1,this%n_ensemble
 
-          if( batch_rank/=rank .and. &
-               this%batch_receive_reqs(imember,ibatch)==MPI_REQUEST_NULL .and. &
-               .not. this%batch_results_received(imember,ibatch)) then
+          ! Locate batch in the state array
+          batch_offset=this%get_batch_offset(ibatch)
+          batch_length=this%get_batch_length(ibatch)
 
-             call scatter_batch(this,istep,imember,ibatch,sendbuf)
+          ! Get number of state array members to be written by each process
+          call this%model_interface%get_subset_io_segment_data(istep, &
+               imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
+
+          ! Get receive buffer
+          recvbuf=>this%model_interface%get_receive_buffer(istep,imember, &
+               batch_offset,batch_length)
+
+          ! Set send buffer
+          if(this%batch_ranks(ibatch)==rank) then
+             sendbuf=>local_batches(ibatch_local,:,imember)
+             ibatch_local=ibatch_local+1
+          end if
+
+          ! Get number of state array members to be written by each process
+          call this%model_interface%get_subset_io_segment_data(istep, &
+               imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
+
+          print *,batch_io_counts
+
+          if(batch_io_counts(rank+1)>0) print *,batch_io_counts(rank+1),'Original:',recvbuf
+
+          call scatter_batch(this,istep,imember,ibatch,sendbuf)
+
+          if(batch_io_counts(rank+1)>0) then
+             call MPI_Wait(this%batch_receive_reqs(imember,ibatch),status,ierr)
+
+             ! Tell the model interface that the batch has been received
+             call this%model_interface%after_member_state_received(istep,imember,batch_offset,batch_length)
+
+             if(batch_io_counts(rank+1)>0) print *,batch_io_counts(rank+1),'After assimilation:',recvbuf
 
           end if
 
+          ! Record that batch was received
+          this%batch_results_received(imember,ibatch)=.true.
+
        end do
-
-    end do
-
-    ! Check whether data is ready to receive
-    call mpi_testsome(this%n_ensemble*this%n_batches, &
-         this%batch_receive_reqs, &
-         completed_req_count, completed_req_inds, statuses, ierr)
-
-    do ireq=1,completed_req_count
-
-       ! Get the index in the flattened requests array
-       req_ind=completed_req_inds(ireq)
-
-       ! Get the member and batch indices for the request
-       call request_batch_index(this,req_ind,imember,ibatch)
-
-       ! Locate batch in the state array
-       batch_offset=this%get_batch_offset(ibatch)
-       batch_length=this%get_batch_length(ibatch)
-
-       ! Tell the model interface that the batch has been received
-       call this%model_interface%after_member_state_received(istep,imember,batch_offset,batch_length)
-
-       ! Record that batch was received
-       this%batch_results_received(imember,ibatch)=.true.
 
     end do
 
@@ -445,16 +458,17 @@ contains
        call scatter_batch(this,istep,imember,ibatch,batch_state(:,imember))
     end do
 
-    call this%receive_results(istep)
+    call this%receive_results(istep,batch_state)
 
   end subroutine transmit_results
 
-  subroutine store_results(this,istep)
+  subroutine store_results(this,istep,local_batches)
 
     implicit none
 
     class(assim_batch_manager)::this
     integer,intent(in)::istep
+    real(kind=8),intent(in)::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
     integer::imember,local_io_counter,rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
@@ -462,7 +476,7 @@ contains
     local_io_counter=1
 
     do while(any(this%batch_results_received.eqv..false.))
-       call this%receive_results(istep)
+       call this%receive_results(istep,local_batches)
     end do
 
     call this%model_interface%after_ensemble_results_received(istep)
