@@ -35,9 +35,7 @@ contains
     end select
   end subroutine add_obs_err
 
-  subroutine assimilate_parallel(batch_manager,istep,n_observations,n_obs_batch_max)
-
-    use lenkf_rsm, ONLY: lenkf_analysis_rsm
+  subroutine assimilate_parallel(batch_manager,assimilator,istep,n_observations,n_obs_batch_max)
 
     integer,intent(in) :: istep,n_observations,n_obs_batch_max
     real(kind=8),allocatable::local_batches(:,:,:)
@@ -50,6 +48,55 @@ contains
     integer::comm,rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
          n_obs_batch, ibatch_local, batch_offset, batch_length, batch_size, &
          state_size,n_ensemble
+
+    abstract interface
+       subroutine U_assimilator(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &
+       state_p, ens_p, predictions, innovations, U_add_obs_err, U_localize, forget, flag,info)
+         USE iso_c_binding
+
+         IMPLICIT NONE
+
+         abstract INTERFACE
+            SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH,info)
+              ! Add observation error covariance matrix
+              USE iso_c_binding
+              INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+              REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
+              class(*),intent(in)::info
+            END SUBROUTINE add_obs_err
+            SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info)
+              ! Apply localization to HP and HPH^T
+              USE iso_c_binding
+              INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+              REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
+              class(*),intent(in)::info
+            END SUBROUTINE localize
+
+         END INTERFACE
+
+         ! !ARGUMENTS:
+         INTEGER(c_int32_t), INTENT(in), value :: step      ! Iteration number
+         INTEGER(c_int32_t), INTENT(in), value :: ind_p      ! Integer index of PE
+         INTEGER(c_int32_t), INTENT(in), value  :: dim_p     ! PE-local dimension of model state
+         INTEGER(c_int32_t), INTENT(in), value :: dim_obs_p  ! PE-local dimension of observation vector
+         INTEGER(c_int32_t), INTENT(in), value :: dim_obs    ! Global dimension of observation vector
+         INTEGER(c_int32_t), INTENT(in), value :: dim_ens   ! Size of state ensemble
+         INTEGER(c_int32_t), INTENT(in), value :: rank_ana  ! Rank to be considered for inversion of HPH
+         REAL(c_double), INTENT(inout)  :: state_p(dim_p)        ! PE-local ensemble mean state
+         REAL(c_double), INTENT(inout)  :: ens_p(dim_p, dim_ens) ! PE-local state ensemble
+         REAL(c_double), INTENT(inout)  :: predictions(dim_obs, dim_ens) ! PE-local state ensemble
+         REAL(c_double), INTENT(in)     :: innovations(dim_obs, dim_ens) ! Global array of innovations
+         REAL(c_double), INTENT(in), value     :: forget    ! Forgetting factor
+         INTEGER(c_int32_t), INTENT(out) :: flag    ! Status flag
+         class(*),intent(inout)::info
+
+         procedure(add_obs_err) :: U_add_obs_err
+         procedure(localize) :: U_localize
+
+       end subroutine U_assimilator
+    end interface
+
+    procedure(U_assimilator)::assimilator
 
     model_interface=batch_manager%model_interface
     comm=batch_manager%get_comm()
@@ -112,7 +159,7 @@ contains
 
        batch_states=local_batches(ibatch_local,:,:)
 
-       call lenkf_analysis_rsm(istep,ibatch,batch_size,n_obs_batch, &
+       call assimilator(istep,ibatch,batch_size,n_obs_batch, &
             n_obs_batch,n_ensemble,int(0),batch_mean_state,batch_states, &
             predictions,innovations,add_obs_err,localize,forget,ierr,batch_manager)
 

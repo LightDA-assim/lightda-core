@@ -5,6 +5,7 @@ program advect1d_assimmilate
   use assimilate
   use system_mpi
   use iso_c_binding
+  use lenkf_rsm, ONLY: lenkf_analysis_rsm
 
   implicit none
 
@@ -29,7 +30,7 @@ program advect1d_assimmilate
   batch_manager=new_batch_manager(model_interface,n_ensemble,state_size,batch_size,mpi_comm_world)
 
   ! Run the assimilation
-  call assimilate_parallel(batch_manager,istep,n_observations,n_observations)
+  call assimilate_parallel(batch_manager,lenkf_analysis_rsm,istep,n_observations,n_observations)
 
   call mpi_finalize(ierr)
 
