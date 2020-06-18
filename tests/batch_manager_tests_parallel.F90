@@ -1,0 +1,117 @@
+module batch_manager_tests_parallel
+  use system_mpi
+  use assimilation_batch_manager,ONLY:assim_batch_manager, new_batch_manager
+  use dummy_model_interfaces,ONLY:dummy_model_interface
+  use dummy_assimilator
+  use iso_c_binding
+
+  implicit none
+contains
+
+  subroutine localize(istep,ibatch,dim_p,dim_obs,HP_p,HPH,mgr)
+    class(*),intent(in)::mgr
+    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
+    REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
+
+    select type(mgr)
+    class is (assim_batch_manager)
+       call mgr%localize(istep,ibatch,dim_p,dim_obs,HP_p,HPH)
+    class default
+       print *,'Could not determine argument type. Should be class assim_batch_manager'
+    end select
+  end subroutine localize
+
+  subroutine add_obs_err(istep,ibatch,dim_obs,HPH,mgr)
+    class(*),intent(in)::mgr
+    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
+    REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
+
+    select type(mgr)
+    class is (assim_batch_manager)
+       call mgr%add_obs_err(istep,ibatch,dim_obs,HPH)
+    class default
+       print *,'Could not determine argument type. Should be class assim_batch_manager'
+    end select
+  end subroutine add_obs_err
+
+  subroutine test_empty_assimilator()
+
+    type(assim_batch_manager)::batch_manager
+    type(dummy_model_interface)::model_interface
+    integer,parameter::n_observations=5
+    integer,parameter::state_size=100
+    integer,parameter::batch_size=5
+    integer,parameter::n_ensemble=15
+    real(kind=8),allocatable::local_batches(:,:,:)
+    integer,allocatable::local_batch_inds(:)
+    real(kind=8)::innovations(n_observations,n_ensemble)
+    real(kind=8)::predictions(n_observations,n_ensemble)
+    real(kind=8)::observations(n_observations)
+    real(kind=8)::obs_errors(n_observations)
+    real(kind=8)::batch_mean_state(batch_size)
+    real(kind=8)::batch_states(batch_size,n_ensemble)
+    integer::rank,comm,comm_size,ierr,batch_length,batch_offset,ibatch,ibatch_local,istep,n_local_batches,n_obs_batch
+    real(kind=8),parameter::forget=0.6
+
+    istep=1
+
+    comm=mpi_comm_world
+
+    call mpi_comm_rank(comm, rank, ierr)
+    call mpi_comm_size(comm, comm_size, ierr)
+
+    batch_manager=new_batch_manager(model_interface,n_ensemble,state_size,batch_size,mpi_comm_world)
+
+    ! Get number of local batches
+    n_local_batches=batch_manager%get_rank_batch_count(rank)
+
+    ! Allocate array to hold ensemble state
+    allocate(local_batches(n_local_batches,batch_size,n_ensemble))
+
+    ! Get local batch indices
+    allocate(local_batch_inds(n_local_batches))
+    call batch_manager%get_rank_batches(rank,local_batch_inds)
+
+    ! Load the ensemble state
+    !call batch_manager%load_ensemble_state(istep,local_batches)
+
+    ! Assimilate local batches
+    do ibatch_local=1,n_local_batches
+       ibatch=local_batch_inds(ibatch_local)
+
+       batch_offset=batch_manager%get_batch_offset(ibatch)
+       batch_length=batch_manager%get_batch_length(ibatch)
+
+       ! Get number of predictions for this batch
+       n_obs_batch=model_interface%get_subset_obs_count( &
+            istep,batch_offset,batch_length)
+
+       call model_interface%get_subset_predictions(istep,batch_offset,batch_size,predictions)
+       call model_interface%get_subset_observations(istep,batch_offset,batch_size,observations)
+       call model_interface%get_subset_obs_err(istep,batch_offset,batch_size,obs_errors)
+       call model_interface%get_innovations(istep,batch_offset,batch_length,observations,predictions,obs_errors,innovations)
+
+       batch_states=local_batches(ibatch_local,:,:)
+
+       call dummy_assimilator_assimilate(istep,ibatch,batch_size,n_obs_batch, &
+            n_obs_batch,n_ensemble,int(0),batch_mean_state,batch_states, &
+            predictions,innovations,add_obs_err,localize,forget,ierr,batch_manager)
+
+       local_batches(ibatch_local,:,:)=batch_states
+
+    end do
+
+    call batch_manager%store_results(istep,local_batches)
+    
+  end subroutine test_empty_assimilator
+
+end module batch_manager_tests_parallel
+
+program test_batch_manager
+  use system_mpi
+  use batch_manager_tests_parallel
+  implicit none
+
+  call mpi_init()
+  call test_empty_assimilator()
+end program test_batch_manager
