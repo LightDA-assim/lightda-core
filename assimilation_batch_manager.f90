@@ -308,7 +308,7 @@ contains
     class(assim_batch_manager)::this
     integer,intent(in)::istep,ibatch,imember
     real(kind=8),pointer::recvbuf(:)
-    real(kind=8)::sendbuf(:)
+    real(kind=8),intent(in)::sendbuf(:)
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
     integer::batch_offset,batch_length,comm_size,rank,ierr
 
