@@ -504,6 +504,7 @@ contains
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
     real(kind=8),pointer::buffer(:)
+    real(kind=8),target::empty(0)
     integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
@@ -517,7 +518,7 @@ contains
 
     else
        ! Return a null pointer
-       buffer=>null()
+       buffer=>empty
     end if
 
   end function get_receive_buffer

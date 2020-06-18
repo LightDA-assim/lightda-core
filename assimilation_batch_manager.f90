@@ -357,6 +357,7 @@ contains
     integer::statuses(MPI_STATUS_SIZE,this%n_ensemble*this%n_batches)
     real(kind=8),pointer::recvbuf(:)
     real(kind=8),pointer::sendbuf(:)
+    real(kind=8),target::empty(0)
     logical::flag
 
     call mpi_comm_size(this%comm,comm_size,ierr)
@@ -365,6 +366,8 @@ contains
 
     allocate(batch_io_counts(comm_size))
     allocate(batch_io_offsets(comm_size))
+
+    sendbuf=>empty
 
     ibatch_local=1
     do ibatch=1,this%n_batches
@@ -387,6 +390,8 @@ contains
           if(this%batch_ranks(ibatch)==rank) then
              sendbuf=>local_batches(ibatch_local,:,imember)
              ibatch_local=ibatch_local+1
+          else
+             sendbuf=>empty
           end if
 
           ! Get number of state array members to be written by each process
