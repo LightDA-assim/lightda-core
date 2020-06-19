@@ -168,8 +168,10 @@ program test_batch_manager
   use batch_manager_tests_parallel
   implicit none
 
-  call mpi_init()
+  integer ierr
+
+  call mpi_init(ierr)
   call test_batch_math()
   call test_empty_assimilator()
-  call mpi_finalize()
+  call mpi_finalize(ierr)
 end program test_batch_manager
