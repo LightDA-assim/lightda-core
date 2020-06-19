@@ -339,6 +339,16 @@ contains
     recvbuf=>this%model_interface%get_receive_buffer(istep,imember, &
          batch_offset,batch_length)
 
+    if(batch_io_counts(rank+1)>0) then
+       if(.not. associated(recvbuf)) then
+          print *,'Unassociated receive buffer where a buffer of size',batch_io_counts(rank+1),'was expected.'
+          error stop
+       else if(size(recvbuf)<batch_io_counts(rank+1)) then
+          print *,'Expected receive buffer of size',batch_io_counts(rank+1),'got size',size(recvbuf)
+          error stop
+       end if
+    end if
+
     call MPI_Iscatterv(sendbuf,batch_io_counts,batch_io_offsets, &
          MPI_DOUBLE_PRECISION,recvbuf,batch_io_counts(rank+1), &
          MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),this%comm, &
