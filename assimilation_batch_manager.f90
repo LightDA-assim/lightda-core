@@ -410,10 +410,6 @@ contains
           call this%model_interface%get_subset_io_segment_data(istep, &
                imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
 
-          print *,batch_io_counts
-
-          if(batch_io_counts(rank+1)>0) print *,batch_io_counts(rank+1),'Original:',recvbuf
-
           call scatter_batch(this,istep,imember,ibatch,sendbuf)
 
           if(batch_io_counts(rank+1)>0) then
@@ -421,8 +417,6 @@ contains
 
              ! Tell the model interface that the batch has been received
              call this%model_interface%after_member_state_received(istep,imember,batch_offset,batch_length)
-
-             if(batch_io_counts(rank+1)>0) print *,batch_io_counts(rank+1),'After assimilation:',recvbuf
 
           end if
 
