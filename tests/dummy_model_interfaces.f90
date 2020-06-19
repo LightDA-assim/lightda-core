@@ -336,7 +336,7 @@ contains
 
        ! Point to the appropriate position in local_io_data
        buffer=>this%local_io_data( &
-            subset_offset+1:subset_offset+subset_size+1, &
+            subset_offset+1:subset_offset+subset_size, &
             imember)
 
     else
