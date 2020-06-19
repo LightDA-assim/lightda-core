@@ -320,10 +320,12 @@ contains
     batch_offset=this%get_batch_offset(ibatch)
     batch_length=this%get_batch_length(ibatch)
 
-    if(size(sendbuf)/=batch_length .and. rank==this%batch_ranks(ibatch)) then
-       print '(A,I0,A,I0,A)','Wrong buffer size passed to scatter_batch. Expected ', &
-            batch_length,', got ',size(sendbuf),'.'
-       error stop
+    if(rank==this%batch_ranks(ibatch)) then
+       if(size(sendbuf)/=batch_length ) then
+          print '(A,I0,A,I0,A)','Wrong buffer size passed to scatter_batch. Expected ', &
+               batch_length,', got ',size(sendbuf),'.'
+          error stop
+       end if
     end if
 
     allocate(batch_io_counts(comm_size))
