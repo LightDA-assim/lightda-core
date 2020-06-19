@@ -232,8 +232,7 @@ contains
     ! Populate local i/o data
     do imember=1,this%n_ensemble
        do i=1,this%state_size
-          call random_number(r)
-          this%local_io_data(i,imember)=i+r/2
+          this%local_io_data(i,imember)=imember*this%state_size+i
        end do
     end do
 
