@@ -17,6 +17,7 @@ module advect1d_assimilate_interfaces
      integer::n_observations,state_size,comm,local_io_size
      logical::observations_read,predictions_computed,state_loaded
    contains
+     procedure::get_state_size
      procedure::get_subset_io_segment_data
      procedure::get_state_subset_buffer
      procedure::get_subset_obs_count
@@ -521,6 +522,12 @@ contains
     end if
 
   end function get_state_subset_buffer
+
+  function get_state_size(this) result(size)
+    class(advect1d_interface)::this
+    integer::size
+    size=this%state_size
+  end function get_state_size
 
   subroutine after_ensemble_results_received(this,istep)
     class(advect1d_interface)::this

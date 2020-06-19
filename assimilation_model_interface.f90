@@ -11,6 +11,7 @@ module assimilation_model_interface
      procedure::get_innovations=>get_innovations
      procedure::before_loading_ensemble_state
      procedure::after_ensemble_state_loaded
+     procedure(I_get_state_size), deferred::get_state_size
      procedure(I_get_subset_io_segment_data), deferred::get_subset_io_segment_data
      procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
      procedure(I_get_weight_obs_obs), deferred::get_weight_obs_obs
@@ -20,6 +21,16 @@ module assimilation_model_interface
   end type base_model_interface
 
   abstract interface
+
+     function I_get_state_size(this) result(size)
+       import base_model_interface
+
+       implicit none
+
+       class(base_model_interface)::this
+       integer::size
+
+     end function I_get_state_size
 
      subroutine I_get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
        import base_model_interface

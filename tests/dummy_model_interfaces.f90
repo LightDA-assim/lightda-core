@@ -15,6 +15,7 @@ module dummy_model_interfaces
      integer::n_observations,state_size,comm,local_io_size
      logical::observations_read,predictions_computed,state_loaded
    contains
+     procedure::get_state_size
      procedure::get_subset_io_segment_data
      procedure::get_state_subset_buffer
      procedure::get_subset_obs_count
@@ -66,6 +67,12 @@ contains
     allocate(this%local_io_data(state_size,this%n_ensemble))
 
   end function new_dummy_model
+
+  function get_state_size(this) result(size)
+    class(dummy_model_interface)::this
+    integer::size
+    size=this%state_size
+  end function get_state_size
 
   subroutine get_io_ranks(comm_size,n_ensemble,io_ranks)
     integer,intent(in)::comm_size,n_ensemble
