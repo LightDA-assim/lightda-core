@@ -211,7 +211,6 @@ contains
     call mpi_bcast(this%obs_errors,this%n_observations,MPI_INTEGER,0, &
          this%comm,ierr)
 
-
     this%observations_read=.true.
 
   end subroutine load_observations
