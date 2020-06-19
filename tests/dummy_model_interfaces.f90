@@ -28,6 +28,7 @@ module dummy_model_interfaces
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
      procedure::after_ensemble_results_received
+     procedure::get_ensemble_state
   end type dummy_model_interface
 
 contains
@@ -398,5 +399,11 @@ contains
     end do
 
   end subroutine after_ensemble_results_received
+
+  function get_ensemble_state(this) result(local_io_data)
+    class(dummy_model_interface)::this
+    real(kind=8)::local_io_data(this%state_size,this%n_ensemble)
+    local_io_data=this%local_io_data
+  end function get_ensemble_state
 
 end module dummy_model_interfaces

@@ -50,6 +50,8 @@ contains
     real(kind=8)::obs_errors(n_observations)
     real(kind=8)::batch_mean_state(batch_size)
     real(kind=8)::batch_states(batch_size,n_ensemble)
+    real(kind=8)::ensemble_before_assimilation(state_size,n_ensemble)
+    real(kind=8)::ensemble_after_assimilation(state_size,n_ensemble)
     integer::rank,comm,comm_size,ierr,batch_length,batch_offset,ibatch,ibatch_local,istep,n_local_batches,n_obs_batch
     real(kind=8),parameter::forget=0.6
 
@@ -76,6 +78,8 @@ contains
 
     ! Load the ensemble state
     call batch_manager%load_ensemble_state(istep,local_batches)
+
+    ensemble_before_assimilation=model_interface%get_ensemble_state()
 
     ! Assimilate local batches
     do ibatch_local=1,n_local_batches
@@ -104,7 +108,14 @@ contains
     end do
 
     call batch_manager%store_results(istep,local_batches)
-    
+
+    ensemble_after_assimilation=model_interface%get_ensemble_state()
+
+    if(.not. all(abs(ensemble_before_assimilation-ensemble_after_assimilation)<1e-8)) then
+       print *,'Ensemble state changed during assimilation or i/o on rank',rank
+       error stop
+    end if
+
   end subroutine test_empty_assimilator
 
 end module batch_manager_tests_parallel
