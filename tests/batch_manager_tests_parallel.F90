@@ -1,7 +1,7 @@
 module batch_manager_tests_parallel
   use system_mpi
   use assimilation_batch_manager,ONLY:assim_batch_manager, new_batch_manager
-  use dummy_model_interfaces,ONLY:dummy_model_interface
+  use dummy_model_interfaces,ONLY:dummy_model_interface,new_dummy_model
   use dummy_assimilator
   use iso_c_binding
 
@@ -59,6 +59,8 @@ contains
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
+
+    model_interface=new_dummy_model(n_ensemble,n_observations,state_size,comm)
 
     batch_manager=new_batch_manager(model_interface,n_ensemble,state_size,batch_size,mpi_comm_world)
 
