@@ -27,6 +27,7 @@ module dummy_model_interfaces
      procedure::before_loading_ensemble_state
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
+     procedure,private::load_observations
      procedure::after_ensemble_results_received
      procedure::get_ensemble_state
   end type dummy_model_interface
@@ -44,19 +45,26 @@ contains
     this%state_size=state_size
     this%comm=comm
 
+    this%observations_read=.false.
+    this%predictions_computed=.false.
+    this%state_loaded=.false.
+
     call mpi_comm_rank(comm,rank,ierr)
     call mpi_comm_size(comm,comm_size,ierr)
 
     allocate(this%observations(this%n_observations))
     allocate(this%obs_errors(this%n_observations))
+    allocate(this%obs_positions(this%n_observations))
     allocate(this%predictions(this%n_observations,this%n_ensemble))
     allocate(this%io_ranks(n_ensemble))
+
+    call get_io_ranks(comm_size,n_ensemble,this%io_ranks)
 
     ! Get the number of ensemble members read and written locally
     this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
 
     ! Allocate array for local i/o data
-    allocate(this%local_io_data(state_size,this%local_io_size))
+    allocate(this%local_io_data(state_size,this%n_ensemble))
 
   end function new_dummy_model
 
@@ -85,27 +93,6 @@ contains
     end do
 
   end function get_rank_io_size
-
-  function get_local_io_index(n_ensemble,io_ranks,rank,imember) result(index)
-    integer,intent(in)::n_ensemble,rank,imember
-    integer,intent(in)::io_ranks(n_ensemble)
-    integer::i,local_io_counter,index
-
-    index=-1
-
-    local_io_counter=0
-
-    do i=1,n_ensemble
-       if(io_ranks(i)==rank) then
-          local_io_counter=local_io_counter+1
-          if(i==imember) then
-             index=local_io_counter
-             exit
-          end if
-       end if
-    end do
-
-  end function get_local_io_index
 
   function get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
 
@@ -197,10 +184,11 @@ contains
 
   end function get_weight_model_obs
 
-  subroutine load_observations_parallel(this,istep)
-    type(dummy_model_interface)::this
+  subroutine load_observations(this,istep)
+    class(dummy_model_interface)::this
     integer,intent(in)::istep
-    integer::ierr,rank
+    integer::ierr,rank,iobs
+    real(kind=8)::r
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
@@ -208,14 +196,13 @@ contains
 
     call mpi_bcast(this%n_observations,1,MPI_INTEGER,0,this%comm,ierr)
 
-    if(rank>0) then
-       deallocate(this%observations)
-       allocate(this%observations(this%n_observations))
-       deallocate(this%obs_positions)
-       allocate(this%obs_positions(this%n_observations))
-       deallocate(this%obs_errors)
-       allocate(this%obs_errors(this%n_observations))
-    end if
+    do iobs=1,this%n_observations
+       call random_number(r)
+       this%obs_positions(iobs)=1
+       this%obs_positions(iobs)=floor(1+r*this%n_observations)
+    end do
+
+    call random_number(this%observations)
 
     call mpi_bcast(this%observations,this%n_observations,MPI_INTEGER,0, &
          this%comm,ierr)
@@ -224,33 +211,31 @@ contains
     call mpi_bcast(this%obs_errors,this%n_observations,MPI_INTEGER,0, &
          this%comm,ierr)
 
+
     this%observations_read=.true.
 
-  end subroutine load_observations_parallel
-
-  subroutine read_state(istep,imember,member_state,state_size)
-    
-    integer,intent(in)::istep,imember,state_size
-    real(kind=8),intent(inout)::member_state(state_size)
-
-  end subroutine read_state
+  end subroutine load_observations
 
   subroutine load_ensemble_state(this,istep)
     class(dummy_model_interface)::this
     integer,intent(in)::istep
-    integer::imember,local_io_counter,rank,ierr
+    integer::imember,rank,ierr,i
+    real(kind=8)::r
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    local_io_counter=1
-
+    ! Populate local i/o data
     do imember=1,this%n_ensemble
-       if(this%io_ranks(imember)==rank) then
-          call read_state(istep,imember, &
-               this%local_io_data(:,local_io_counter),this%state_size)
-          local_io_counter=local_io_counter+1
-       end if
+       do i=1,this%state_size
+          call random_number(r)
+          this%local_io_data(i,imember)=i+r/2
+       end do
     end do
+
+    ! Broadcast so all processes have the same ensemble state
+    call MPI_Bcast(this%local_io_data,this%state_size*this%n_ensemble,MPI_DOUBLE_PRECISION,0,this%comm,ierr)
+
+    call this%load_observations(istep)
 
     this%state_loaded=.true.
 
@@ -266,6 +251,8 @@ contains
 
     if(.not. this%state_loaded) call this%load_ensemble_state(istep)
 
+    if(.not. this%observations_read) call this%load_observations(istep)
+
     local_io_counter=1
 
     do imember=1,this%n_ensemble
@@ -274,10 +261,9 @@ contains
           ! Compute predictions for this ensemble member
           do iobs=1,this%n_observations
              member_predictions(iobs)=this%local_io_data( &
-                  this%obs_positions(iobs)+1,local_io_counter)
+                  this%obs_positions(iobs)+1,imember)
           end do
 
-          local_io_counter=local_io_counter+1
        end if
 
        ! Broadcast to all processors
@@ -337,27 +323,26 @@ contains
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
     real(kind=8),pointer::buffer(:)
+    real(kind=8),target::empty(0)
     integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
+    if(this%io_ranks(imember)==rank) then
 
        ! Point to the appropriate position in local_io_data
        buffer=>this%local_io_data( &
             subset_offset+1:subset_offset+subset_size+1, &
-            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+            imember)
 
     else
        ! Return a null pointer
-       buffer=>null()
+       buffer=>empty
     end if
 
   end function get_receive_buffer
 
   subroutine get_member_state(this,istep,imember,subset_offset,subset_size,subset_state)
-
-    implicit none
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
@@ -366,16 +351,9 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    local_io_index=get_local_io_index( &
-         this%n_ensemble,this%io_ranks,rank,imember)
-
-    if(local_io_index>0) then
-
-       subset_state=this%local_io_data( &
-            subset_offset+1:subset_offset+subset_size+1, &
-            local_io_index)
-
-    end if
+    subset_state=this%local_io_data( &
+         subset_offset+1:subset_offset+subset_size+1, &
+         imember)
 
   end subroutine get_member_state
 
