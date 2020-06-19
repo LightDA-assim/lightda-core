@@ -522,8 +522,6 @@ contains
 
   end function get_state_subset_buffer
 
-    class(advect1d_interface)::this
-
   subroutine after_ensemble_results_received(this,istep)
     class(advect1d_interface)::this
     integer,intent(in)::istep
