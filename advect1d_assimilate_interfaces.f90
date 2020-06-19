@@ -17,9 +17,8 @@ module advect1d_assimilate_interfaces
      integer::n_observations,state_size,comm,local_io_size
      logical::observations_read,predictions_computed,state_loaded
    contains
-     procedure::get_member_state
      procedure::get_subset_io_segment_data
-     procedure::get_receive_buffer
+     procedure::get_state_subset_buffer
      procedure::get_subset_obs_count
      procedure::get_subset_predictions
      procedure::get_subset_observations
@@ -499,7 +498,7 @@ contains
 
   end subroutine get_subset_io_segment_data
 
-  function get_receive_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+  function get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
 
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
@@ -521,31 +520,9 @@ contains
        buffer=>empty
     end if
 
-  end function get_receive_buffer
-
-  subroutine get_member_state(this,istep,imember,subset_offset,subset_size,subset_state)
-
-    implicit none
+  end function get_state_subset_buffer
 
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
-    real(kind=8),intent(out)::subset_state(subset_size)
-    integer::local_io_index,rank,ierr
-
-    call mpi_comm_rank(this%comm,rank,ierr)
-
-    local_io_index=get_local_io_index( &
-         this%n_ensemble,this%io_ranks,rank,imember)
-
-    if(local_io_index>0) then
-
-       subset_state=this%local_io_data( &
-            subset_offset+1:subset_offset+subset_size+1, &
-            local_io_index)
-
-    end if
-
-  end subroutine get_member_state
 
   subroutine after_ensemble_results_received(this,istep)
     class(advect1d_interface)::this

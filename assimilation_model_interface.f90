@@ -12,8 +12,7 @@ module assimilation_model_interface
      procedure::before_loading_ensemble_state
      procedure::after_ensemble_state_loaded
      procedure(I_get_subset_io_segment_data), deferred::get_subset_io_segment_data
-     procedure(I_get_member_state), deferred::get_member_state
-     procedure(I_get_receive_buffer), deferred::get_receive_buffer
+     procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
      procedure(I_get_weight_obs_obs), deferred::get_weight_obs_obs
      procedure(I_get_weight_model_obs), deferred::get_weight_model_obs
      procedure::after_member_state_received
@@ -73,7 +72,7 @@ module assimilation_model_interface
        integer,intent(out)::counts(:),offsets(:)
      end subroutine I_get_subset_io_segment_data
 
-     function I_get_receive_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+     function I_get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
        import base_model_interface
 
        implicit none
@@ -82,7 +81,7 @@ module assimilation_model_interface
        integer,intent(in)::istep,imember,subset_offset,subset_size
        real(kind=8),pointer::buffer(:)
 
-     end function I_get_receive_buffer
+     end function I_get_state_subset_buffer
 
      subroutine I_get_member_state(this,istep,imember,subset_offset,subset_size,subset_state)
        import base_model_interface

@@ -227,7 +227,7 @@ contains
 
     integer,intent(in)::istep
     real(kind=8),intent(out)::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
-    real(kind=8)::read_batch_state(this%batch_size)
+    real(kind=8),pointer::sendbuf(:)
     real(kind=8)::received_batch_state(this%batch_size)
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
          batch_length,batch_offset,local_io_counter,iobs,rank,local_batch_length
@@ -268,12 +268,11 @@ contains
           local_batch_length=batch_io_counts(rank+1)
 
           ! Get the batch data that is to be read by the local processor
-          call this%model_interface%get_member_state(istep,imember, &
-               batch_offset,batch_length, &
-               read_batch_state(1:local_batch_length))
+          sendbuf=>this%model_interface%get_state_subset_buffer( &
+               istep,imember,batch_offset,batch_length)
 
           ! Gather batch data to the assigned processor from batch_ranks
-          call MPI_Igatherv(read_batch_state,local_batch_length, &
+          call MPI_Igatherv(sendbuf,local_batch_length, &
                MPI_DOUBLE_PRECISION,received_batch_state,batch_io_counts, &
                batch_io_offsets, MPI_DOUBLE_PRECISION, &
                this%batch_ranks(ibatch), &
@@ -337,7 +336,7 @@ contains
          imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
 
     ! Get receive buffer
-    recvbuf=>this%model_interface%get_receive_buffer(istep,imember, &
+    recvbuf=>this%model_interface%get_state_subset_buffer(istep,imember, &
          batch_offset,batch_length)
 
     if(batch_io_counts(rank+1)>0) then
@@ -396,7 +395,7 @@ contains
                imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
 
           ! Get receive buffer
-          recvbuf=>this%model_interface%get_receive_buffer(istep,imember, &
+          recvbuf=>this%model_interface%get_state_subset_buffer(istep,imember, &
                batch_offset,batch_length)
 
           ! Set send buffer
