@@ -75,7 +75,7 @@ contains
     call batch_manager%get_rank_batches(rank,local_batch_inds)
 
     ! Load the ensemble state
-    !call batch_manager%load_ensemble_state(istep,local_batches)
+    call batch_manager%load_ensemble_state(istep,local_batches)
 
     ! Assimilate local batches
     do ibatch_local=1,n_local_batches
