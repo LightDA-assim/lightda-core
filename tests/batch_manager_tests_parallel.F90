@@ -127,4 +127,5 @@ program test_batch_manager
 
   call mpi_init()
   call test_empty_assimilator()
+  call mpi_finalize()
 end program test_batch_manager
