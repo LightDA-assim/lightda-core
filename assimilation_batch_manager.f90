@@ -12,7 +12,7 @@ module assimilation_batch_manager
      integer,allocatable::batch_ranks(:)
      integer::comm,n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
      logical,allocatable::batch_results_received(:,:)
-     integer,allocatable::batch_receive_reqs(:,:)
+     integer,allocatable::batch_receive_reqs(:,:),batch_send_reqs(:,:)
    contains
      procedure::load_ensemble_state
      procedure::receive_results
@@ -29,6 +29,7 @@ module assimilation_batch_manager
      procedure::get_rank_batches
      procedure::get_batch_offset
      procedure::get_batch_length
+     final::cleanup
   end type assim_batch_manager
 
 contains
@@ -55,6 +56,7 @@ contains
     allocate(new_batch_manager%batch_ranks(new_batch_manager%n_batches))
     allocate(new_batch_manager%batch_results_received(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
     allocate(new_batch_manager%batch_receive_reqs(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
+    allocate(new_batch_manager%batch_send_reqs(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
 
     new_batch_manager%batch_receive_reqs=MPI_REQUEST_NULL
 
@@ -230,7 +232,6 @@ contains
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
          batch_length,batch_offset,local_io_counter,iobs,rank,local_batch_length
     integer::status(MPI_STATUS_SIZE)
-    integer::request,offset
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
 
     call this%model_interface%before_loading_ensemble_state(istep)
@@ -276,12 +277,12 @@ contains
                MPI_DOUBLE_PRECISION,received_batch_state,batch_io_counts, &
                batch_io_offsets, MPI_DOUBLE_PRECISION, &
                this%batch_ranks(ibatch), &
-               this%comm, request, ierr)
+               this%comm, this%batch_send_reqs(imember,ibatch), ierr)
 
           if(this%batch_ranks(ibatch)==rank) then
 
              ! Wait for MPI_Igatherv to complete
-             call MPI_Wait(request,status,ierr)
+             call MPI_Wait(this%batch_send_reqs(imember,ibatch),status,ierr)
 
              ! Copy batch state into the local_batches array
              local_batches(ibatch_local,:,imember)=received_batch_state
@@ -481,8 +482,13 @@ contains
     integer,intent(in)::istep
     real(kind=8),intent(in)::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
     integer::imember,local_io_counter,rank,ierr
+    integer,allocatable::status(:,:)
 
     call mpi_comm_rank(this%comm,rank,ierr)
+
+    allocate(status(MPI_STATUS_SIZE,size(this%batch_send_reqs)))
+
+    call MPI_Waitall(size(this%batch_send_reqs),this%batch_send_reqs,status,ierr)
 
     local_io_counter=1
 
@@ -555,5 +561,16 @@ contains
     end do
 
   END SUBROUTINE localize
+
+  subroutine cleanup(this)
+    type(assim_batch_manager)::this
+    integer,allocatable::status(:,:)
+    integer::ierr
+
+    allocate(status(MPI_STATUS_SIZE,size(this%batch_receive_reqs)))
+
+    call MPI_Waitall(size(this%batch_receive_reqs),this%batch_receive_reqs,status,ierr)
+
+  end subroutine cleanup
 
 end module assimilation_batch_manager
