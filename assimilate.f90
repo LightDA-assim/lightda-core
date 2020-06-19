@@ -165,9 +165,6 @@ contains
 
        local_batches(ibatch_local,:,:)=batch_states
 
-       !call batch_manager%transmit_results(istep,ibatch, &
-       !     batch_states)
-
     end do
 
     ! Write the ensemble state
