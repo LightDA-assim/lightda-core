@@ -152,9 +152,15 @@ contains
        call mpi_abort(this%comm,1,ierr)
     end if
 
-    if(.not. this%observations_read) call this%read_observations(istep)
+    if(.not. this%observations_read) then
+       print *,'Error: Observations not yet read'
+       error stop
+    end if
 
-    if(.not. this%predictions_computed) call this%compute_predictions(istep)
+    if(.not. this%predictions_computed) then
+       print *,'Error: Predictions not yet computed'
+       error stop
+    end if
 
     predictions=this%predictions
 
@@ -178,7 +184,10 @@ contains
        call mpi_abort(this%comm,1,ierr)
     end if
 
-    if(.not. this%observations_read) call this%read_observations(istep)
+    if(.not. this%observations_read) then
+       print *,'Error observations not yet read'
+       error stop
+    end if
 
     observations=this%observations
 
@@ -190,7 +199,10 @@ contains
     integer,intent(in)::istep,subset_offset,subset_size
     REAL(c_double), INTENT(out) :: obs_err(:)
 
-    if(.not. this%observations_read) call this%read_observations(istep)
+    if(.not. this%observations_read) then
+       print *,'Error observations not yet read'
+       error stop
+    end if
 
     obs_err=this%obs_errors
 
@@ -206,7 +218,10 @@ contains
     real(kind=8)::pos1,pos2,delta,distance
     integer::domain_size
 
-    if(.not. this%observations_read) call this%read_observations(istep)
+    if(.not. this%observations_read) then
+       print *,'Error observations not yet read'
+       error stop
+    end if
 
     domain_size=this%state_size/2
 
@@ -324,8 +339,6 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(this%observations_read) return
-
     if(rank==0) call read_observations(this,istep)
 
     call mpi_bcast(this%n_observations,1,MPI_INTEGER,0,this%comm,ierr)
@@ -406,6 +419,8 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
+    call load_observations_parallel(this,istep)
+
     local_io_counter=1
 
     do imember=1,this%n_ensemble
@@ -418,6 +433,8 @@ contains
 
     this%state_loaded=.true.
 
+    call this%compute_predictions(istep)
+
   end subroutine load_ensemble_state
 
   subroutine compute_predictions(this,istep)
@@ -428,8 +445,15 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(.not. this%observations_read) call this%read_observations(istep)
-    if(.not. this%state_loaded) call this%load_ensemble_state(istep)
+    if(.not. this%observations_read) then
+       print *,'Error: Observations not yet read'
+       error stop
+    end if
+
+    if(.not. this%state_loaded) then
+       print *,'Error: Ensemble state not yet loaded'
+       error stop
+    end if
 
     local_io_counter=1
 
@@ -452,6 +476,8 @@ contains
        this%predictions(:,imember)=member_predictions
 
     end do
+
+    this%predictions_computed=.true.
   end subroutine compute_predictions
 
   subroutine before_loading_ensemble_state(this,istep)
@@ -461,7 +487,7 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(.not. this%observations_read) call this%read_observations(istep)
+    call this%read_observations(istep)
 
     call this%load_ensemble_state(istep)
 
