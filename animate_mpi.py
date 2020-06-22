@@ -443,13 +443,17 @@ class ensemble_animator(object):
 
             print(os.getcwd())
 
-            p=subprocess.Popen(['mpirun','-n','4','./advect1d_assimilate',
+            cmd=['mpirun','-n','4','./advect1d_assimilate',
                                 '--istep',str(i),
                                 '--state_size',str(self.ensemble.shape[0]),
                                 '--batch_size',str(int(
                                     self.ensemble.shape[0]/10)),
                                 '--n_ensemble',str(self.ensemble.shape[1]),
-                                '--n_observations',str(len(self.obs_positions))])
+                                '--n_observations',str(len(self.obs_positions))]
+
+            print(' '.join(cmd))
+
+            p=subprocess.Popen(cmd)
             p.wait()
 
             for i in range(self.ensemble.shape[1]):
