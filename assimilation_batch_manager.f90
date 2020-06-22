@@ -226,7 +226,7 @@ contains
     class(assim_batch_manager)::this
 
     integer,intent(in)::istep
-    real(kind=8),intent(out)::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
+    real(kind=8),intent(out)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     real(kind=8),pointer::sendbuf(:)
     real(kind=8)::received_batch_state(this%batch_size)
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
@@ -284,7 +284,7 @@ contains
              call MPI_Wait(this%batch_send_reqs(imember,ibatch),status,ierr)
 
              ! Copy batch state into the local_batches array
-             local_batches(ibatch_local,:,imember)=received_batch_state
+             local_batches(:,ibatch_local,imember)=received_batch_state
 
              ! Increment the local batch counter
              ibatch_local=ibatch_local+1
@@ -360,7 +360,7 @@ contains
 
     class(assim_batch_manager)::this
     integer,intent(in)::istep
-    real(kind=8),intent(in),target::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
+    real(kind=8),intent(in),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
          member_rank,local_io_index,status(MPI_STATUS_SIZE),ierr
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
@@ -400,7 +400,7 @@ contains
 
           ! Set send buffer
           if(this%batch_ranks(ibatch)==rank) then
-             sendbuf=>local_batches(ibatch_local,:,imember)
+             sendbuf=>local_batches(:batch_length,ibatch_local,imember)
              ibatch_local=ibatch_local+1
           else
              sendbuf=>empty
@@ -479,7 +479,7 @@ contains
 
     class(assim_batch_manager)::this
     integer,intent(in)::istep
-    real(kind=8),intent(in)::local_batches(this%n_local_batches,this%batch_size,this%n_ensemble)
+    real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,local_io_counter,rank,ierr
     integer,allocatable::status(:,:)
 

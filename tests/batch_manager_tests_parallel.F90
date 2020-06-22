@@ -113,7 +113,7 @@ contains
     n_local_batches=batch_manager%get_rank_batch_count(rank)
 
     ! Allocate array to hold ensemble state
-    allocate(local_batches(n_local_batches,batch_size,n_ensemble))
+    allocate(local_batches(batch_size,n_local_batches,n_ensemble))
 
     ! Get local batch indices
     allocate(local_batch_inds(n_local_batches))
