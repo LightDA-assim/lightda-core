@@ -168,7 +168,6 @@ contains
     end do
 
     ! Write the ensemble state
-    print *,'Rank',rank,'completed all batches, storing results'
     call batch_manager%store_results(istep,local_batches)
 
     deallocate(local_batches)
