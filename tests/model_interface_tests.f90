@@ -8,11 +8,16 @@ contains
     real(kind=8),pointer::buf(:)
     integer::length,sum_buffer_lengths,ierr
 
+    ! Set requested buffer length
     length=min(iface%get_state_size(),5)
+
+    ! Get buffer pointer
     buf=>iface%get_state_subset_buffer(1,1,0,length)
 
+    ! Add up buffer lengths across all processors
     call MPI_Allreduce(size(buf),sum_buffer_lengths,1,MPI_INTEGER,MPI_SUM,mpi_comm_world,ierr)
 
+    ! Check that buffer lengths add up to the requested length
     if(sum_buffer_lengths/=length) then
        print *,'Buffer of length',length,'expected, got length',size(buf)
        error stop
