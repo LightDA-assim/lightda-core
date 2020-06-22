@@ -157,13 +157,13 @@ contains
        call model_interface%get_subset_obs_err(istep,batch_offset,batch_size,obs_errors)
        call model_interface%get_innovations(istep,batch_offset,batch_length,observations,predictions,obs_errors,innovations)
 
-       batch_states=local_batches(ibatch_local,:,:)
+       batch_states=local_batches(:,ibatch_local,:)
 
        call assimilator(istep,ibatch,batch_size,n_obs_batch, &
             n_obs_batch,n_ensemble,int(0),batch_mean_state,batch_states, &
             predictions,innovations,add_obs_err,localize,forget,ierr,batch_manager)
 
-       local_batches(ibatch_local,:,:)=batch_states
+       local_batches(:,ibatch_local,:)=batch_states
 
     end do
 
