@@ -381,10 +381,10 @@ contains
 
     sendbuf=>empty
 
-    ibatch_local=1
-    do ibatch=1,this%n_batches
+    do imember=1,this%n_ensemble
+       ibatch_local=1
+       do ibatch=1,this%n_batches
 
-       do imember=1,this%n_ensemble
 
           ! Locate batch in the state array
           batch_offset=this%get_batch_offset(ibatch)
