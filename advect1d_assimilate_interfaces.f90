@@ -352,11 +352,11 @@ contains
        allocate(this%obs_errors(this%n_observations))
     end if
 
-    call mpi_bcast(this%observations,this%n_observations,MPI_INTEGER,0, &
+    call mpi_bcast(this%observations,this%n_observations,MPI_DOUBLE_PRECISION,0, &
          this%comm,ierr)
     call mpi_bcast(this%obs_positions,this%n_observations,MPI_INTEGER,0, &
          this%comm,ierr)
-    call mpi_bcast(this%obs_errors,this%n_observations,MPI_INTEGER,0, &
+    call mpi_bcast(this%obs_errors,this%n_observations,MPI_DOUBLE_PRECISION,0, &
          this%comm,ierr)
 
     this%observations_read=.true.
