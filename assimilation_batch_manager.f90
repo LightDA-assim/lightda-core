@@ -8,7 +8,7 @@ module assimilation_batch_manager
 
   type :: assim_batch_manager
      private
-     class(base_model_interface),allocatable,public::model_interface
+     class(base_model_interface),pointer,public::model_interface
      integer,allocatable::batch_ranks(:)
      integer::comm,n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
      logical,allocatable::batch_results_received(:,:)
@@ -36,13 +36,13 @@ contains
 
   function new_batch_manager(model_interface,n_ensemble,state_size,batch_size,comm)
     integer(c_int),intent(in)::n_ensemble,state_size,batch_size,comm
-    class(base_model_interface),intent(inout)::model_interface
+    class(base_model_interface),intent(inout),target::model_interface
     type(assim_batch_manager)::new_batch_manager
     integer::ierr,rank,comm_size
 
     ! Initialize state info
     new_batch_manager%comm=comm
-    new_batch_manager%model_interface=model_interface
+    new_batch_manager%model_interface=>model_interface
     new_batch_manager%n_ensemble=n_ensemble
     new_batch_manager%state_size=state_size
     new_batch_manager%n_observations=0

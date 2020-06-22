@@ -12,7 +12,7 @@ program advect1d_assimmilate
   integer::ierr,istep,batch_size,n_ensemble,state_size,comm_size,rank, &
        n_observations
 
-  type(advect1d_interface)::model_interface
+  type(advect1d_interface),target::model_interface
   type(assim_batch_manager)::batch_manager
 
   call mpi_init(ierr)

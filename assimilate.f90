@@ -44,7 +44,7 @@ contains
     real(kind=8),allocatable::batch_mean_state(:),batch_states(:,:)
     real(kind=8)::forget
     class(assim_batch_manager)::batch_manager
-    class(base_model_interface),allocatable::model_interface
+    class(base_model_interface),pointer::model_interface
     integer::comm,rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
          n_obs_batch, ibatch_local, batch_offset, batch_length, batch_size, &
          state_size,n_ensemble
@@ -98,7 +98,7 @@ contains
 
     procedure(U_assimilator)::assimilator
 
-    model_interface=batch_manager%model_interface
+    model_interface=>batch_manager%model_interface
     comm=batch_manager%get_comm()
     batch_size=batch_manager%get_batch_size()
     state_size=batch_manager%get_state_size()

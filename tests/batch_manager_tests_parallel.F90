@@ -80,7 +80,7 @@ contains
   subroutine test_empty_assimilator()
 
     type(assim_batch_manager)::batch_manager
-    type(dummy_model_interface)::model_interface
+    type(dummy_model_interface),target::model_interface
     integer,parameter::n_observations=5
     integer,parameter::state_size=100
     integer,parameter::batch_size=5
