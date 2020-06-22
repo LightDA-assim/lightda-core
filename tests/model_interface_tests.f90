@@ -25,10 +25,45 @@ contains
 
   end subroutine test_buffer_length
 
+  subroutine test_buffer_readwrite(iface)
+    class(base_model_interface)::iface
+    real(kind=8),pointer::buf(:)
+    integer::length,ierr,i
+    integer,parameter::shift=1
+
+    ! Set requested buffer length
+    length=min(iface%get_state_size(),5)
+
+    if(length>0) then
+
+       ! Get buffer pointer
+       buf=>iface%get_state_subset_buffer(1,1,0,length)
+
+       ! Write to buffer
+       do i=1,size(buf)
+          buf(i)=i
+       end do
+
+       ! Get new buffer, shifted relative to original
+       buf=>iface%get_state_subset_buffer(1,1,shift,length)
+
+       ! Check values in new buffer
+       do i=1,size(buf)-1
+          if(buf(i)/=i+shift) then
+             print *,'Wrote value of',i+shift,'read back value of',buf(i+shift)
+             error stop
+          end if
+       end do
+
+    end if
+
+  end subroutine test_buffer_readwrite
+
   subroutine run_all(iface)
     class(base_model_interface)::iface
 
     call test_buffer_length(iface)
+    call test_buffer_readwrite(iface)
 
   end subroutine run_all
   
