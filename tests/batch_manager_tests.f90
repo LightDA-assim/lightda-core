@@ -1,4 +1,4 @@
-module batch_manager_tests_parallel
+module batch_manager_tests
   use system_mpi
   use assimilation_batch_manager,ONLY:assim_batch_manager, new_batch_manager
   use dummy_model_interfaces,ONLY:dummy_model_interface,new_dummy_model
@@ -161,11 +161,11 @@ contains
 
   end subroutine test_empty_assimilator
 
-end module batch_manager_tests_parallel
+end module batch_manager_tests
 
 program test_batch_manager
   use system_mpi
-  use batch_manager_tests_parallel
+  use batch_manager_tests
   implicit none
 
   integer ierr
