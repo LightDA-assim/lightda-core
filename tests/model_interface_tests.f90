@@ -19,7 +19,7 @@ contains
 
     ! Check that buffer lengths add up to the requested length
     if(sum_buffer_lengths/=length) then
-       print *,'Buffer of length',length,'expected, got length',size(buf)
+       print *,'Expected buffers adding up to',length,'expected, got sum of',sum_buffer_lengths
        error stop
     end if
 
