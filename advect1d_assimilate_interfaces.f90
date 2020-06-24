@@ -244,8 +244,6 @@ contains
     real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
     integer::domain_size
 
-
-
     domain_size=this%state_size/2
 
     pos_obs=real(this%obs_positions(iobs)-1)/domain_size
