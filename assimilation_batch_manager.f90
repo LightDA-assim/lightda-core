@@ -552,7 +552,7 @@ contains
 
        do ipos=1,dim_p
 
-          w=this%model_interface%get_weight_model_obs(istep,batch_offset,batch_length,iobs1,ipos)
+          w=this%model_interface%get_weight_model_obs(istep,batch_offset,batch_length,ipos,iobs1)
 
           HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*w
 
