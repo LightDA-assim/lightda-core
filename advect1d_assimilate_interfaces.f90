@@ -247,7 +247,7 @@ contains
     domain_size=this%state_size/2
 
     pos_obs=real(this%obs_positions(iobs)-1)/domain_size
-    pos_model=real(mod(imodel-1,domain_size))/domain_size
+    pos_model=real(mod(imodel+subset_offset-1,domain_size))/domain_size
     delta=abs(pos_obs-pos_model)
     distance=min(delta,1-delta)
 
