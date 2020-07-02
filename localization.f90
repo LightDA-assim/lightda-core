@@ -27,7 +27,10 @@ contains
     else if(z<=c) then
        f=gaspari_cohn_close(z,c)
     else if(z<=2*c) then
-       f=gaspari_cohn_mid(z,c)
+       f=max(gaspari_cohn_mid(z,c),0.0)
+    else if(z<0) then
+       print *,'Error: Negative distance passed to localize_gaspari_cohn'
+       error stop
     else
        f=0
     end if
