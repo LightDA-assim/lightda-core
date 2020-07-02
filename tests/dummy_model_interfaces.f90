@@ -22,8 +22,6 @@ module dummy_model_interfaces
      procedure::get_subset_predictions
      procedure::get_subset_observations
      procedure::get_subset_obs_err
-     procedure::get_weight_obs_obs
-     procedure::get_weight_model_obs
      procedure::before_loading_ensemble_state
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
@@ -165,30 +163,6 @@ contains
     obs_err=this%obs_errors
 
   END SUBROUTINE get_subset_obs_err
-
-  function get_weight_obs_obs(this,istep,subset_offset,subset_size,iobs1,iobs2) result(weight)
-
-    class(dummy_model_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size,iobs1,iobs2
-    real(kind=8)::weight
-    real(kind=8)::pos1,pos2,delta,distance
-    integer::domain_size
-
-    weight=1
-
-  end function get_weight_obs_obs
-
-  function get_weight_model_obs(this,istep,subset_offset,subset_size,imodel,iobs) result(weight)
-
-    class(dummy_model_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size,imodel,iobs
-    real(kind=8)::weight
-    real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
-    integer::domain_size
-
-    weight=1
-
-  end function get_weight_model_obs
 
   subroutine load_observations(this,istep)
     class(dummy_model_interface)::this

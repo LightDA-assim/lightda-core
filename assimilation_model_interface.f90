@@ -14,8 +14,8 @@ module assimilation_model_interface
      procedure(I_get_state_size), deferred::get_state_size
      procedure(I_get_subset_io_segment_data), deferred::get_subset_io_segment_data
      procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
-     procedure(I_get_weight_obs_obs), deferred::get_weight_obs_obs
-     procedure(I_get_weight_model_obs), deferred::get_weight_model_obs
+     procedure::get_weight_obs_obs
+     procedure::get_weight_model_obs
      procedure::after_member_state_received
      procedure::after_ensemble_results_received
   end type base_model_interface
@@ -103,26 +103,6 @@ module assimilation_model_interface
        integer,intent(in)::istep,imember,subset_offset,subset_size
        real(kind=8),intent(out)::subset_state(subset_size)
      end subroutine I_get_member_state
-
-     function I_get_weight_obs_obs(this,istep,subset_offset,subset_size,iobs1,iobs2) result(weight)
-       import base_model_interface
-
-       implicit none
-
-       class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size,iobs1,iobs2
-       real(kind=8)::weight
-     end function I_get_weight_obs_obs
-
-     function I_get_weight_model_obs(this,istep,subset_offset,subset_size,imodel,iobs) result(weight)
-       import base_model_interface
-
-       implicit none
-
-       class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size,imodel,iobs
-       real(kind=8)::weight
-     end function I_get_weight_model_obs
 
   end interface
 
@@ -223,5 +203,29 @@ contains
     end do
 
   end subroutine get_innovations
+
+  function get_weight_obs_obs(this,istep,subset_offset,subset_size,iobs1,iobs2) result(weight)
+
+    class(base_model_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size,iobs1,iobs2
+    real(kind=8)::weight
+    real(kind=8)::pos1,pos2,delta,distance
+    integer::domain_size
+
+    weight=1
+
+  end function get_weight_obs_obs
+
+  function get_weight_model_obs(this,istep,subset_offset,subset_size,imodel,iobs) result(weight)
+
+    class(base_model_interface)::this
+    integer,intent(in)::istep,subset_offset,subset_size,imodel,iobs
+    real(kind=8)::weight
+    real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
+    integer::domain_size
+
+    weight=1
+
+  end function get_weight_model_obs
 
 end module assimilation_model_interface
