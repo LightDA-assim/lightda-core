@@ -123,11 +123,13 @@ contains
     class(advect1d_interface)::iface
     integer::istep,subset_offset,subset_size,imodel,iobs1,iobs2,state_size,n_obs
     integer,allocatable::obs_positions(:)
-    integer::i,model_pos,obs_pos1,obs_pos2
+    integer::i,model_pos,obs_pos1,obs_pos2,domain_size
     real::weight
 
     state_size=iface%get_state_size()
     n_obs=iface%get_subset_obs_count(istep,0,state_size)
+
+    domain_size=state_size/2
 
     allocate(obs_positions(n_obs))
 
@@ -138,7 +140,7 @@ contains
        iobs1=randint(n_obs)
        iobs2=randint(n_obs)
 
-       model_pos=mod(imodel,state_size/2)
+       model_pos=mod(imodel-1,domain_size)
        obs_pos1=obs_positions(iobs1)
        obs_pos2=obs_positions(iobs2)
 
@@ -150,12 +152,12 @@ contains
        end if
 
        weight=iface%get_weight_model_obs(istep,imodel,iobs1)
-       if(weight==1) then
-          print *,'Weight be less than 1 when model position is different from observation position'
+       if(model_pos/=obs_pos1 .and. abs(model_pos-obs_pos1)/=domain_size .and. weight==1) then
+          print *,'Weight should be less than 1 when model position is different from observation position'
           error stop
        end if
 
-       weight=iface%get_weight_model_obs(istep,obs_pos1,iobs1)
+       weight=iface%get_weight_model_obs(istep,obs_pos1+1,iobs1)
 
        if(weight/=1) then
           print *,'Weight should equal one when model position is the same as observing position'
