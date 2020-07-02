@@ -8,7 +8,7 @@ module assimilation_model_interface
      procedure(I_get_subset_observations), deferred::get_subset_observations
      procedure(I_get_subset_obs_count), deferred::get_subset_obs_count
      procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
-     procedure::get_innovations=>get_innovations
+     procedure::get_innovations
      procedure::before_loading_ensemble_state
      procedure::after_ensemble_state_loaded
      procedure(I_get_state_size), deferred::get_state_size
