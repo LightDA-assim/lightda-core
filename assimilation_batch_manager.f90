@@ -2,6 +2,7 @@ module assimilation_batch_manager
   use system_mpi
   use iso_c_binding
   use random, ONLY: random_normal
+  use random_integer, ONLY: randint
   use assimilation_model_interface
 
   implicit none
@@ -113,11 +114,9 @@ contains
   subroutine shuffle(a)
     integer, intent(inout) :: a(:)
     integer :: i, randpos, temp
-    real :: r
  
     do i = size(a), 2, -1
-       call random_number(r)
-       randpos = int(r * i) + 1
+       randpos=randint(i)
        temp = a(randpos)
        a(randpos) = a(i)
        a(i) = temp
