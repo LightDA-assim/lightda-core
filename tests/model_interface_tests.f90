@@ -2,12 +2,13 @@ module model_interface_tests
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use random_integer, ONLY: randint
+  implicit none
 contains
 
   subroutine test_localization(iface)
 
     class(base_model_interface)::iface
-    integer::istep,subset_offset,subset_size,imodel,iobs,state_size,n_obs
+    integer::istep,subset_offset,subset_size,imodel,iobs1,iobs2,state_size,n_obs,i
     real::weight
 
     istep=1
@@ -27,7 +28,14 @@ contains
           error stop
        end if
 
-       weight=iface%get_weight_obs_obs(istep,imodel,iobs1)
+       weight=iface%get_weight_obs_obs(istep,iobs1,iobs1)
+
+       if(weight/=1) then
+          print *,'Weight should equal one for identical observations'
+          error stop
+       end if
+
+       weight=iface%get_weight_model_obs(istep,imodel,iobs1)
 
        if(weight>1 .or. weight<0) then
           print *,'Weight',weight,'out of range.'
