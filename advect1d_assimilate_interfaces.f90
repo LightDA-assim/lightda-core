@@ -31,6 +31,7 @@ module advect1d_assimilate_interfaces
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
      procedure::after_ensemble_results_received
+     procedure::get_obs_positions
   end type advect1d_interface
 
 contains
@@ -207,6 +208,14 @@ contains
     obs_err=this%obs_errors
 
   END SUBROUTINE get_subset_obs_err
+
+  function get_obs_positions(this) result(obs_positions)
+    class(advect1d_interface)::this
+    integer::obs_positions(this%n_observations)
+
+    obs_positions=this%obs_positions
+
+  end function get_obs_positions
 
   function get_weight_obs_obs(this,istep,iobs1,iobs2) result(weight)
 
