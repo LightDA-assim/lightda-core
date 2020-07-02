@@ -168,23 +168,41 @@ contains
 
   end subroutine test_localization
 
+  subroutine run_all_advect1d(iface)
+    class(advect1d_interface)::iface
+
+    call test_localization(iface)
+
+  end subroutine run_all_advect1d
+
 end module advect1d_model_interface_tests
 
 program test_advect1d_model_interface
   use model_interface_tests, ONLY: run_all
   use advect1d_assimilate_interfaces,ONLY:advect1d_interface,new_advect1d_interface
+  use advect1d_model_interface_tests, ONLY: generate_inputs,run_all_advect1d
   use system_mpi
   implicit none
   type(advect1d_interface)::model_interface
   integer,parameter::n_observations=5
   integer,parameter::state_size=100
   integer,parameter::n_ensemble=15
-  integer::ierr
+  integer::rank,ierr
 
   call mpi_init(ierr)
 
   model_interface=new_advect1d_interface(n_ensemble,n_observations,state_size,mpi_comm_world)
 
+  call mpi_comm_rank(mpi_comm_world,rank,ierr)
+
+  if(rank==0) call generate_inputs(model_interface)
+
+  call mpi_barrier(mpi_comm_world,ierr)
+
+  call model_interface%read_observations(1)
+
   call run_all(model_interface)
+  call run_all_advect1d(model_interface)
+
   call mpi_finalize(ierr)
 end program test_advect1d_model_interface
