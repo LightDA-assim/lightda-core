@@ -4,6 +4,8 @@ module advect1d_model_interface_tests
   use random_integer, ONLY: randint
   implicit none
 
+  integer, parameter::istep=1
+
 contains
 
   subroutine test_localization()
@@ -12,8 +14,6 @@ contains
     integer,allocatable::obs_positions(:)
     integer::i,model_pos,obs_pos1,obs_pos2
     real::weight
-
-    istep=1
 
     state_size=iface%get_state_size()
     n_obs=iface%get_subset_obs_count(istep,0,state_size)
