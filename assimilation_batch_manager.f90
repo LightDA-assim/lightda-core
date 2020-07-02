@@ -544,7 +544,7 @@ contains
     do iobs1=1,dim_obs
 
        do iobs2=1,dim_obs
-          w=this%model_interface%get_weight_obs_obs(istep,batch_offset,batch_length,iobs1,iobs2)
+          w=this%model_interface%get_weight_obs_obs(istep,iobs1,iobs2)
 
           HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*w
 
@@ -552,7 +552,7 @@ contains
 
        do ipos=1,dim_p
 
-          w=this%model_interface%get_weight_model_obs(istep,batch_offset,batch_length,ipos,iobs1)
+          w=this%model_interface%get_weight_model_obs(istep,ipos+batch_offset,iobs1)
 
           HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*w
 

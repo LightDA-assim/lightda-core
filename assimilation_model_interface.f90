@@ -204,10 +204,10 @@ contains
 
   end subroutine get_innovations
 
-  function get_weight_obs_obs(this,istep,subset_offset,subset_size,iobs1,iobs2) result(weight)
+  function get_weight_obs_obs(this,istep,iobs1,iobs2) result(weight)
 
     class(base_model_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size,iobs1,iobs2
+    integer,intent(in)::istep,iobs1,iobs2
     real(kind=8)::weight
     real(kind=8)::pos1,pos2,delta,distance
     integer::domain_size
@@ -216,10 +216,10 @@ contains
 
   end function get_weight_obs_obs
 
-  function get_weight_model_obs(this,istep,subset_offset,subset_size,imodel,iobs) result(weight)
+  function get_weight_model_obs(this,istep,imodel,iobs) result(weight)
 
     class(base_model_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size,imodel,iobs
+    integer,intent(in)::istep,imodel,iobs
     real(kind=8)::weight
     real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
     integer::domain_size
