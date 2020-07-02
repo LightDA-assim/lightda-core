@@ -234,8 +234,8 @@ contains
 
     domain_size=this%state_size/2
 
-    pos1=real(this%obs_positions(iobs1)-1)/domain_size
-    pos2=real(this%obs_positions(iobs2)-1)/domain_size
+    pos1=real(this%obs_positions(iobs1))/domain_size
+    pos2=real(this%obs_positions(iobs2))/domain_size
     delta=abs(pos1-pos2)
     distance=min(delta,1-delta)
 
@@ -255,7 +255,8 @@ contains
 
     domain_size=this%state_size/2
 
-    pos_obs=real(this%obs_positions(iobs)-1)/domain_size
+    ! Note that model positions are fortran array indices and indexed from 1, while obs positions are python array indices and indexed from 0.
+    pos_obs=real(this%obs_positions(iobs))/domain_size
     pos_model=real(mod(imodel-1,domain_size))/domain_size
     delta=abs(pos_obs-pos_model)
     distance=min(delta,1-delta)
