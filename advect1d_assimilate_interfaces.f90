@@ -234,10 +234,27 @@ contains
 
     domain_size=this%state_size/2
 
+    if(iobs1<1 .or. iobs1>this%n_observations) then
+       print *,'Invalid observation index',iobs1
+       error stop
+    end if
+
+    if(iobs2<1 .or. iobs2>this%n_observations) then
+       print *,'Invalid observation index',iobs2
+       error stop
+    end if
+
     pos1=real(this%obs_positions(iobs1))/domain_size
     pos2=real(this%obs_positions(iobs2))/domain_size
     delta=abs(pos1-pos2)
     distance=min(delta,1-delta)
+
+    if(distance<-1e-8) then
+       print *,'Invalid distance',distance,'computed for obs. positions',pos1,'and ',pos2
+       error stop
+    end if
+
+    distance=max(distance,0.0)
 
     weight=localize_gaspari_cohn(distance,this%cutoff)
 
@@ -261,6 +278,13 @@ contains
     delta=abs(pos_obs-pos_model)
     distance=min(delta,1-delta)
 
+    if(distance<-1e-8) then
+       print *,'Invalid distance',distance,'computed for obs. position=',pos_obs,'and model position=',pos_model
+       error stop
+    end if
+
+    distance=max(distance,0.0)
+
     if(imodel<domain_size) then
        cutoff=this%cutoff
     else
@@ -268,6 +292,12 @@ contains
     end if
 
     weight=localize_gaspari_cohn(distance,cutoff)
+
+    if(weight>1 .or. weight <0) then
+       print *,'Invalid weight=',weight,'returned from localize_gaspari_cohn'
+       print *,'for distance=',distance,'and cutoff=',cutoff
+       error stop
+    end if
 
   end function get_weight_model_obs
 
@@ -335,6 +365,12 @@ contains
 
     ! Close the file
     call h5fclose_f(h5file_h,ierr)
+
+    if(any(this%obs_positions<0) .or. &
+         any(this%obs_positions>this%state_size/2)) then
+       print *,'Out of range values in obs_positions array'
+       error stop
+    end if
 
     this%observations_read=.true.
 
