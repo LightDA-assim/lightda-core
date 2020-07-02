@@ -1,7 +1,42 @@
 module model_interface_tests
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
+  use random_integer, ONLY: randint
 contains
+
+  subroutine test_localization(iface)
+
+    class(base_model_interface)::iface
+    integer::istep,subset_offset,subset_size,imodel,iobs,state_size,n_obs
+    real::weight
+
+    istep=1
+
+    state_size=iface%get_state_size()
+    n_obs=iface%get_subset_obs_count(istep,0,state_size)
+
+    do i=1,100
+       imodel=randint(state_size)
+       iobs1=randint(n_obs)
+       iobs2=randint(n_obs)
+
+       weight=iface%get_weight_obs_obs(istep,iobs1,iobs2)
+
+       if(weight>1 .or. weight<0) then
+          print *,'Weight',weight,'out of range.'
+          error stop
+       end if
+
+       weight=iface%get_weight_obs_obs(istep,imodel,iobs1)
+
+       if(weight>1 .or. weight<0) then
+          print *,'Weight',weight,'out of range.'
+          error stop
+       end if
+
+    end do
+
+  end subroutine test_localization
 
   subroutine test_buffer_length(iface)
     class(base_model_interface)::iface
