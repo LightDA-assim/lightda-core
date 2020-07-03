@@ -4,7 +4,7 @@ ffi.cdef("""
 typedef void (*U_localize)(int,int,int,int,double*,double*);
 typedef void (*U_add_obs_err)(int,int,int,double*);
 
-void lenkf_analysis_rsm(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*);
+void lenkf_analysis_rsm_c(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*);
 
 void enkf_analysis_from_obs_wrapper(double*,double*,double*,double*,double*,double*,double*,int32_t,int32_t,int32_t);
 void enkf_analysis_from_innovations_wrapper(double*,double*,double*,double*,double*,double*,int32_t,int32_t,int32_t);
@@ -86,7 +86,7 @@ def lenkf_rsm(step,ind_p,ensemble_state,predictions,innovations,add_obs_err,loca
         HPH=ptr_to_array(HPH_ptr,(dim_obs,dim_obs),order='F')
         add_obs_err(step,ind_p,HPH)
 
-    lib.lenkf_analysis_rsm(
+    lib.lenkf_analysis_rsm_c(
         step,
         ind_p,
         model_size,
