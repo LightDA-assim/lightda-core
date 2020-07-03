@@ -1,10 +1,10 @@
 from cffi import FFI
 ffi=FFI()
 ffi.cdef("""
-typedef void (*U_localize)(int,int,int,int,double*,double*);
-typedef void (*U_add_obs_err)(int,int,int,double*);
+typedef void (*U_localize)(int,int,int,int,double*,double*,void*);
+typedef void (*U_add_obs_err)(int,int,int,double*,void*);
 
-void lenkf_analysis_rsm_c(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*);
+void lenkf_analysis_rsm_c(int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,int32_t,double*,double*,double*,double*,U_add_obs_err,U_localize, double,int32_t*,void*);
 
 void enkf_analysis_from_obs_wrapper(double*,double*,double*,double*,double*,double*,double*,int32_t,int32_t,int32_t);
 void enkf_analysis_from_innovations_wrapper(double*,double*,double*,double*,double*,double*,int32_t,int32_t,int32_t);
@@ -75,14 +75,14 @@ def lenkf_rsm(step,ind_p,ensemble_state,predictions,innovations,add_obs_err,loca
 
     flag_ptr=ffi.new('int32_t*')
 
-    @ffi.callback("void(*)(int,int,int,int,double*,double*)")
-    def localization_cb(step,ind_p,dim_p,dim_obs,HP_p_ptr,HPH_ptr):
+    @ffi.callback("void(*)(int,int,int,int,double*,double*,void*)")
+    def localization_cb(step,ind_p,dim_p,dim_obs,HP_p_ptr,HPH_ptr,info):
         HP_p=ptr_to_array(HP_p_ptr,(dim_obs,dim_p),order='F')
         HPH=ptr_to_array(HPH_ptr,(dim_obs,dim_obs))
         localization(step,ind_p,HP_p,HPH)
 
-    @ffi.callback("void(*)(int,int,int,double*)")
-    def add_obs_err_cb(step,ind_p,dim_obs,HPH_ptr):
+    @ffi.callback("void(*)(int,int,int,double*,void*)")
+    def add_obs_err_cb(step,ind_p,dim_obs,HPH_ptr,info):
         HPH=ptr_to_array(HPH_ptr,(dim_obs,dim_obs),order='F')
         add_obs_err(step,ind_p,HPH)
 
@@ -101,7 +101,8 @@ def lenkf_rsm(step,ind_p,ensemble_state,predictions,innovations,add_obs_err,loca
         add_obs_err_cb,
         localization_cb,
         forget,
-        flag_ptr
+        flag_ptr,
+        ffi.NULL
     )
 
     return ensemble_state
