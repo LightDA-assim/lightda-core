@@ -428,6 +428,8 @@ class ensemble_animator(object):
                 batch_ensemble=np.asfortranarray(self.ensemble[
                     self.batch_boundaries[ibatch]:self.batch_boundaries[ibatch+1],:])
 
+                forget=0.9
+
                 # Compute new ensemble state
                 from lenkf_rsm_py import lenkf_rsm_py
                 lenkf_rsm(
@@ -438,7 +440,7 @@ class ensemble_animator(object):
                     np.asfortranarray(innovations.copy()),
                     self.add_obs_err,
                     self.localize,
-                    1)
+                    forget)
 
                 self.ensemble[
                     self.batch_boundaries[ibatch]:self.batch_boundaries[ibatch+1],:
