@@ -1,3 +1,5 @@
+#include "mpi_types.h"
+
 module batch_manager_tests
   use system_mpi
   use assimilation_batch_manager,ONLY:assim_batch_manager, new_batch_manager
@@ -44,8 +46,9 @@ contains
     integer,parameter::n_ensemble=15
     real(kind=8),allocatable::local_batches(:,:,:)
     integer,allocatable::local_batch_inds(:)
-    integer::rank,comm,comm_size,ierr,batch_length,batch_offset,ibatch,istep, &
+    integer::rank,comm_size,ierr,batch_length,batch_offset,ibatch,istep, &
          n_batches,sum_batch_lengths,offset,last_offset
+    MPI_COMM_TYPE::comm
     real(kind=8),parameter::forget=0.6
 
     comm=mpi_comm_world
@@ -95,7 +98,8 @@ contains
     real(kind=8)::batch_states(batch_size,n_ensemble)
     real(kind=8)::ensemble_before_assimilation(state_size,n_ensemble)
     real(kind=8)::ensemble_after_assimilation(state_size,n_ensemble)
-    integer::rank,comm,comm_size,ierr,batch_length,batch_offset,ibatch,ibatch_local,istep,n_local_batches,n_obs_batch
+    integer::rank,comm_size,ierr,batch_length,batch_offset,ibatch,ibatch_local,istep,n_local_batches,n_obs_batch
+    MPI_COMM_TYPE::comm
     real(kind=8),parameter::forget=0.6
 
     istep=1

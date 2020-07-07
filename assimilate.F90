@@ -1,3 +1,5 @@
+#include "mpi_types.h"
+
 module assimilate
 
   use system_mpi
@@ -45,9 +47,10 @@ contains
     real(kind=8)::forget
     class(assim_batch_manager)::batch_manager
     class(base_model_interface),pointer::model_interface
-    integer::comm,rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
+    integer::rank,ierr,comm_size,n_batches,n_local_batches,ibatch, &
          n_obs_batch, ibatch_local, batch_offset, batch_length, batch_size, &
          state_size,n_ensemble
+    MPI_COMM_TYPE::comm
 
     abstract interface
        subroutine U_assimilator(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &

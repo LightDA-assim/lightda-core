@@ -1,3 +1,5 @@
+#include "mpi_types.h"
+
 module assimilation_batch_manager
   use system_mpi
   use iso_c_binding
@@ -11,9 +13,10 @@ module assimilation_batch_manager
      private
      class(base_model_interface),pointer,public::model_interface
      integer,allocatable::batch_ranks(:)
-     integer::comm,n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
+     integer::n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
+     MPI_COMM_TYPE::comm
      logical,allocatable::batch_results_received(:,:)
-     integer,allocatable::batch_receive_reqs(:,:),batch_send_reqs(:,:)
+     MPI_REQUEST_TYPE,allocatable::batch_receive_reqs(:),batch_send_reqs(:)
    contains
      procedure::load_ensemble_state
      procedure::receive_results
@@ -36,7 +39,8 @@ module assimilation_batch_manager
 contains
 
   function new_batch_manager(model_interface,n_ensemble,state_size,batch_size,comm)
-    integer(c_int),intent(in)::n_ensemble,state_size,batch_size,comm
+    integer(c_int),intent(in)::n_ensemble,state_size,batch_size
+    MPI_COMM_TYPE::comm
     class(base_model_interface),intent(inout),target::model_interface
     type(assim_batch_manager)::new_batch_manager
     integer::ierr,rank,comm_size
@@ -56,8 +60,8 @@ contains
 
     allocate(new_batch_manager%batch_ranks(new_batch_manager%n_batches))
     allocate(new_batch_manager%batch_results_received(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
-    allocate(new_batch_manager%batch_receive_reqs(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
-    allocate(new_batch_manager%batch_send_reqs(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
+    allocate(new_batch_manager%batch_receive_reqs(new_batch_manager%n_ensemble*new_batch_manager%n_batches))
+    allocate(new_batch_manager%batch_send_reqs(new_batch_manager%n_ensemble*new_batch_manager%n_batches))
 
     new_batch_manager%batch_receive_reqs=MPI_REQUEST_NULL
 
@@ -73,7 +77,7 @@ contains
 
   function get_comm(this) result(comm)
     class(assim_batch_manager)::this
-    integer::comm
+    MPI_COMM_TYPE::comm
 
     comm=this%comm
     
@@ -230,7 +234,7 @@ contains
     real(kind=8)::received_batch_state(this%batch_size)
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
          batch_length,batch_offset,local_io_counter,iobs,rank,local_batch_length
-    integer::status(MPI_STATUS_SIZE)
+    MPI_STATUS_TYPE::status
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
 
     call this%model_interface%before_loading_ensemble_state(istep)
@@ -275,12 +279,12 @@ contains
                MPI_DOUBLE_PRECISION,received_batch_state,batch_io_counts, &
                batch_io_offsets, MPI_DOUBLE_PRECISION, &
                this%batch_ranks(ibatch), &
-               this%comm, this%batch_send_reqs(imember,ibatch), ierr)
+               this%comm, this%batch_send_reqs((imember-1)*this%n_batches+ibatch), ierr)
 
           if(this%batch_ranks(ibatch)==rank) then
 
              ! Wait for MPI_Igatherv to complete
-             call MPI_Wait(this%batch_send_reqs(imember,ibatch),status,ierr)
+             call MPI_Wait(this%batch_send_reqs((imember-1)*this%n_batches+ibatch),status,ierr)
 
              ! Copy batch state into the local_batches array
              local_batches(:,ibatch_local,imember)=received_batch_state
@@ -351,7 +355,7 @@ contains
     call MPI_Iscatterv(sendbuf,batch_io_counts,batch_io_offsets, &
          MPI_DOUBLE_PRECISION,recvbuf,batch_io_counts(rank+1), &
          MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),this%comm, &
-         this%batch_receive_reqs(imember,ibatch),ierr)
+         this%batch_receive_reqs((imember-1)*this%n_batches+ibatch),ierr)
 
   end subroutine scatter_batch
 
@@ -361,7 +365,8 @@ contains
     integer,intent(in)::istep
     real(kind=8),intent(in),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
-         member_rank,local_io_index,status(MPI_STATUS_SIZE),ierr
+         member_rank,local_io_index,ierr
+    MPI_STATUS_TYPE::status
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
@@ -412,7 +417,7 @@ contains
           call scatter_batch(this,istep,imember,ibatch,sendbuf)
 
           if(batch_io_counts(rank+1)>0) then
-             call MPI_Wait(this%batch_receive_reqs(imember,ibatch),status,ierr)
+             call MPI_Wait(this%batch_receive_reqs((imember-1)*this%n_batches+ibatch),status,ierr)
 
              ! Tell the model interface that the batch has been received
              call this%model_interface%after_member_state_received(istep,imember,batch_offset,batch_length)
@@ -441,7 +446,7 @@ contains
           if(.not.this%batch_results_received(imember,ibatch)) then
              print *,'member',imember,'batch',ibatch,&
                   'from rank',this%batch_ranks(ibatch),&
-                  'request',this%batch_receive_reqs(imember,ibatch)
+                  'request',this%batch_receive_reqs((imember-1)*this%n_batches+ibatch)
           end if
        end do
     end do
@@ -480,11 +485,11 @@ contains
     integer,intent(in)::istep
     real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,local_io_counter,rank,ierr
-    integer,allocatable::status(:,:)
+    MPI_STATUS_TYPE,allocatable::status(:)
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    allocate(status(MPI_STATUS_SIZE,size(this%batch_send_reqs)))
+    allocate(status(size(this%batch_send_reqs)))
 
     call MPI_Waitall(size(this%batch_send_reqs),this%batch_send_reqs,status,ierr)
 
@@ -562,10 +567,10 @@ contains
 
   subroutine cleanup(this)
     type(assim_batch_manager)::this
-    integer,allocatable::status(:,:)
+    MPI_STATUS_TYPE,allocatable::status(:)
     integer::ierr
 
-    allocate(status(MPI_STATUS_SIZE,size(this%batch_receive_reqs)))
+    allocate(status(size(this%batch_receive_reqs)))
 
     call MPI_Waitall(size(this%batch_receive_reqs),this%batch_receive_reqs,status,ierr)
 

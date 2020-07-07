@@ -1,3 +1,5 @@
+#include "mpi_types.h"
+
 module dummy_model_interfaces
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
@@ -12,7 +14,8 @@ module dummy_model_interfaces
      real(kind=8),pointer::local_io_data(:,:)
      real(kind=8)::cutoff,cutoff_u_a
      integer,allocatable::obs_positions(:),io_ranks(:)
-     integer::n_observations,state_size,comm,local_io_size
+     integer::n_observations,state_size,local_io_size
+     MPI_COMM_TYPE::comm
      logical::observations_read,predictions_computed,state_loaded
    contains
      procedure::get_state_size
@@ -34,7 +37,8 @@ contains
 
   function new_dummy_model(n_ensemble,n_observations,state_size,comm) result(this)
 
-    integer(c_int),intent(in)::n_ensemble,n_observations,state_size,comm
+    integer(c_int),intent(in)::n_ensemble,n_observations,state_size
+    MPI_COMM_TYPE::comm
     type(dummy_model_interface)::this
     integer::ierr,rank,comm_size
 
