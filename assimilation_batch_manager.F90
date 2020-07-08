@@ -210,7 +210,7 @@ contains
     if(size(batches,1)/=n_batches) then
        print '(A,I0,A,I0)','Wrong array size passed to get_rank_batches. Expected ',n_batches,' got ',size(batches,1)
        error stop
-       call mpi_abort(this%comm,ierr)
+       call mpi_abort(this%comm,1,ierr)
     end if
 
     ibatch_rank=1
