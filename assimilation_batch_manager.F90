@@ -370,7 +370,6 @@ contains
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
-    integer::statuses(MPI_STATUS_SIZE,this%n_ensemble*this%n_batches)
     real(kind=8),pointer::recvbuf(:)
     real(kind=8),pointer::sendbuf(:)
     real(kind=8),target::empty(0)
