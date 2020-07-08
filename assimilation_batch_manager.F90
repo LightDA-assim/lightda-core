@@ -234,7 +234,11 @@ contains
     real(kind=8)::received_batch_state(this%batch_size)
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
          batch_length,batch_offset,local_io_counter,iobs,rank,local_batch_length
+#ifdef HAVE_MPI_F08_MODULE
     MPI_STATUS_TYPE::status
+#else
+    MPI_STATUS_TYPE::status(MPI_STATUS_SIZE)
+#endif
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
 
     call this%model_interface%before_loading_ensemble_state(istep)
@@ -366,7 +370,11 @@ contains
     real(kind=8),intent(in),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
          member_rank,local_io_index,ierr
+#ifdef HAVE_MPI_F08_MODULE
     MPI_STATUS_TYPE::status
+#else
+    MPI_STATUS_TYPE::status(MPI_STATUS_SIZE)
+#endif
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
@@ -484,11 +492,18 @@ contains
     integer,intent(in)::istep
     real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,local_io_counter,rank,ierr
+#ifdef HAVE_MPI_F08_MODULE
     MPI_STATUS_TYPE,allocatable::status(:)
-
+#else
+    MPI_STATUS_TYPE,allocatable::status(:,:)
+#endif
     call mpi_comm_rank(this%comm,rank,ierr)
 
+#ifdef HAVE_MPI_F08_MODULE
     allocate(status(size(this%batch_send_reqs)))
+#else
+    allocate(status(MPI_STATUS_SIZE,size(this%batch_send_reqs)))
+#endif
 
     call MPI_Waitall(size(this%batch_send_reqs),this%batch_send_reqs,status,ierr)
 
@@ -566,10 +581,18 @@ contains
 
   subroutine cleanup(this)
     type(assim_batch_manager)::this
+#ifdef HAVE_MPI_F08_MODULE
     MPI_STATUS_TYPE,allocatable::status(:)
+#else
+    MPI_STATUS_TYPE,allocatable::status(:,:)
+#endif
     integer::ierr
 
+#ifdef HAVE_MPI_F08_MODULE
     allocate(status(size(this%batch_receive_reqs)))
+#else
+    allocate(status(MPI_STATUS_SIZE,size(this%batch_receive_reqs)))
+#endif
 
     call MPI_Waitall(size(this%batch_receive_reqs),this%batch_receive_reqs,status,ierr)
 
