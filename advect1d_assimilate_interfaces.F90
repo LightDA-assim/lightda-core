@@ -4,7 +4,6 @@ module advect1d_assimilate_interfaces
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use iso_c_binding
-  use random, ONLY: random_normal
 
   use hdf5
 
