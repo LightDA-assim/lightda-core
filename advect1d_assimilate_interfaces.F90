@@ -29,10 +29,9 @@ module advect1d_assimilate_interfaces
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
      procedure::read_observations
-     procedure::before_loading_ensemble_state
      procedure,private::compute_predictions
      procedure,private::load_ensemble_state
-     procedure::after_ensemble_results_received
+     procedure::write_state
      procedure::get_obs_positions
   end type advect1d_interface
 
@@ -157,13 +156,11 @@ contains
     end if
 
     if(.not. this%observations_read) then
-       print *,'Error: Observations not yet read'
-       error stop
+       call this%read_observations(istep)
     end if
 
     if(.not. this%predictions_computed) then
-       print *,'Error: Predictions not yet computed'
-       error stop
+       call this%compute_predictions(istep)
     end if
 
     predictions=this%predictions
@@ -189,8 +186,7 @@ contains
     end if
 
     if(.not. this%observations_read) then
-       print *,'Error observations not yet read'
-       error stop
+       call this%read_observations(istep)
     end if
 
     observations=this%observations
@@ -204,8 +200,7 @@ contains
     REAL(c_double), INTENT(out) :: obs_err(:)
 
     if(.not. this%observations_read) then
-       print *,'Error observations not yet read'
-       error stop
+       call this%read_observations(istep)
     end if
 
     obs_err=this%obs_errors
@@ -493,13 +488,11 @@ contains
     call mpi_comm_rank(this%comm,rank,ierr)
 
     if(.not. this%observations_read) then
-       print *,'Error: Observations not yet read'
-       error stop
+       call this%read_observations(istep)
     end if
 
     if(.not. this%state_loaded) then
-       print *,'Error: Ensemble state not yet loaded'
-       error stop
+       call this%load_ensemble_state(istep)
     end if
 
     local_io_counter=1
@@ -527,21 +520,6 @@ contains
     this%predictions_computed=.true.
   end subroutine compute_predictions
 
-  subroutine before_loading_ensemble_state(this,istep)
-    class(advect1d_interface)::this
-    integer,intent(in)::istep
-    integer::imember,local_io_counter,rank,ierr,iobs
-
-    call mpi_comm_rank(this%comm,rank,ierr)
-
-    call this%read_observations(istep)
-
-    call this%load_ensemble_state(istep)
-
-    call this%compute_predictions(istep)
-
-  end subroutine before_loading_ensemble_state
-
   subroutine get_subset_io_segment_data(this,istep,imember,subset_offset,subset_size,counts,offsets)
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
@@ -549,6 +527,10 @@ contains
     integer::comm_size,ierr
 
     call mpi_comm_size(this%comm,comm_size,ierr)
+
+    if(.not.this%state_loaded) then
+       call this%load_ensemble_state(istep)
+    end if
 
     if(size(counts)/=comm_size) then
        print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
@@ -602,7 +584,7 @@ contains
     size=this%state_size
   end function get_state_size
 
-  subroutine after_ensemble_results_received(this,istep)
+  subroutine write_state(this,istep)
     class(advect1d_interface)::this
     integer,intent(in)::istep
     integer::imember,rank,ierr,imember_local
@@ -615,7 +597,8 @@ contains
 
        if(this%io_ranks(imember)==rank) then
 
-          call write_state(this,istep,imember,this%n_ensemble,this%comm,this%local_io_data(:,imember_local),this%state_size)
+          call write_ensemble_member(this,istep,imember,this%n_ensemble, &
+               this%comm,this%local_io_data(:,imember_local),this%state_size)
 
           imember_local=imember_local+1
 
@@ -623,9 +606,9 @@ contains
 
     end do
 
-  end subroutine after_ensemble_results_received
+  end subroutine write_state
 
-  subroutine write_state(this,istep,imember,n_ensemble,comm,member_state,state_size)
+  subroutine write_ensemble_member(this,istep,imember,n_ensemble,comm,member_state,state_size)
 
     type(advect1d_interface)::this
     integer,intent(in)::istep,imember,n_ensemble,state_size
@@ -668,6 +651,6 @@ contains
     ! Close the file
     call h5fclose_f(h5file_h,ierr)
 
-  end subroutine write_state
+  end subroutine write_ensemble_member
 
 end module advect1d_assimilate_interfaces

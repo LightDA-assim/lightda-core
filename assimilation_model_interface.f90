@@ -9,15 +9,12 @@ module assimilation_model_interface
      procedure(I_get_subset_obs_count), deferred::get_subset_obs_count
      procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
      procedure::get_innovations
-     procedure::before_loading_ensemble_state
-     procedure::after_ensemble_state_loaded
      procedure(I_get_state_size), deferred::get_state_size
      procedure(I_get_subset_io_segment_data), deferred::get_subset_io_segment_data
      procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
-     procedure::after_member_state_received
-     procedure::after_ensemble_results_received
+     procedure::write_state
   end type base_model_interface
 
   abstract interface
@@ -108,53 +105,16 @@ module assimilation_model_interface
 
 contains
   
-  subroutine before_loading_ensemble_state(this,istep)
+  subroutine write_state(this,istep)
     class(base_model_interface)::this
     integer,intent(in)::istep
 
-    ! Empty procedure which can be overridden by child classes that want to
-    ! run certain tasks before ensemble state batches are requested
+    ! Subroutine to be called after the complete assimilated ensemble state has been
+    ! received from the assimilation workers
 
-    ! Will be called before the first call to get_member_state
-  end subroutine before_loading_ensemble_state
+    ! Left empty since some models may do disk i/o incrementally as results are received
 
-  subroutine after_ensemble_state_loaded(this,istep)
-    class(base_model_interface)::this
-    integer,intent(in)::istep
-
-    ! Empty procedure which can be overridden by child classes that want to
-    ! run certain tasks (e.g. loading observations or computing forward
-    ! operators) after ensemble state is loaded
-
-    ! Will be called after the last call to get_member_state and
-    ! before assimilation begins
-  end subroutine after_ensemble_state_loaded
-
-  subroutine after_member_state_received(this,istep,imember,subset_offset,subset_size)
-
-    implicit none
-
-    class(base_model_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
-
-    ! Empty procedure which can be overridden by child classes that want to
-    ! run certain tasks (e.g. loading observations or computing forward
-    ! operators) after a member state is received
-
-    ! Will be called after the buffer returned by the corresponding call to
-    ! get_receive_buffer is populated with new data
-  end subroutine after_member_state_received
-
-  subroutine after_ensemble_results_received(this,istep)
-    class(base_model_interface)::this
-    integer,intent(in)::istep
-
-    ! Empty procedure which can be overridden by child classes that want to
-    ! run certain tasks before ensemble state batches are requested
-
-    ! Will be called after the complete assimilated ensemble state has been
-    ! received from the workers
-  end subroutine after_ensemble_results_received
+  end subroutine write_state
 
   subroutine get_innovations(this,istep,batch_offset,batch_length,observations,predictions,obs_errors,innovations)
 

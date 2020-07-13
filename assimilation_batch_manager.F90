@@ -241,8 +241,6 @@ contains
 #endif
     integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
 
-    call this%model_interface%before_loading_ensemble_state(istep)
-
     call mpi_comm_size(this%comm,comm_size,ierr)
 
     call mpi_comm_rank(this%comm,rank,ierr)
@@ -426,9 +424,6 @@ contains
           if(batch_io_counts(rank+1)>0) then
              call MPI_Wait(this%batch_receive_reqs((imember-1)*this%n_batches+ibatch),status,ierr)
 
-             ! Tell the model interface that the batch has been received
-             call this%model_interface%after_member_state_received(istep,imember,batch_offset,batch_length)
-
           end if
 
           ! Record that batch was received
@@ -513,7 +508,7 @@ contains
        call this%receive_results(istep,local_batches)
     end do
 
-    call this%model_interface%after_ensemble_results_received(istep)
+    call this%model_interface%write_state(istep)
 
   end subroutine store_results
 
