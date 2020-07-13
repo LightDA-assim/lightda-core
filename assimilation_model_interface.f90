@@ -2,6 +2,7 @@ module assimilation_model_interface
   implicit none
 
   type,abstract::base_model_interface
+     !! Base class for model interfaces
      integer::n_ensemble
    contains
      procedure(I_get_subset_predictions), deferred::get_subset_predictions
@@ -20,16 +21,21 @@ module assimilation_model_interface
   abstract interface
 
      function I_get_state_size(this) result(size)
+       !! Returns the number elements in the model state array
        import base_model_interface
 
        implicit none
 
+       ! Arguments
+       !! Model interface
        class(base_model_interface)::this
+       !! State size
        integer::size
 
      end function I_get_state_size
 
      subroutine I_get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
+       !! Get prediction values for a subset of the model state
        import base_model_interface
 
        implicit none
