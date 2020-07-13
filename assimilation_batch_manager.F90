@@ -248,6 +248,8 @@ contains
     allocate(batch_io_counts(comm_size))
     allocate(batch_io_offsets(comm_size))
 
+    call this%model_interface%read_state(istep)
+
     local_io_counter=1
 
     batch_io_offsets=0

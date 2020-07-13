@@ -15,6 +15,7 @@ module assimilation_model_interface
      procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
+     procedure::read_state
      procedure::write_state
   end type base_model_interface
 
@@ -111,6 +112,17 @@ module assimilation_model_interface
 
 contains
   
+  subroutine read_state(this,istep)
+    class(base_model_interface)::this
+    integer,intent(in)::istep
+
+    ! Subroutine to be called before requesting any model state data for the given iteration istep
+    ! received from the assimilation workers
+
+    ! Left empty since some models may choose to do disk i/o incrementally as ensemble state is requested
+
+  end subroutine read_state
+
   subroutine write_state(this,istep)
     class(base_model_interface)::this
     integer,intent(in)::istep

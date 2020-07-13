@@ -30,7 +30,7 @@ module advect1d_assimilate_interfaces
      procedure::get_weight_model_obs
      procedure::read_observations
      procedure,private::compute_predictions
-     procedure,private::load_ensemble_state
+     procedure::read_state
      procedure::write_state
      procedure::get_obs_positions
   end type advect1d_interface
@@ -405,7 +405,7 @@ contains
 
   end subroutine load_observations_parallel
 
-  subroutine read_state(istep,imember,member_state,state_size)
+  subroutine read_member_state(istep,imember,member_state,state_size)
     
     integer,intent(in)::istep,imember,state_size
     real(kind=8),intent(inout)::member_state(state_size)
@@ -452,9 +452,9 @@ contains
     ! Close the file
     call h5fclose_f(h5file_h,ierr)
 
-  end subroutine read_state
+  end subroutine read_member_state
 
-  subroutine load_ensemble_state(this,istep)
+  subroutine read_state(this,istep)
     class(advect1d_interface)::this
     integer,intent(in)::istep
     integer::imember,local_io_counter,rank,ierr
@@ -467,7 +467,7 @@ contains
 
     do imember=1,this%n_ensemble
        if(this%io_ranks(imember)==rank) then
-          call read_state(istep,imember, &
+          call read_member_state(istep,imember, &
                this%local_io_data(:,local_io_counter),this%state_size)
           local_io_counter=local_io_counter+1
        end if
@@ -477,7 +477,7 @@ contains
 
     call this%compute_predictions(istep)
 
-  end subroutine load_ensemble_state
+  end subroutine read_state
 
   subroutine compute_predictions(this,istep)
     class(advect1d_interface)::this
@@ -492,7 +492,8 @@ contains
     end if
 
     if(.not. this%state_loaded) then
-       call this%load_ensemble_state(istep)
+       print *,'Error: Ensemble state not yet loaded'
+       error stop
     end if
 
     local_io_counter=1
@@ -529,7 +530,8 @@ contains
     call mpi_comm_size(this%comm,comm_size,ierr)
 
     if(.not.this%state_loaded) then
-       call this%load_ensemble_state(istep)
+       print *,'Error: Model state not yet loaded'
+       error stop
     end if
 
     if(size(counts)/=comm_size) then
