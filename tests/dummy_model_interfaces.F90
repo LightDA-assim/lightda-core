@@ -342,7 +342,16 @@ contains
   function get_ensemble_state(this) result(local_io_data)
     class(dummy_model_interface)::this
     real(kind=8)::local_io_data(this%state_size,this%n_ensemble)
+    integer::imember,ierr
+
+    do imember=1,this%n_ensemble
+
+       call MPI_Bcast(this%local_io_data(:,imember),this%state_size,MPI_DOUBLE_PRECISION,this%io_ranks(imember),this%comm,ierr)
+
+    end do
+
     local_io_data=this%local_io_data
+
   end function get_ensemble_state
 
 end module dummy_model_interfaces
