@@ -10,8 +10,6 @@ endfunction()
 
 function(configure_hdf5_target target)
 
-  cmake_policy(SET CMP0079 NEW)
-
   target_link_libraries(${target} PRIVATE ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES})
 
   if(HDF5_Fortran_INCLUDE_DIRS)
