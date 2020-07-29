@@ -46,66 +46,76 @@ contains
 
   end subroutine test_localization
 
-  subroutine test_buffer_length(iface)
+  subroutine test_io_counts(iface)
     class(base_model_interface)::iface
-    real(kind=8),pointer::buf(:)
-    integer::length,sum_buffer_lengths,ierr
+    real(kind=8),allocatable::buf(:)
+    integer,allocatable::ranks(:),counts(:),offsets(:)
+    integer::i
 
-    ! Set requested buffer length
-    length=min(iface%get_state_size(),5)
+    call iface%get_io_ranks(1,1,ranks,counts,offsets)
 
-    ! Get buffer pointer
-    buf=>iface%get_state_subset_buffer(1,1,0,length)
-
-    ! Add up buffer lengths across all processors
-    call MPI_Allreduce(size(buf),sum_buffer_lengths,1,MPI_INTEGER,MPI_SUM,mpi_comm_world,ierr)
-
-    ! Check that buffer lengths add up to the requested length
-    if(sum_buffer_lengths/=length) then
-       print *,'Expected buffers adding up to',length,'expected, got sum of',sum_buffer_lengths
+    if(sum(counts)/=iface%get_state_size()) then
+       print *,'Expected io counts to add up to',iface%get_state_size(),'got sum of',sum(counts)
        error stop
     end if
 
-  end subroutine test_buffer_length
+  end subroutine test_io_counts
 
   subroutine test_buffer_readwrite(iface)
     class(base_model_interface)::iface
-    real(kind=8),pointer::buf(:)
-    integer::length,ierr,i
+    real(kind=8),allocatable::buf(:)
+    integer::length,ierr,i,irank
     integer,parameter::shift=1
+    integer,allocatable::ranks(:),counts(:),offsets(:)
+    integer::rank
 
-    ! Set requested buffer length
-    length=min(iface%get_state_size(),5)
+    call mpi_comm_rank(mpi_comm_world,rank,ierr)
 
-    if(length>0) then
+    call iface%get_io_ranks(1,1,ranks,counts,offsets)
 
-       ! Get buffer pointer
-       buf=>iface%get_state_subset_buffer(1,1,0,length)
+    do irank=1,size(ranks)
 
-       ! Write to buffer
-       do i=1,size(buf)
-          buf(i)=i
-       end do
+       if(ranks(irank)/=rank) cycle
 
-       ! Get new buffer, shifted relative to original
-       buf=>iface%get_state_subset_buffer(1,1,shift,length)
+       ! Set requested buffer length
+       length=min(iface%get_state_size(),counts(irank),5)
 
-       ! Check values in new buffer
-       do i=1,size(buf)-1
-          if(buf(i)/=i+shift) then
-             print *,'Wrote value of',i+shift,'read back value of',buf(i+shift)
-             error stop
-          end if
-       end do
+       allocate(buf(length))
 
-    end if
+       if(length>0) then
+
+          ! Get model state subset
+          buf=iface%get_state_subset(1,1,offsets(irank),length)
+
+          ! Write to buffer
+          do i=1,size(buf)
+             buf(i)=i
+          end do
+
+          ! Write model state subset
+          call iface%set_state_subset(1,1,offsets(irank),length,buf)
+
+          ! Get new buffer, shifted relative to original
+          buf=iface%get_state_subset(1,1,offsets(irank)+shift,length-1)
+
+          ! Check values in new buffer
+          do i=1,size(buf)-1
+             if(buf(i)/=i+shift) then
+                print *,'Wrote value of',i+shift,'read back value of',buf(i+shift)
+                error stop
+             end if
+          end do
+
+       end if
+
+    end do
 
   end subroutine test_buffer_readwrite
 
   subroutine run_all(iface)
     class(base_model_interface)::iface
 
-    call test_buffer_length(iface)
+    call test_io_counts(iface)
     call test_buffer_readwrite(iface)
 
   end subroutine run_all

@@ -16,11 +16,9 @@ module assimilation_batch_manager
      integer::n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
      MPI_COMM_TYPE::comm
      logical,allocatable::batch_results_received(:,:)
-     MPI_REQUEST_TYPE,allocatable::batch_receive_reqs(:),batch_send_reqs(:)
    contains
      procedure::load_ensemble_state
      procedure::receive_results
-     procedure::transmit_results
      procedure::get_comm
      procedure::get_batch_size
      procedure::get_state_size
@@ -60,10 +58,6 @@ contains
 
     allocate(new_batch_manager%batch_ranks(new_batch_manager%n_batches))
     allocate(new_batch_manager%batch_results_received(new_batch_manager%n_ensemble,new_batch_manager%n_batches))
-    allocate(new_batch_manager%batch_receive_reqs(new_batch_manager%n_ensemble*new_batch_manager%n_batches))
-    allocate(new_batch_manager%batch_send_reqs(new_batch_manager%n_ensemble*new_batch_manager%n_batches))
-
-    new_batch_manager%batch_receive_reqs=MPI_REQUEST_NULL
 
     new_batch_manager%batch_results_received=.false.
 
@@ -224,42 +218,57 @@ contains
 
   end subroutine get_rank_batches
 
+  subroutine segment_range_overlap(segment1_start,segment1_end,segment2_start,segment2_end,overlap_start,overlap_end)
+    integer,intent(in)::segment1_start,segment1_end,segment2_start,segment2_end
+    integer,intent(out)::overlap_start,overlap_end
+
+    overlap_start=max(segment1_start,segment2_start)
+    overlap_end=min(segment1_end,segment2_end)
+  end subroutine segment_range_overlap
+
   subroutine load_ensemble_state(this,istep,local_batches)
+
+    use util, ONLY: append_array
 
     class(assim_batch_manager)::this
 
     integer,intent(in)::istep
-    real(kind=8),intent(out)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
-    real(kind=8),pointer::sendbuf(:)
+    real(kind=8),intent(out),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
+    real(kind=8),allocatable::sendbuf(:)
+    real(kind=8),pointer::recvbuf(:)
     real(kind=8)::received_batch_state(this%batch_size)
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
-         batch_length,batch_offset,local_io_counter,iobs,rank,local_batch_length
+         batch_length,batch_offset,iobs,rank, &
+         irank
 #ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE::status
+    MPI_STATUS_TYPE,allocatable::statuses(:)
 #else
-    MPI_STATUS_TYPE::status(MPI_STATUS_SIZE)
+    MPI_STATUS_TYPE,allocatable::statuses(:,:)
 #endif
-    integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
+    MPI_REQUEST_TYPE,allocatable::receive_reqs(:),receive_req
+    integer,allocatable::io_ranks(:),io_counts(:),io_offsets(:)
+    integer::batch_io_offsets,batch_segment_start,batch_segment_end, &
+         overlap_start,overlap_end,local_batch_length,ireq
 
     call mpi_comm_size(this%comm,comm_size,ierr)
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    allocate(batch_io_counts(comm_size))
-    allocate(batch_io_offsets(comm_size))
-
     call this%model_interface%read_state(istep)
-
-    local_io_counter=1
 
     batch_io_offsets=0
 
-    do imember=1,this%n_ensemble
+    ! Initialize receive_reqs
+    allocate(receive_reqs(0))
 
-       local_io_counter=local_io_counter+1
+    do imember=1,this%n_ensemble
 
        ! Reset the local batch counter
        ibatch_local=1
+
+       ! Get locations of data (i/o segments) for this ensemble member
+       call this%model_interface%get_io_ranks(istep, &
+            imember,io_ranks,io_counts,io_offsets)
 
        do ibatch=1,this%n_batches
 
@@ -267,103 +276,168 @@ contains
           batch_offset=this%get_batch_offset(ibatch)
           batch_length=this%get_batch_length(ibatch)
 
-          ! Get number of state array members read by each process
-          call this%model_interface%get_subset_io_segment_data(istep, &
-               imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
+          ! Loop over i/o segments
+          do irank=1,size(io_ranks)
 
-          ! Part of the state array read by local process
-          local_batch_length=batch_io_counts(rank+1)
+             call segment_range_overlap( &
+                  batch_offset+1,batch_offset+batch_length, &
+                  io_offsets(irank)+1,io_offsets(irank)+io_counts(irank), &
+                  overlap_start,overlap_end)
 
-          ! Get the batch data that is to be read by the local processor
-          sendbuf=>this%model_interface%get_state_subset_buffer( &
-               istep,imember,batch_offset,batch_length)
+             if(overlap_start>overlap_end) then
+                ! I/O segment does not overlap with batch
+                cycle
+             end if
 
-          ! Gather batch data to the assigned processor from batch_ranks
-          call MPI_Igatherv(sendbuf,local_batch_length, &
-               MPI_DOUBLE_PRECISION,received_batch_state,batch_io_counts, &
-               batch_io_offsets, MPI_DOUBLE_PRECISION, &
-               this%batch_ranks(ibatch), &
-               this%comm, this%batch_send_reqs((imember-1)*this%n_batches+ibatch), ierr)
+             if(io_ranks(irank)==rank) then
+                ! This segment will be read locally, no receive required
+                cycle
+
+             end if
+
+             if(this%batch_ranks(ibatch)==rank) then
+
+                ! Location of data in the batch
+                batch_segment_start=overlap_start-batch_offset
+                batch_segment_end=overlap_end-batch_offset
+
+                ! Size of data to be read
+                local_batch_length=batch_segment_end-batch_segment_start+1
+
+                receive_reqs=append_array(receive_reqs,MPI_REQUEST_NULL)
+
+                recvbuf=>local_batches(batch_segment_start: &
+                     batch_segment_end,ibatch_local,imember)
+
+                ! Receive this segment from its i/o processor
+                call MPI_Irecv(recvbuf, &
+                     local_batch_length, MPI_DOUBLE_PRECISION, &
+                     io_ranks(irank),1,this%comm,receive_reqs(size(receive_reqs)),ierr)
+
+             end if
+
+          end do
 
           if(this%batch_ranks(ibatch)==rank) then
-
-             ! Wait for MPI_Igatherv to complete
-             call MPI_Wait(this%batch_send_reqs((imember-1)*this%n_batches+ibatch),status,ierr)
-
-             ! Copy batch state into the local_batches array
-             local_batches(:,ibatch_local,imember)=received_batch_state
-
              ! Increment the local batch counter
              ibatch_local=ibatch_local+1
+          end if
 
+       end do
+
+    end do
+
+       if(ibatch_local-1/=this%n_local_batches) then
+          print '(A,I0,A,I0,A,I0,A)', &
+               'Inconsistency in the local batch count on rank ',rank, &
+               '. Expected ', this%n_local_batches, &
+               ', got ',ibatch_local-1,'.'
+          error stop
+       end if
+
+    do imember=1,this%n_ensemble
+
+       ! Reset the local batch counter
+       ibatch_local=1
+
+       ! Get locations of data (i/o segments) for this ensemble member
+       call this%model_interface%get_io_ranks(istep, &
+            imember,io_ranks,io_counts,io_offsets)
+
+       do ibatch=1,this%n_batches
+
+          ! Locate batch in the state array
+          batch_offset=this%get_batch_offset(ibatch)
+          batch_length=this%get_batch_length(ibatch)
+
+          ! Loop over i/o segments
+          do irank=1,size(io_ranks)
+
+             call segment_range_overlap( &
+                  batch_offset+1,batch_offset+batch_length, &
+                  io_offsets(irank)+1,io_offsets(irank)+io_counts(irank), &
+                  overlap_start,overlap_end)
+
+             if(overlap_start>overlap_end) then
+                ! I/O segment does not overlap with batch
+                cycle
+             end if
+
+             ! Location of data in the model state array
+             batch_segment_start=overlap_start-batch_offset
+             batch_segment_end=overlap_end-batch_offset
+
+             ! Size of data to be read
+             local_batch_length=batch_segment_end-batch_segment_start+1
+
+             if(io_ranks(irank)==rank) then
+
+                ! This segment will be read locally, we will request it from
+                ! the model interface
+
+                ! Allocate buffer for locally read data in this batch
+                allocate(sendbuf(local_batch_length))
+
+                ! Get the data from the model
+                sendbuf=this%model_interface%get_state_subset(istep,imember, &
+                     overlap_start-1,local_batch_length)
+
+                if(this%batch_ranks(ibatch)==rank) then
+
+                   ! This segment will be assimilated locally, store it in
+                   ! the local_batches array
+
+                   local_batches(batch_segment_start: &
+                        batch_segment_end,ibatch_local,imember)=sendbuf
+
+                else
+
+                   ! Send data to the process where it will be assimilated
+                   ! Note that we do a blocking send because the send needs
+                   ! to complete before we deallocate sendbuf
+                   call MPI_Send(sendbuf,local_batch_length, &
+                        MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),1, &
+                        this%comm)
+
+                end if
+
+                deallocate(sendbuf)
+
+             end if
+
+          end do
+
+          if(this%batch_ranks(ibatch)==rank) then
+             ! Increment the local batch counter
+             ibatch_local=ibatch_local+1
           end if
 
        end do
 
        if(ibatch_local-1/=this%n_local_batches) then
-          print '(A,I0,A,I0)', &
-               'Inconsistency in the local batch count. Expected ', &
-               this%n_local_batches,' found ',ibatch_local-1
+          print '(A,I0,A,I0,A,I0,A)', &
+               'Inconsistency in the local batch count on rank ',rank, &
+               '. Expected ', this%n_local_batches, &
+               ', got ',ibatch_local-1,'.'
           error stop
        end if
 
     end do
 
+#ifdef HAVE_MPI_F08_MODULE
+    allocate(statuses(size(receive_reqs)))
+#else
+    allocate(statuses(MPI_STATUS_SIZE,size(receive_reqs)))
+#endif
+
+    ! Wait for receives to complete
+    call MPI_Waitall(size(receive_reqs),receive_reqs,statuses,ierr)
+
   end subroutine load_ensemble_state
 
-  subroutine scatter_batch(this,istep,imember,ibatch,sendbuf)
-    class(assim_batch_manager)::this
-    integer,intent(in)::istep,ibatch,imember
-    real(kind=8),pointer::recvbuf(:)
-    real(kind=8),intent(in)::sendbuf(:)
-    integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
-    integer::batch_offset,batch_length,comm_size,rank,ierr
-
-    call mpi_comm_size(this%comm,comm_size,ierr)
-
-    call mpi_comm_rank(this%comm,rank,ierr)
-
-    ! Locate batch in the state array
-    batch_offset=this%get_batch_offset(ibatch)
-    batch_length=this%get_batch_length(ibatch)
-
-    if(rank==this%batch_ranks(ibatch)) then
-       if(size(sendbuf)/=batch_length ) then
-          print '(A,I0,A,I0,A)','Wrong buffer size passed to scatter_batch. Expected ', &
-               batch_length,', got ',size(sendbuf),'.'
-          error stop
-       end if
-    end if
-
-    allocate(batch_io_counts(comm_size))
-    allocate(batch_io_offsets(comm_size))
-
-    ! Get number of state array members to be written by each process
-    call this%model_interface%get_subset_io_segment_data(istep, &
-         imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
-
-    ! Get receive buffer
-    recvbuf=>this%model_interface%get_state_subset_buffer(istep,imember, &
-         batch_offset,batch_length)
-
-    if(batch_io_counts(rank+1)>0) then
-       if(.not. associated(recvbuf)) then
-          print *,'Unassociated receive buffer where a buffer of size',batch_io_counts(rank+1),'was expected.'
-          error stop
-       else if(size(recvbuf)<batch_io_counts(rank+1)) then
-          print *,'Expected receive buffer of size',batch_io_counts(rank+1),'got size',size(recvbuf)
-          error stop
-       end if
-    end if
-
-    call MPI_Iscatterv(sendbuf,batch_io_counts,batch_io_offsets, &
-         MPI_DOUBLE_PRECISION,recvbuf,batch_io_counts(rank+1), &
-         MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),this%comm, &
-         this%batch_receive_reqs((imember-1)*this%n_batches+ibatch),ierr)
-
-  end subroutine scatter_batch
-
   subroutine receive_results(this,istep,local_batches)
+
+    use util, ONLY: append_array
 
     class(assim_batch_manager)::this
     integer,intent(in)::istep
@@ -371,69 +445,165 @@ contains
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
          member_rank,local_io_index,ierr
 #ifdef HAVE_MPI_F08_MODULE
+    MPI_STATUS_TYPE,allocatable::statuses(:)
     MPI_STATUS_TYPE::status
 #else
-    MPI_STATUS_TYPE::status(MPI_STATUS_SIZE)
+    MPI_STATUS_TYPE,allocatable::statuses(:,:)
+    MPI_STATUS_TYPE::status
 #endif
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
-    integer,allocatable::batch_io_counts(:),batch_io_offsets(:)
-    real(kind=8),pointer::recvbuf(:)
+    integer::batch_segment_start,batch_segment_end
+    integer::irank
+    integer::local_batch_length,overlap_start,overlap_end
+    integer,allocatable::io_ranks(:),io_counts(:),io_offsets(:)
     real(kind=8),pointer::sendbuf(:)
+    real(kind=8),allocatable::recvbuf(:)
     real(kind=8),target::empty(0)
+    MPI_REQUEST_TYPE,allocatable::req
+    MPI_REQUEST_TYPE,allocatable::reqs(:)
     logical::flag
 
     call mpi_comm_size(this%comm,comm_size,ierr)
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    allocate(batch_io_counts(comm_size))
-    allocate(batch_io_offsets(comm_size))
-
     sendbuf=>empty
 
+    allocate(reqs(0))
+
     do imember=1,this%n_ensemble
+
+       ! Reset local batch counter
        ibatch_local=1
+
+       ! Get locations of data (i/o segments) for this ensemble member
+       call this%model_interface%get_io_ranks(istep, &
+            imember,io_ranks,io_counts,io_offsets)
+
        do ibatch=1,this%n_batches
 
-
-          ! Locate batch in the state array
-          batch_offset=this%get_batch_offset(ibatch)
-          batch_length=this%get_batch_length(ibatch)
-
-          ! Get number of state array members to be written by each process
-          call this%model_interface%get_subset_io_segment_data(istep, &
-               imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
-
-          ! Get receive buffer
-          recvbuf=>this%model_interface%get_state_subset_buffer(istep,imember, &
-               batch_offset,batch_length)
-
-          ! Set send buffer
           if(this%batch_ranks(ibatch)==rank) then
-             sendbuf=>local_batches(:batch_length,ibatch_local,imember)
-             ibatch_local=ibatch_local+1
-          else
-             sendbuf=>empty
+
+             ! Locate batch in the state array
+             batch_offset=this%get_batch_offset(ibatch)
+             batch_length=this%get_batch_length(ibatch)
+
+             ! Loop over i/o segments
+             do irank=1,size(io_ranks)
+
+                call segment_range_overlap( &
+                     batch_offset+1,batch_offset+batch_length, &
+                     io_offsets(irank)+1,io_offsets(irank)+io_counts(irank), &
+                     overlap_start,overlap_end)
+
+                if(overlap_start>overlap_end) then
+                   ! I/O segment does not overlap with batch
+                   cycle
+                end if
+
+                ! Location of data in the model state array
+                batch_segment_start=overlap_start-batch_offset
+                batch_segment_end=overlap_end-batch_offset
+
+                ! Size of data to be read
+                local_batch_length=batch_segment_end-batch_segment_start+1
+
+                sendbuf=>local_batches(batch_segment_start:batch_segment_end, &
+                     ibatch_local,imember)
+
+                if(io_ranks(irank)==rank) then
+
+                   call this%model_interface%set_state_subset( &
+                        istep,imember,overlap_start-1, &
+                        local_batch_length,sendbuf)
+
+                else
+
+                   reqs=append_array(reqs,MPI_REQUEST_NULL)
+
+                   call MPI_Isend(sendbuf,local_batch_length, &
+                        MPI_DOUBLE_PRECISION,io_ranks(irank),1,this%comm, &
+                        reqs(size(reqs)),ierr)
+
+                end if
+
+                ibatch_local=ibatch_local+1
+
+             end do
+
           end if
-
-          ! Get number of state array members to be written by each process
-          call this%model_interface%get_subset_io_segment_data(istep, &
-               imember,batch_offset,batch_length,batch_io_counts,batch_io_offsets)
-
-          call scatter_batch(this,istep,imember,ibatch,sendbuf)
-
-          if(batch_io_counts(rank+1)>0) then
-             call MPI_Wait(this%batch_receive_reqs((imember-1)*this%n_batches+ibatch),status,ierr)
-
-          end if
-
-          ! Record that batch was received
-          this%batch_results_received(imember,ibatch)=.true.
 
        end do
 
     end do
+
+    do imember=1,this%n_ensemble
+
+       ! Reset local batch counter
+       ibatch_local=1
+
+       ! Get locations of data (i/o segments) for this ensemble member
+       call this%model_interface%get_io_ranks(istep, &
+            imember,io_ranks,io_counts,io_offsets)
+
+       do ibatch=1,this%n_batches
+
+          if(this%batch_ranks(ibatch)/=rank) then
+
+             ! Locate batch in the state array
+             batch_offset=this%get_batch_offset(ibatch)
+             batch_length=this%get_batch_length(ibatch)
+
+             ! Loop over i/o segments
+             do irank=1,size(io_ranks)
+
+                call segment_range_overlap( &
+                     batch_offset+1,batch_offset+batch_length, &
+                     io_offsets(irank)+1,io_offsets(irank)+io_counts(irank), &
+                     overlap_start,overlap_end)
+
+                if(overlap_start>overlap_end) then
+                   ! I/O segment does not overlap with batch
+                   cycle
+                end if
+
+                ! Size of data to be read
+                local_batch_length=overlap_end-overlap_start+1
+
+                if(io_ranks(irank)==rank) then
+
+                   allocate(recvbuf(local_batch_length))
+
+                   call MPI_Recv(recvbuf,local_batch_length, &
+                        MPI_DOUBLE_PRECISION,this%batch_ranks(ibatch),1,this%comm, &
+                        status,ierr)
+
+                   call this%model_interface%set_state_subset( &
+                        istep,imember,overlap_start-1, &
+                        local_batch_length,recvbuf)
+
+                   deallocate(recvbuf)
+
+                end if
+
+             end do
+
+          end if
+
+       end do
+
+    end do
+
+#ifdef HAVE_MPI_F08_MODULE
+    allocate(statuses(size(reqs)))
+#else
+    allocate(statuses(MPI_STATUS_SIZE,size(reqs)))
+#endif
+
+    call MPI_Waitall(size(reqs),reqs,statuses,ierr)
+
+    this%batch_results_received=.true.
 
   end subroutine receive_results
 
@@ -449,8 +619,7 @@ contains
        do ibatch=1,this%n_batches
           if(.not.this%batch_results_received(imember,ibatch)) then
              print *,'member',imember,'batch',ibatch,&
-                  'from rank',this%batch_ranks(ibatch),&
-                  'request',this%batch_receive_reqs((imember-1)*this%n_batches+ibatch)
+                  'from rank',this%batch_ranks(ibatch)
           end if
        end do
     end do
@@ -465,22 +634,6 @@ contains
     ibatch=(req_ind/this%n_ensemble)+1
   end subroutine request_batch_index
 
-  subroutine transmit_results(this,istep,ibatch,batch_state)
-    class(assim_batch_manager),intent(inout)::this
-    integer,intent(in)::istep,ibatch
-    real(kind=8),intent(in)::batch_state(this%batch_size,this%n_ensemble)
-    integer::ierr,imember,member_rank,offset,batch_length,batch_offset, &
-         comm_size,rank
-    integer::req
-
-    do imember=1,this%n_ensemble
-       call scatter_batch(this,istep,imember,ibatch,batch_state(:,imember))
-    end do
-
-    call this%receive_results(istep,batch_state)
-
-  end subroutine transmit_results
-
   subroutine store_results(this,istep,local_batches)
 
     implicit none
@@ -488,23 +641,7 @@ contains
     class(assim_batch_manager)::this
     integer,intent(in)::istep
     real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
-    integer::imember,local_io_counter,rank,ierr
-#ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE,allocatable::status(:)
-#else
-    MPI_STATUS_TYPE,allocatable::status(:,:)
-#endif
-    call mpi_comm_rank(this%comm,rank,ierr)
-
-#ifdef HAVE_MPI_F08_MODULE
-    allocate(status(size(this%batch_send_reqs)))
-#else
-    allocate(status(MPI_STATUS_SIZE,size(this%batch_send_reqs)))
-#endif
-
-    call MPI_Waitall(size(this%batch_send_reqs),this%batch_send_reqs,status,ierr)
-
-    local_io_counter=1
+    integer::imember,rank,ierr
 
     do while(any(this%batch_results_received.eqv..false.))
        call this%receive_results(istep,local_batches)
@@ -584,14 +721,6 @@ contains
     MPI_STATUS_TYPE,allocatable::status(:,:)
 #endif
     integer::ierr
-
-#ifdef HAVE_MPI_F08_MODULE
-    allocate(status(size(this%batch_receive_reqs)))
-#else
-    allocate(status(MPI_STATUS_SIZE,size(this%batch_receive_reqs)))
-#endif
-
-    call MPI_Waitall(size(this%batch_receive_reqs),this%batch_receive_reqs,status,ierr)
 
   end subroutine cleanup
 

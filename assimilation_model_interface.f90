@@ -12,7 +12,8 @@ module assimilation_model_interface
      procedure::get_innovations
      procedure(I_get_state_size), deferred::get_state_size
      procedure(I_get_io_ranks), deferred::get_io_ranks
-     procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
+     procedure(I_get_state_subset), deferred::get_state_subset
+     procedure(I_set_state_subset), deferred::set_state_subset
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
      procedure::read_state
@@ -87,26 +88,26 @@ module assimilation_model_interface
        integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
      end subroutine I_get_io_ranks
 
-     function I_get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+     function I_get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
        import base_model_interface
 
        implicit none
 
        class(base_model_interface)::this
        integer,intent(in)::istep,imember,subset_offset,subset_size
-       real(kind=8),pointer::buffer(:)
+       real(kind=8)::buffer(subset_size)
 
-     end function I_get_state_subset_buffer
+     end function I_get_state_subset
 
-     subroutine I_get_member_state(this,istep,imember,subset_offset,subset_size,subset_state)
+     subroutine I_set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
        import base_model_interface
 
        implicit none
 
        class(base_model_interface)::this
        integer,intent(in)::istep,imember,subset_offset,subset_size
-       real(kind=8),intent(out)::subset_state(subset_size)
-     end subroutine I_get_member_state
+       real(kind=8),intent(in)::subset_state(subset_size)
+     end subroutine I_set_state_subset
 
   end interface
 

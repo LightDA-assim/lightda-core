@@ -21,7 +21,8 @@ module advect1d_assimilate_interfaces
    contains
      procedure::get_state_size
      procedure::get_io_ranks
-     procedure::get_state_subset_buffer
+     procedure::get_state_subset
+     procedure::set_state_subset
      procedure::get_subset_obs_count
      procedure::get_subset_predictions
      procedure::get_subset_observations
@@ -66,7 +67,7 @@ contains
     allocate(this%io_ranks(n_ensemble))
 
     ! Assign ensemble members to processors for i/o purposes
-    call get_member_ranks(comm_size,n_ensemble,this%io_ranks)
+    this%io_ranks=get_member_ranks(comm_size,n_ensemble)
 
     ! Get the number of ensemble members read and written locally
     this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
@@ -78,7 +79,7 @@ contains
 
   end function new_advect1d_interface
 
-  subroutine get_member_ranks(comm_size,n_ensemble) result(io_ranks)
+  function get_member_ranks(comm_size,n_ensemble) result(io_ranks)
     integer,intent(in)::comm_size,n_ensemble
     integer::io_ranks(n_ensemble)
     integer::i,stride
@@ -88,7 +89,7 @@ contains
        io_ranks(i)=mod(i*stride,comm_size)
     end do
 
-  end subroutine get_member_ranks
+  end function get_member_ranks
 
   function get_rank_io_size(n_ensemble,io_ranks,rank) result(size)
     integer,intent(in)::n_ensemble
@@ -523,7 +524,7 @@ contains
 
   subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
+    integer,intent(in)::istep,imember
     integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
     integer::comm_size,ierr
 
@@ -537,11 +538,11 @@ contains
 
   end subroutine get_io_ranks
 
-  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
+  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(subset_state)
 
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
-    real(kind=8),pointer::buffer(:)
+    real(kind=8)::subset_state(subset_size)
     real(kind=8),target::empty(0)
     integer::rank,ierr
 
@@ -549,8 +550,8 @@ contains
 
     if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
 
-       ! Point to the appropriate position in local_io_data
-       buffer=>this%local_io_data( &
+       ! Copy from this%local_io_data
+       subset_state=this%local_io_data( &
             subset_offset+1:subset_offset+subset_size, &
             get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
 
@@ -559,7 +560,32 @@ contains
        error stop
     end if
 
-  end function get_state_subset_buffer
+  end function get_state_subset
+
+  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
+
+    class(advect1d_interface)::this
+    integer,intent(in)::istep,imember,subset_offset,subset_size
+    real(kind=8),intent(in)::subset_state(subset_size)
+    real(kind=8),target::empty(0)
+    integer::rank,ierr
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
+
+       ! Write to this%local_io_data
+       this%local_io_data( &
+            subset_offset+1:subset_offset+subset_size, &
+            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember) &
+       )=subset_state
+
+    else
+       print *,'Error: Indices for non-local ensemble state passed to get_state_subset'
+       error stop
+    end if
+
+  end subroutine set_state_subset
 
   function get_state_size(this) result(size)
     class(advect1d_interface)::this

@@ -19,17 +19,16 @@ module dummy_model_interfaces
      logical::observations_read,predictions_computed,state_loaded
    contains
      procedure::get_state_size
-     procedure::get_subset_io_segment_data
-     procedure::get_state_subset_buffer
+     procedure::get_io_ranks
+     procedure::get_state_subset
+     procedure::set_state_subset
      procedure::get_subset_obs_count
      procedure::get_subset_predictions
      procedure::get_subset_observations
      procedure::get_subset_obs_err
-     procedure::before_loading_ensemble_state
      procedure,private::compute_predictions
-     procedure,private::load_ensemble_state
+     procedure::read_state
      procedure,private::load_observations
-     procedure::after_ensemble_results_received
      procedure::get_ensemble_state
   end type dummy_model_interface
 
@@ -60,7 +59,7 @@ contains
     allocate(this%predictions(this%n_observations,this%n_ensemble))
     allocate(this%io_ranks(n_ensemble))
 
-    call get_io_ranks(comm_size,n_ensemble,this%io_ranks)
+    this%io_ranks=get_member_ranks(comm_size,n_ensemble)
 
     ! Get the number of ensemble members read and written locally
     this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
@@ -76,15 +75,31 @@ contains
     size=this%state_size
   end function get_state_size
 
-  subroutine get_io_ranks(comm_size,n_ensemble,io_ranks)
+  function get_member_ranks(comm_size,n_ensemble) result(io_ranks)
     integer,intent(in)::comm_size,n_ensemble
-    integer,intent(inout)::io_ranks(n_ensemble)
+    integer::io_ranks(n_ensemble)
     integer::i,stride
     stride=max(comm_size/n_ensemble,1)
 
     do i=1,n_ensemble
        io_ranks(i)=mod(i*stride,comm_size)
     end do
+
+  end function get_member_ranks
+
+  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
+    class(dummy_model_interface)::this
+    integer,intent(in)::istep,imember
+    integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
+    integer::comm_size,ierr
+
+    call mpi_comm_size(this%comm,comm_size,ierr)
+
+    allocate(ranks(1),counts(1),offsets(1))
+
+    ranks(1)=this%io_ranks(imember)
+    counts(1)=this%state_size
+    offsets(1)=0
 
   end subroutine get_io_ranks
 
@@ -199,7 +214,7 @@ contains
 
   end subroutine load_observations
 
-  subroutine load_ensemble_state(this,istep)
+  subroutine read_state(this,istep)
     class(dummy_model_interface)::this
     integer,intent(in)::istep
     integer::imember,rank,ierr,i
@@ -221,7 +236,7 @@ contains
 
     this%state_loaded=.true.
 
-  end subroutine load_ensemble_state
+  end subroutine read_state
 
   subroutine compute_predictions(this,istep)
     class(dummy_model_interface)::this
@@ -231,7 +246,7 @@ contains
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    if(.not. this%state_loaded) call this%load_ensemble_state(istep)
+    if(.not. this%state_loaded) call this%read_state(istep)
 
     if(.not. this%observations_read) call this%load_observations(istep)
 
@@ -257,54 +272,34 @@ contains
     end do
   end subroutine compute_predictions
 
-  subroutine before_loading_ensemble_state(this,istep)
+  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
+
     class(dummy_model_interface)::this
-    integer,intent(in)::istep
-    integer::imember,local_io_counter,rank,ierr,iobs
+    integer,intent(in)::istep,imember,subset_offset,subset_size
+    real(kind=8)::buffer(subset_size)
+    integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
-    call this%load_ensemble_state(istep)
+    if(this%io_ranks(imember)==rank) then
 
-    call this%compute_predictions(istep)
+       buffer=this%local_io_data( &
+            subset_offset+1:subset_offset+subset_size, &
+            imember)
 
-  end subroutine before_loading_ensemble_state
-
-  subroutine get_subset_io_segment_data(this,istep,imember,subset_offset,subset_size,counts,offsets)
-    class(dummy_model_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
-    integer,intent(out)::counts(:),offsets(:)
-    integer::comm_size,ierr
-
-    call mpi_comm_size(this%comm,comm_size,ierr)
-
-    if(size(counts)/=comm_size) then
-       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
-            comm_size,', got ',size(counts),'.'
+    else
+       print *,'Error: Indices for non-local ensemble state passed to get_state_subset.'
+       print *,'Data for member',imember,'requested on rank',rank
        error stop
     end if
 
-    if(size(offsets)/=comm_size) then
-       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
-            comm_size,', got ',size(offsets),'.'
-       error stop
-    end if
+  end function get_state_subset
 
-    ! Fill counts with zeros
-    counts=0
-    offsets=0
-
-    ! Set counts for the rank assigned to do i/o for requested ensemble member
-    counts(this%io_ranks(imember)+1)=subset_size
-    offsets(this%io_ranks(imember)+1)=0
-
-  end subroutine get_subset_io_segment_data
-
-  function get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
-    real(kind=8),pointer::buffer(:)
+    real(kind=8),intent(in)::subset_state(subset_size)
     real(kind=8),target::empty(0)
     integer::rank,ierr
 
@@ -312,17 +307,16 @@ contains
 
     if(this%io_ranks(imember)==rank) then
 
-       ! Point to the appropriate position in local_io_data
-       buffer=>this%local_io_data( &
+       this%local_io_data( &
             subset_offset+1:subset_offset+subset_size, &
-            imember)
+            imember)=subset_state
 
     else
-       ! Return a null pointer
-       buffer=>empty
+       print *,'Error: Indices for non-local ensemble state passed to set_state_subset'
+       error stop
     end if
 
-  end function get_state_subset_buffer
+  end subroutine set_state_subset
 
   subroutine after_ensemble_results_received(this,istep)
     class(dummy_model_interface)::this
