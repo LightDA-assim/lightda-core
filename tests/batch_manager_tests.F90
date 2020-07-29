@@ -99,6 +99,8 @@ contains
     real(kind=8)::ensemble_before_assimilation(state_size,n_ensemble)
     real(kind=8)::ensemble_after_assimilation(state_size,n_ensemble)
     integer::rank,comm_size,ierr,batch_length,batch_offset,ibatch,ibatch_local,istep,n_local_batches,n_obs_batch
+    integer::imember,i
+    real(kind=8)::delta
     MPI_COMM_TYPE::comm
     real(kind=8),parameter::forget=0.6
 
@@ -157,6 +159,13 @@ contains
     call batch_manager%store_results(istep,local_batches)
 
     ensemble_after_assimilation=model_interface%get_ensemble_state()
+
+    do imember=1,n_ensemble
+       do i=1,state_size
+          delta=ensemble_after_assimilation(i,imember)-ensemble_before_assimilation(i,imember)
+          if(abs(delta)>1e-8)print *,imember,i,ensemble_before_assimilation(i,imember),ensemble_after_assimilation(i,imember),delta
+       end do
+    end do
 
     if(.not. all(abs(ensemble_before_assimilation-ensemble_after_assimilation)<1e-8)) then
        print *,'Ensemble state changed during assimilation or i/o on rank',rank
