@@ -11,7 +11,7 @@ module assimilation_model_interface
      procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
      procedure::get_innovations
      procedure(I_get_state_size), deferred::get_state_size
-     procedure(I_get_subset_io_segment_data), deferred::get_subset_io_segment_data
+     procedure(I_get_io_ranks), deferred::get_io_ranks
      procedure(I_get_state_subset_buffer), deferred::get_state_subset_buffer
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
@@ -77,15 +77,15 @@ module assimilation_model_interface
        REAL(c_double), INTENT(out) :: obs_err(:)
      end subroutine I_get_subset_obs_err
 
-     subroutine I_get_subset_io_segment_data(this,istep,imember,subset_offset,subset_size,counts,offsets)
+     subroutine I_get_io_ranks(this,istep,imember,ranks,counts,offsets)
        import base_model_interface
 
        implicit none
 
        class(base_model_interface)::this
-       integer,intent(in)::istep,imember,subset_offset,subset_size
-       integer,intent(out)::counts(:),offsets(:)
-     end subroutine I_get_subset_io_segment_data
+       integer,intent(in)::istep,imember
+       integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
+     end subroutine I_get_io_ranks
 
      function I_get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
        import base_model_interface

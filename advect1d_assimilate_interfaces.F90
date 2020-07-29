@@ -20,7 +20,7 @@ module advect1d_assimilate_interfaces
      logical::observations_read,predictions_computed,state_loaded
    contains
      procedure::get_state_size
-     procedure::get_subset_io_segment_data
+     procedure::get_io_ranks
      procedure::get_state_subset_buffer
      procedure::get_subset_obs_count
      procedure::get_subset_predictions
@@ -66,7 +66,7 @@ contains
     allocate(this%io_ranks(n_ensemble))
 
     ! Assign ensemble members to processors for i/o purposes
-    call get_io_ranks(comm_size,n_ensemble,this%io_ranks)
+    call get_member_ranks(comm_size,n_ensemble,this%io_ranks)
 
     ! Get the number of ensemble members read and written locally
     this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
@@ -78,9 +78,9 @@ contains
 
   end function new_advect1d_interface
 
-  subroutine get_io_ranks(comm_size,n_ensemble,io_ranks)
+  subroutine get_member_ranks(comm_size,n_ensemble) result(io_ranks)
     integer,intent(in)::comm_size,n_ensemble
-    integer,intent(inout)::io_ranks(n_ensemble)
+    integer::io_ranks(n_ensemble)
     integer::i,stride
     stride=max(comm_size/n_ensemble,1)
 
@@ -88,7 +88,7 @@ contains
        io_ranks(i)=mod(i*stride,comm_size)
     end do
 
-  end subroutine get_io_ranks
+  end subroutine get_member_ranks
 
   function get_rank_io_size(n_ensemble,io_ranks,rank) result(size)
     integer,intent(in)::n_ensemble
@@ -521,42 +521,23 @@ contains
     this%predictions_computed=.true.
   end subroutine compute_predictions
 
-  subroutine get_subset_io_segment_data(this,istep,imember,subset_offset,subset_size,counts,offsets)
+  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
-    integer,intent(out)::counts(:),offsets(:)
+    integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
     integer::comm_size,ierr
 
     call mpi_comm_size(this%comm,comm_size,ierr)
 
-    if(.not.this%state_loaded) then
-       print *,'Error: Model state not yet loaded'
-       error stop
-    end if
+    allocate(ranks(1),counts(1),offsets(1))
 
-    if(size(counts)/=comm_size) then
-       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
-            comm_size,', got ',size(counts),'.'
-       error stop
-    end if
+    ranks(1)=this%io_ranks(imember)
+    counts(1)=this%state_size
+    offsets(1)=0
 
-    if(size(offsets)/=comm_size) then
-       print '(A,I0,A,I0,A)','Wrong size passed to counts argument of get_subset_io_segment_data. Expected ', &
-            comm_size,', got ',size(offsets),'.'
-       error stop
-    end if
+  end subroutine get_io_ranks
 
-    ! Fill counts with zeros
-    counts=0
-    offsets=0
-
-    ! Set counts for the rank assigned to do i/o for requested ensemble member
-    counts(this%io_ranks(imember)+1)=subset_size
-    offsets(this%io_ranks(imember)+1)=0
-
-  end subroutine get_subset_io_segment_data
-
-  function get_state_subset_buffer(this,istep,imember,subset_offset,subset_size) result(buffer)
+  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
 
     class(advect1d_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
@@ -574,8 +555,8 @@ contains
             get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
 
     else
-       ! Return a null pointer
-       buffer=>empty
+       print *,'Error: Indices for non-local ensemble state passed to get_state_subset'
+       error stop
     end if
 
   end function get_state_subset_buffer
