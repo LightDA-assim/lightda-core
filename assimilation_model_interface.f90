@@ -44,7 +44,7 @@ module assimilation_model_interface
 
        class(base_model_interface)::this
        integer,intent(in)::istep,subset_offset,subset_size
-       real(kind=8),intent(inout)::predictions(:,:)
+       real(kind=8),intent(out)::predictions(:,:)
      end subroutine I_get_subset_predictions
 
      function I_get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)

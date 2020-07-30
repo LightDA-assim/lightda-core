@@ -135,7 +135,7 @@ contains
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,subset_offset,subset_size
-    real(kind=8),intent(inout)::predictions(:,:)
+    real(kind=8),intent(out)::predictions(:,:)
     integer::i,imember,ierr
 
     if(size(predictions,1) /= this%n_observations .or. &
