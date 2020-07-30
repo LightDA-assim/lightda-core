@@ -359,6 +359,8 @@ contains
         !! Index of the first observation
     integer,intent(in)::iobs2
         !! Index of the second observation
+
+    ! Returns
     real(kind=8)::weight
         !! Localization weight
 
@@ -381,6 +383,8 @@ contains
         !! Index in the model state array
     integer,intent(in)::iobs
         !! Index in the observations array
+
+    ! Returns
     real(kind=8)::weight
         !! Localization weight
 
