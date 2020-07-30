@@ -189,7 +189,13 @@ module assimilation_model_interface
 
      function I_get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
 
-       !! Returns model state values for a given subset of the model state
+       !! Returns model state values for a given subset of the model state.
+       !! Note that availability of data may depend on the rank of the calling
+       !! processor, so this subroutine should only be called after a call to
+       !! get_io_ranks, and the values of subset_offset and subset_size should
+       !! be chosen to fall within a continguous segment of data stored on the
+       !! calling processor rank as determined by the output from get_io_ranks.
+       !! Failure to satisfy this requirement may result in an error.
 
        import base_model_interface
 
@@ -214,6 +220,12 @@ module assimilation_model_interface
      subroutine I_set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
 
        !! Returns model state values for a given subset of the model state
+       !! Note that ability to write data may depend on the rank of the calling
+       !! processor, so this subroutine should only be called after a call to
+       !! get_io_ranks, and the values of subset_offset and subset_size should
+       !! be chosen to fall within a continguous segment of data stored on the
+       !! calling processor rank as determined by the output from get_io_ranks.
+       !! Failure to satisfy this requirement may result in an error.
 
        import base_model_interface
 
