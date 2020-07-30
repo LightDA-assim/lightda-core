@@ -269,10 +269,23 @@ contains
   end subroutine get_subset_observations
 
   SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err)
+
+    !! Get the errors (uncertainties) associated with the observations
+    !! affecting a given subset of the model domain.
+
     USE iso_c_binding
+
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
     REAL(c_double), INTENT(out) :: obs_err(:)
+        !! Observation errors
 
     if(.not. this%observations_read) then
        call this%read_observations(istep)
@@ -283,8 +296,14 @@ contains
   END SUBROUTINE get_subset_obs_err
 
   function get_obs_positions(this) result(obs_positions)
+
+    !! Get the locations of all the observations
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
     integer::obs_positions(this%n_observations)
+        !! Array of observation locations
 
     obs_positions=this%obs_positions
 
@@ -292,11 +311,25 @@ contains
 
   function get_weight_obs_obs(this,istep,iobs1,iobs2) result(weight)
 
+    !! Get localization weights for a given pair of observations.
+    !! Uses a Gaspari-Cohn localization function with a hard-coded cutoff.
+
     use localization, ONLY: localize_gaspari_cohn
 
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,iobs1,iobs2
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::iobs1
+        !! Index of the first observation
+    integer,intent(in)::iobs2
+        !! Index of the second observation
+
+    ! Returns
     real(kind=8)::weight
+        !! Localization weight
+
     real(kind=8)::pos1,pos2,delta,distance
     integer::domain_size
 
@@ -335,11 +368,27 @@ contains
 
   function get_weight_model_obs(this,istep,imodel,iobs) result(weight)
 
+    !! Get localization weights for a given observation and location in the
+    !! model state array. Uses a Gaspari-Cohn localization function with two
+    !! hard coded cutoffs, one for the advected quantity and the other for
+    !! velocity.
+
     use localization, ONLY: localize_gaspari_cohn
 
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imodel,iobs
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imodel
+        !! Index in the model state array
+    integer,intent(in)::iobs
+        !! Index in the observations array
+
+    ! Returns
     real(kind=8)::weight
+        !! Localization weight
+
     real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
     integer::domain_size
 
@@ -375,8 +424,15 @@ contains
   end function get_weight_model_obs
 
   subroutine read_observations(this,istep)
+
+    !! Read the observations from disk
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
     integer,intent(in)::istep
+        !! Iteration number
+
     character(len=50)::obs_filename
     integer(HID_T)::h5file_h,dset_h,dataspace
     integer(HSIZE_T)::dims(1),maxdims(1)
@@ -450,8 +506,15 @@ contains
   end subroutine read_observations
 
   subroutine load_observations_parallel(this,istep)
-    type(advect1d_interface)::this
+
+    !! Load the observations from disk and broadcast them to all processors.
+
+    ! Arguments
+    class(advect1d_interface)::this
+        !! Model interface
     integer,intent(in)::istep
+        !! Iteration number
+
     integer::ierr,rank
 
     call mpi_comm_rank(this%comm,rank,ierr)
@@ -482,8 +545,18 @@ contains
 
   subroutine read_member_state(istep,imember,member_state,state_size)
     
-    integer,intent(in)::istep,imember,state_size
+    !! Read the model state from disk for a given ensemble member
+
+    ! Arguments
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
     real(kind=8),intent(inout)::member_state(state_size)
+        !! On exit, array holding the model state values
+    integer,intent(in)::state_size
+        !! Size of the model state
+
     character(len=50)::preassim_filename
     integer(HID_T)::h5file_h,dset_h,dataspace,memspace
     integer(HSIZE_T)::offset(2),count(2),stride(2),block(2)
@@ -530,8 +603,15 @@ contains
   end subroutine read_member_state
 
   subroutine read_state(this,istep)
+
+    !! Read the model state and observations from disk, compute predictions
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
     integer,intent(in)::istep
+        !! Iteration number
+
     integer::imember,local_io_counter,rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
@@ -555,8 +635,16 @@ contains
   end subroutine read_state
 
   subroutine compute_predictions(this,istep)
+
+    !! Compute predictions for all ensemble members and broadcast to all
+    !! processors
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
     integer,intent(in)::istep
+        !! Iteration number
+
     integer::imember,local_io_counter,rank,ierr,iobs
     real(kind=8)::member_predictions(this%n_observations)
 
@@ -597,9 +685,31 @@ contains
   end subroutine compute_predictions
 
   subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
+
+    !! Provides the rank assignments for model state i/o, in the form of
+    !! an array of processor ranks, and arrays of lengths and offsets
+    !! indicating what portion of the state array is to be read/written
+    !! by each processor. Since this is a serial model, simply returns arrays
+    !! of size 1 indicating which processor has the data for the requested
+    !! ensemble member.
+
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imember
-    integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+
+    integer,intent(out),allocatable::ranks(:)
+        !! Array of processor ranks which hold portions of the model state
+        !! for the requested ensemble member
+    integer,intent(out),allocatable::counts(:)
+        !! Length of the segments of the model state array
+    integer,intent(out),allocatable::offsets(:)
+        !! Offsets indicating where each segment begins from the start of the
+        !! model state array
+
     integer::comm_size,ierr
 
     call mpi_comm_size(this%comm,comm_size,ierr)
@@ -614,9 +724,24 @@ contains
 
   function get_state_subset(this,istep,imember,subset_offset,subset_size) result(subset_state)
 
+    !! Returns the model state values in the requested subset.
+
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
+
+    ! Returns
     real(kind=8)::subset_state(subset_size)
+        !! Model state values from the requested subset
+
     real(kind=8),target::empty(0)
     integer::rank,ierr
 
@@ -638,9 +763,22 @@ contains
 
   subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
 
+    !! Update the state for a portion of the model domain.
+
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,imember,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
     real(kind=8),intent(in)::subset_state(subset_size)
+        !! Values to set
+
     real(kind=8),target::empty(0)
     integer::rank,ierr
 
@@ -662,14 +800,27 @@ contains
   end subroutine set_state_subset
 
   function get_state_size(this) result(size)
+
+    !! Get the size of the model state array
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
+
     integer::size
     size=this%state_size
   end function get_state_size
 
   subroutine write_state(this,istep)
+
+    !! Write the new state to disk
+
+    ! Arguments
     class(advect1d_interface)::this
+        !! Model interface
     integer,intent(in)::istep
+        !! Iteration number
+
     integer::imember,rank,ierr,imember_local
 
     call MPI_Comm_rank(this%comm,rank,ierr)
@@ -693,15 +844,29 @@ contains
 
   subroutine write_ensemble_member(this,istep,imember,n_ensemble,comm,member_state,state_size)
 
-    type(advect1d_interface)::this
-    integer,intent(in)::istep,imember,n_ensemble,state_size
+    !! Write the new state to disk for one ensemble member
+
+    ! Arguments
+    class(advect1d_interface)::this
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+    integer,intent(in)::n_ensemble
+        !! Number of ensemble members
+    MPI_COMM_TYPE::comm
+        !! MPI communicator
     real(kind=8),intent(in)::member_state(state_size)
+        !! Model state values to write
+    integer,intent(in)::state_size
+        !! Size of model state
+
     character(len=80)::postassim_filename
     integer(HID_T)::h5file_h,dset_h,dataspace,memspace
     integer(HSIZE_T)::offset(2),count(2),stride(2),data_block(2)
     logical::exists
     integer::ierr
-    MPI_COMM_TYPE::comm
 
     stride=(/2,1/)
     offset=(/imember-1,0/)
