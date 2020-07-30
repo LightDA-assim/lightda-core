@@ -779,7 +779,6 @@ contains
     real(kind=8),intent(in)::subset_state(subset_size)
         !! Values to set
 
-    real(kind=8),target::empty(0)
     integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
