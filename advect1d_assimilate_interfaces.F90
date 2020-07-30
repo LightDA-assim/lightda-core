@@ -164,11 +164,25 @@ contains
 
   function get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
 
+    !! Get the number of observations affecting a given subset of the
+    !! model domain. Returns the total number of observations regardless
+    !! of what subset is requested.
+
     implicit none
 
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
+
+    ! Returns
     integer::obs_count
+        !! Number of observations
 
     obs_count=this%n_observations
 
@@ -176,11 +190,23 @@ contains
 
   subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
 
+    !! Get the predictions for a given subset of the model state. Returns
+    !! all predictions regardless of what subset is requested.
+
     use iso_c_binding
 
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
     real(kind=8),intent(out)::predictions(:,:)
+        !! Predicted values
+
     integer::i,imember,ierr
 
     if(size(predictions,1) /= this%n_observations .or. &
@@ -206,13 +232,25 @@ contains
 
   subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations)
 
+    !! Get the observations for a given subset of the model state. Returns
+    !! all predictions regardless of what subset is requested.
+
     use iso_c_binding
 
     implicit none
 
+    ! Arguments
     class(advect1d_interface)::this
-    integer,intent(in)::istep,subset_offset,subset_size
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
     real(kind=8),intent(out)::observations(:)
+        !! Observation values
+
     integer::ierr
 
     if(size(observations) /= this%n_observations) then
