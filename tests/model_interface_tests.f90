@@ -13,7 +13,7 @@ contains
 
     istep=1
 
-    state_size=iface%get_state_size()
+    state_size=iface%get_state_size(istep)
     n_obs=iface%get_subset_obs_count(istep,0,state_size)
 
     do i=1,100
@@ -50,12 +50,14 @@ contains
     class(base_model_interface)::iface
     real(kind=8),allocatable::buf(:)
     integer,allocatable::ranks(:),counts(:),offsets(:)
-    integer::i
+    integer::i,istep
 
-    call iface%get_io_ranks(1,1,ranks,counts,offsets)
+    istep=1
 
-    if(sum(counts)/=iface%get_state_size()) then
-       print *,'Expected io counts to add up to',iface%get_state_size(),'got sum of',sum(counts)
+    call iface%get_io_ranks(istep,1,ranks,counts,offsets)
+
+    if(sum(counts)/=iface%get_state_size(istep)) then
+       print *,'Expected io counts to add up to',iface%get_state_size(istep),'got sum of',sum(counts)
        error stop
     end if
 
@@ -67,25 +69,27 @@ contains
     integer::length,ierr,i,irank
     integer,parameter::shift=1
     integer,allocatable::ranks(:),counts(:),offsets(:)
-    integer::rank
+    integer::rank,istep
+
+    istep=1
 
     call mpi_comm_rank(mpi_comm_world,rank,ierr)
 
-    call iface%get_io_ranks(1,1,ranks,counts,offsets)
+    call iface%get_io_ranks(istep,1,ranks,counts,offsets)
 
     do irank=1,size(ranks)
 
        if(ranks(irank)/=rank) cycle
 
        ! Set requested buffer length
-       length=min(iface%get_state_size(),counts(irank),5)
+       length=min(iface%get_state_size(istep),counts(irank),5)
 
        allocate(buf(length))
 
        if(length>0) then
 
           ! Get model state subset
-          buf=iface%get_state_subset(1,1,offsets(irank),length)
+          buf=iface%get_state_subset(istep,1,offsets(irank),length)
 
           ! Write to buffer
           do i=1,size(buf)
@@ -93,10 +97,10 @@ contains
           end do
 
           ! Write model state subset
-          call iface%set_state_subset(1,1,offsets(irank),length,buf)
+          call iface%set_state_subset(istep,1,offsets(irank),length,buf)
 
           ! Get new buffer, shifted relative to original
-          buf=iface%get_state_subset(1,1,offsets(irank)+shift,length-1)
+          buf=iface%get_state_subset(istep,1,offsets(irank)+shift,length-1)
 
           ! Check values in new buffer
           do i=1,size(buf)-1

@@ -798,13 +798,15 @@ contains
 
   end subroutine set_state_subset
 
-  function get_state_size(this) result(size)
+  function get_state_size(this,istep) result(size)
 
     !! Get the size of the model state array
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
 
     integer::size
     size=this%state_size

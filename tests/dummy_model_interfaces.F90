@@ -69,8 +69,9 @@ contains
 
   end function new_dummy_model
 
-  function get_state_size(this) result(size)
+  function get_state_size(this,istep) result(size)
     class(dummy_model_interface)::this
+    integer,intent(in)::istep
     integer::size
     size=this%state_size
   end function get_state_size

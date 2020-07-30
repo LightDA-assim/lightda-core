@@ -103,7 +103,7 @@ contains
     integer,allocatable::obs_positions(:)
     integer::state_size,n_obs,i
 
-    state_size=iface%get_state_size()
+    state_size=iface%get_state_size(istep)
     n_obs=iface%get_subset_obs_count(istep,0,state_size)
 
     allocate(observations(n_obs),obs_errors(n_obs),obs_positions(n_obs))
@@ -126,7 +126,7 @@ contains
     integer::i,model_pos,obs_pos1,obs_pos2,domain_size
     real::weight
 
-    state_size=iface%get_state_size()
+    state_size=iface%get_state_size(istep)
     n_obs=iface%get_subset_obs_count(istep,0,state_size)
 
     domain_size=state_size/2

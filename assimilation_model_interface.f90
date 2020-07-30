@@ -22,17 +22,23 @@ module assimilation_model_interface
 
   abstract interface
 
-     function I_get_state_size(this) result(size)
+     function I_get_state_size(this,istep) result(size)
+
        !! Returns the number elements in the model state array
+
        import base_model_interface
 
        implicit none
 
        ! Arguments
-       !! Model interface
        class(base_model_interface)::this
-       !! State size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+
+       ! Returns
        integer::size
+           !! State size
 
      end function I_get_state_size
 
