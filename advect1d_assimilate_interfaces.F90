@@ -10,6 +10,8 @@ module advect1d_assimilate_interfaces
   implicit none
 
   type, extends(base_model_interface)::advect1d_interface
+     !! I/O interface for the advect1d model
+
      private
      real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
      real(kind=8),pointer::local_io_data(:,:)
@@ -39,6 +41,7 @@ module advect1d_assimilate_interfaces
 contains
 
   function new_advect1d_interface(n_ensemble,n_observations,state_size,comm) result(this)
+    !! Create a new advect1d_interface instance
 
     integer(c_int),intent(in)::n_ensemble,n_observations,state_size
     MPI_COMM_TYPE::comm
@@ -80,9 +83,20 @@ contains
   end function new_advect1d_interface
 
   function get_member_ranks(comm_size,n_ensemble) result(io_ranks)
-    integer,intent(in)::comm_size,n_ensemble
+    !! Returns an array of rank assignments for ensemble members
+
+    ! Arguments
+    integer,intent(in)::comm_size
+         !! MPI communicator size
+    integer,intent(in)::n_ensemble
+         !! Number of ensemble members
+
     integer::io_ranks(n_ensemble)
+         !! Array containing the MPI rank that handles I/O for each ensemble
+         !! member
+
     integer::i,stride
+
     stride=max(comm_size/n_ensemble,1)
 
     do i=1,n_ensemble
@@ -92,9 +106,17 @@ contains
   end function get_member_ranks
 
   function get_rank_io_size(n_ensemble,io_ranks,rank) result(size)
+    !! Returns the number of ensemble members assigned to the given
+    !! rank for i/o purposes
+
+    ! Arguments
     integer,intent(in)::n_ensemble
+         !! Number of ensemble members
     integer,intent(in)::io_ranks(n_ensemble)
+         !! Array of rank assignments
     integer,intent(in)::rank
+         !! MPI rank
+
     integer::i,size
 
     size=0
@@ -106,9 +128,23 @@ contains
   end function get_rank_io_size
 
   function get_local_io_index(n_ensemble,io_ranks,rank,imember) result(index)
-    integer,intent(in)::n_ensemble,rank,imember
+    !! Returns the index of the specified ensemble member in the local i/o
+    !! data array for the given MPI rank
+
+    ! Araguments
+    integer,intent(in)::n_ensemble
+         !! Number of ensemble members
     integer,intent(in)::io_ranks(n_ensemble)
-    integer::i,local_io_counter,index
+         !! Array of rank assignments
+    integer,intent(in)::rank
+         !! MPI rank
+    integer,intent(in)::imember
+         !! Global index of requested ensemble member
+
+    integer::index
+         !! Local i/o index of requested ensemble member
+
+    integer::i,local_io_counter
 
     index=-1
 

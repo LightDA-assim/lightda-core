@@ -48,13 +48,24 @@ module assimilation_model_interface
      end subroutine I_get_subset_predictions
 
      function I_get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
+       !! Get the number of observations impacting a given subset
        import base_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
+
        integer::obs_count
+           !! Number of observations
+
      end function I_get_subset_obs_count
 
      subroutine I_get_subset_observations(this,istep,subset_offset,subset_size,observations)
