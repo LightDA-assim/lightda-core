@@ -42,13 +42,24 @@ module assimilation_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
        real(kind=8),intent(out)::predictions(:,:)
+           !! Predicted values. Will have shape (n_observations,n_ensemble).
+
      end subroutine I_get_subset_predictions
 
      function I_get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
-       !! Get the number of observations impacting a given subset
+       !! Get the number of observations affecting a given subset of the
+       !! model domain. This will be the length of the array returned by I_get_subset_observations.
+
        import base_model_interface
 
        implicit none
@@ -69,55 +80,158 @@ module assimilation_model_interface
      end function I_get_subset_obs_count
 
      subroutine I_get_subset_observations(this,istep,subset_offset,subset_size,observations)
+       !! Get the values of observations affecting a given subset of the
+       !! model domain.
+
        import base_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
        real(kind=8),intent(out)::observations(:)
+           !! Values of observations. Length must equal the value returned
+           !! by get_subset_obs_count
+
      end subroutine I_get_subset_observations
 
      subroutine I_get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err)
+       !! Get the errors (uncertainties) associated with the observations
+       !! affecting a given subset of the model domain.
+
        USE iso_c_binding
        import base_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
        REAL(c_double), INTENT(out) :: obs_err(:)
+           !! Values of observation errors. Length must equal the value
+           !! returned by get_subset_obs_count.
+
      end subroutine I_get_subset_obs_err
 
      subroutine I_get_io_ranks(this,istep,imember,ranks,counts,offsets)
        import base_model_interface
 
+       !! Provides the rank assignments for model state i/o, in the form of
+       !! an array of processor ranks, and arrays of lengths and offsets
+       !! indicating what portion of the state array is to be read/written
+       !! by each processor.
+       !!
+       !! For a parallel model, the model state may be distributed across
+       !! multiple processors, with no single processor holding the entire
+       !! model state in memory. Similarly, different processors may be
+       !! responsible for processing different ensemble members. This subroutine
+       !! lets other components know what processor holds each part of model
+       !! state.
+       !!
+       !! The three arrays ranks, counts, and offsets returned by get_io_ranks
+       !! are assumed to have the same length. The ranks array is a sequence
+       !! of MPI processor ranks, each of which holds a segment of the model
+       !! state array. The counts array is a sequence of integers indicating the size of the segment of the model state array held by each processor. The
+       !! offsets array indicates the locations of these segments in the model
+       !! state array.
+       !!
+       !! As an example, if a model state of size 10 is divided evenly across
+       !! two processors with ranks 0 and 1, the return values of get_io_ranks
+       !! would be
+       !!
+       !!    :::fortran
+       !!    ranks   = ( 0, 1 )
+       !!    counts  = ( 5, 5 )
+       !!    offsets = ( 0, 5 )
+       !!
+       !! In the case of a serial model, the entire model state will be held by
+       !! a single processor, and the return values from get_io_ranks should
+       !! indicate this. For example, for a serial model with a state array of
+       !! length 10 held on processor 0, the return value from get_io_ranks
+       !! would be
+       !!
+       !!    :::fortran
+       !!    ranks   = (/ 0 /)
+       !!    counts  = (/ 10 /)
+       !!    offsets = (/ 0 /)
+
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,imember
-       integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer, intent(in)::imember
+           !! Ensemble member index
+       integer,intent(out),allocatable::ranks(:)
+           !! Array of processor ranks which hold portions of the model state
+           !! for the requested ensemble member
+       integer,intent(out),allocatable::counts(:)
+           !! Length of the segments of the model state array
+       integer,intent(out),allocatable::offsets(:)
+           !! Offsets indicating where each segment begins from the start of the
+           !! model state array
      end subroutine I_get_io_ranks
 
      function I_get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
+
+       !! Returns model state values for a given subset of the model state
+
        import base_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,imember,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer, intent(in)::imember
+           !! Ensemble member index
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
        real(kind=8)::buffer(subset_size)
+           !! Values of the model state in the requested subset
 
      end function I_get_state_subset
 
      subroutine I_set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
+
+       !! Returns model state values for a given subset of the model state
+
        import base_model_interface
 
        implicit none
 
+       ! Arguments
        class(base_model_interface)::this
-       integer,intent(in)::istep,imember,subset_offset,subset_size
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer, intent(in)::imember
+           !! Ensemble member index
+       integer,intent(in)::subset_offset
+           !! Offset of subset from start of state array
+       integer,intent(in)::subset_size
+           !! Size of subset
        real(kind=8),intent(in)::subset_state(subset_size)
+           !! Values of the model state in the requested subset
      end subroutine I_set_state_subset
 
   end interface
@@ -125,41 +239,66 @@ module assimilation_model_interface
 contains
   
   subroutine read_state(this,istep)
+
+    !! Load the model state from disk for a given iteration `istep`. This
+    !! subroutine is to be called before any calls to get_state_subset for the
+    !! specified iteration `istep`. The default implementation is a no-op,
+    !! enabling a model interface to load the model state incrementally as
+    !! ensemble state is requested.
+
+    ! Arguments
     class(base_model_interface)::this
+        !! Model interface
     integer,intent(in)::istep
-
-    ! Subroutine to be called before requesting any model state data for the given iteration istep
-    ! received from the assimilation workers
-
-    ! Left empty since some models may choose to do disk i/o incrementally as ensemble state is requested
+        !! Iteration number
 
   end subroutine read_state
 
   subroutine write_state(this,istep)
+
+    !! Record the model state after assimilation of `istep`. This
+    !! subroutine is to be called after all calls to set_state_subset have
+    !! completed for the specified iteration `istep`. The default
+    !! implementation is a no-op, enabling a model interface to load the model
+    !! state incrementally as ensemble state is received from the assimilation
+    !! workers.
+
+    ! Arguments
     class(base_model_interface)::this
+        !! Model interface
     integer,intent(in)::istep
-
-    ! Subroutine to be called after the complete assimilated ensemble state has been
-    ! received from the assimilation workers
-
-    ! Left empty since some models may do disk i/o incrementally as results are received
+        !! Iteration number
 
   end subroutine write_state
 
-  subroutine get_innovations(this,istep,batch_offset,batch_length,observations,predictions,obs_errors,innovations)
+  subroutine get_innovations(this,istep,subset_offset,subset_size,observations,predictions,obs_errors,innovations)
+
+    !! Compute innovations for a given subset of the model domain.
 
     use random
 
     implicit none
 
+    ! Arguments
     class(base_model_interface)::this
-    integer,intent(in)::istep,batch_offset,batch_length
-    real(kind=8),intent(in)::observations(:), &
-         obs_errors(:),predictions(:,:)
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::subset_offset
+        !! Offset of subset from start of state array
+    integer,intent(in)::subset_size
+        !! Size of subset
+    real(kind=8),intent(in)::observations(:)
+        !! Observation values for the subset
+    real(kind=8),intent(in)::obs_errors(:)
+        !! Observation errors for the subset
+    real(kind=8),intent(in)::predictions(:,:)
+        !! Predictions for the subset
     real(kind=8),intent(out)::innovations(:,:)
+        !! Innovations for the subset
     integer::imember,iobs,obs_count
 
-    obs_count=this%get_subset_obs_count(istep,batch_offset,batch_length)
+    obs_count=this%get_subset_obs_count(istep,subset_offset,subset_size)
 
     if(size(observations)/=obs_count) then
        print '(A,I0,A,I0)','Observations array has wrong length. Expected ',obs_count,', got ',size(observations)
@@ -196,11 +335,20 @@ contains
 
   function get_weight_obs_obs(this,istep,iobs1,iobs2) result(weight)
 
+    !! Get localization weight for a given pair of observations. Default
+    !! implementation returns 1 for any input (i.e., no localization).
+
+    ! Arguments
     class(base_model_interface)::this
-    integer,intent(in)::istep,iobs1,iobs2
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::iobs1
+        !! Index of the first observation
+    integer,intent(in)::iobs2
+        !! Index of the second observation
     real(kind=8)::weight
-    real(kind=8)::pos1,pos2,delta,distance
-    integer::domain_size
+        !! Localization weight
 
     weight=1
 
@@ -208,11 +356,21 @@ contains
 
   function get_weight_model_obs(this,istep,imodel,iobs) result(weight)
 
+    !! Get localization weight for a given observation at a given index in the
+    !! model state. Default implementation returns 1 for any input (i.e., no
+    !! localization).
+
+    ! Arguments
     class(base_model_interface)::this
-    integer,intent(in)::istep,imodel,iobs
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imodel
+        !! Index in the model state array
+    integer,intent(in)::iobs
+        !! Index in the observations array
     real(kind=8)::weight
-    real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
-    integer::domain_size
+        !! Localization weight
 
     weight=1
 
