@@ -15,6 +15,7 @@ module tree
    contains
      procedure::find
      procedure::insert
+     procedure::delete
   end type node
 
 contains
@@ -133,5 +134,41 @@ contains
     end if
 
   end subroutine insert
+
+  recursive function delete(this,key) result(newRoot)
+    !! Delete the node whose key is equal to `key`, if any such node exists,
+    !! from the subtree below the node `this`.
+    !!
+    !! Returns a pointer to thenew root of the subtree. Return value will point
+    !! to `this` if `this` matches `key`, otherwise it will be a pointer to
+    !! one of the two immediate children of `this`.
+
+    ! Arguments
+    class(node),intent(inout),target::this
+        !! Root node of subtree
+    integer::key
+        !! Key of node to delete
+
+    type(node),pointer::newRoot
+        !! New root of subtree
+
+    if(key==this%key) then
+       if(associated(this%left)) then
+          newRoot=>this%left
+          call newRoot%insert(this%right)
+       else
+          newRoot=>this%right
+          call newRoot%insert(this%left)
+       end if
+    else
+       newRoot=>this
+       if(key>this%key) then
+          this%right=>this%right%delete(key)
+       else
+          this%left=>this%left%delete(key)
+       end if
+    end if
+
+  end function delete
 
 end module tree
