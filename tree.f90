@@ -87,18 +87,8 @@ contains
 
        if(associated(this%left)) then
 
-          if(this%left%key > new_node%key) then
-
-             ! Insert into left subtree
-             call this%left%insert(new_node)
-
-          else
-
-             ! Insert new_node between `this` and left subtree
-             new_node%right=>this%left
-             this%left=>new_node
-
-          end if
+          ! Insert into left subtree
+          call this%left%insert(new_node)
 
        else
 
@@ -111,18 +101,8 @@ contains
 
        if(associated(this%right)) then
 
-          if(this%right%key < new_node%key) then
-
-             ! Insert into right subtree
-             call this%right%insert(new_node)
-
-          else
-
-             ! Insert new_node between `this` and right subtree
-             new_node%left=>this%right
-             this%right=>new_node
-
-          end if
+          ! Insert into right subtree
+          call this%right%insert(new_node)
 
        else
 
