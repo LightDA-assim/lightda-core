@@ -21,7 +21,8 @@ contains
 
   recursive function find(this,key) result(foundNode)
     !! Search node `this` and its children for a node whose key is equal
-    !! to `key`
+    !! to `key`. Returns a pointer to the node whose key is equal to `key`,
+    !! or an unassociated pointer if no such node exists.
 
     ! Arguments
     class(node),intent(in),target::this
@@ -29,7 +30,7 @@ contains
     integer,intent(in)::key
         !! Key to search for
     type(node),pointer::foundNode
-        !! Node matching key
+        !! Node matching key, or an unassociated pointer if no match was found
 
     if(this%key==key) then
 
@@ -65,7 +66,10 @@ contains
   end function find
 
   recursive subroutine insert(this,new_node)
-    !! Insert node `new_node` into the tree below `this`
+    !! Insert node `new_node` into the tree below `this`.
+    !!
+    !! If the key of `new_node` is equal to that of an existing node,
+    !! do nothing.
 
     ! Arguments
     class(node),intent(inout),target::this
