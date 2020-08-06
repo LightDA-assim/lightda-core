@@ -241,4 +241,6 @@ program test_util
   implicit none
 
   call test_append_array
+  call test_linked_list
+  call test_tree
 end program test_util
