@@ -33,6 +33,35 @@ contains
 
   end subroutine test_append_array
 
+  subroutine test_linked_list
+    use linked_list
+
+    type(list)::test_list
+    type(list_node),pointer::current_node
+    integer,target::data(4)
+    integer::read_data(4)
+    integer::i
+
+    ! Populate data array
+    data=(/1,2,3,4/)
+
+    ! Push data into list
+    do i=1,4
+       call test_list%push_back(data(i))
+    end do
+
+    ! Iterate over list and check contents
+    current_node=>test_list%first
+    do i=1,4
+       if(.not.associated(current_node%data,data(i))) then
+          print *,'Error: Wrong data in node',i
+          error stop
+       end if
+       current_node=>current_node%next
+    end do
+
+  end subroutine test_linked_list
+
   subroutine test_tree
 
     type(node),target::root
