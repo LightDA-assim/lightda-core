@@ -110,6 +110,14 @@ contains
        error stop
     end if
 
+    foundNode=>root%find(-1)
+    if(associated(foundNode)) then
+       print *,'Error: Node returned from node%find when searching for ', &
+            ' a nonexistent key. Should have returned an unassociated', &
+            ' pointer instead.'
+       error stop
+    end if
+
   end subroutine test_tree
 end module util_tests
 
