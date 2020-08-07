@@ -8,9 +8,9 @@ module tree
          !! Node key
      class(*),pointer::data
          !! Node data
-     type(node),pointer::left
+     type(node),pointer::left=>null()
          !! Pointer to left child
-     type(node),pointer::right
+     type(node),pointer::right=>null()
          !! Pointer to right child
    contains
      procedure::find
