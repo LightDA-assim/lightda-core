@@ -4,7 +4,7 @@ module tree
 
   type :: node
      !! Node of a binary tree
-     integer,pointer::key
+     integer::key
          !! Node key
      class(*),pointer::data
          !! Node data
