@@ -39,7 +39,7 @@ contains
         !! List object
     class(*),intent(in),target::data
 
-    type(list_node),target,allocatable::new_node
+    type(list_node),pointer::new_node
         !! New list node
 
     allocate(new_node)
@@ -94,7 +94,7 @@ contains
     class(*),intent(in),target::data
         !! Data to insert
 
-    type(list_node),target,allocatable::new_node
+    type(list_node),pointer::new_node
         !! New list node
 
     allocate(new_node)
@@ -102,11 +102,14 @@ contains
     new_node%data=>data
 
     if(associated(this%prev)) then
-       new_node%next=>this
+       new_node%prev=>this%prev
+       this%prev%next=>new_node
     else
        this%parent%first=>new_node
+       new_node%prev=>null()
     end if
 
+    new_node%next=>this
     this%prev=>new_node
 
   end subroutine insert_before
@@ -120,8 +123,10 @@ contains
     class(*),intent(in),target::data
         !! Data to insert
 
-    type(list_node),target::new_node
+    type(list_node),pointer::new_node
         !! New list node
+
+    allocate(new_node)
 
     new_node%data=>data
 
@@ -129,6 +134,7 @@ contains
        new_node%prev=>this
     else
        this%parent%last=>new_node
+       new_node%next=>null()
     end if
 
     this%next=>new_node
@@ -140,19 +146,19 @@ contains
 
     ! Arguments
     class(list),intent(inout)::this
-    class(list_node),intent(inout),allocatable::delete_node
+    type(list_node),intent(inout),pointer::delete_node
         !! List object
 
     if(associated(delete_node%prev)) then
        delete_node%prev%next=>delete_node%next
     else
-       delete_node%parent%first=>delete_node%next
+       this%first=>delete_node%next
     end if
 
     if(associated(delete_node%next)) then
        delete_node%next%prev=>delete_node%prev
     else
-       delete_node%parent%last=>delete_node%prev
+       this%last=>delete_node%prev
     end if
 
     deallocate(delete_node)
