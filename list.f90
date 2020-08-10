@@ -161,8 +161,6 @@ contains
        this%last=>delete_node%prev
     end if
 
-    deallocate(delete_node)
-
   end subroutine remove
 
 end module linked_list
