@@ -33,31 +33,134 @@ contains
 
   end subroutine test_append_array
 
+  subroutine check_list(test_list,data,read_inds)
+    use linked_list
+
+    type(list),intent(in)::test_list
+    integer,intent(in),target::data(:)
+    integer,intent(in)::read_inds(:)
+    type(list_node),pointer::last_node
+    type(list_node),pointer::current_node
+    integer::i
+
+    if(size(read_inds)==0 .and. associated(test_list%first)) then
+       print *,'Error: First is not null but zero size list expected'
+       error stop
+    end if
+
+    if(size(read_inds)==0 .and. associated(test_list%last)) then
+       print *,'Error: Last is not null but zero size list expected'
+       error stop
+    end if
+
+    if(size(read_inds)>0 .and. .not.associated(test_list%first)) then
+       print *,'Error: First is null but nonzero list size expected'
+       error stop
+    end if
+
+    if(size(read_inds)>0 .and. .not.associated(test_list%last)) then
+       print *,'Error: Last is null but nonzero list size expected'
+       error stop
+    end if
+
+    if(associated(test_list%first).and.associated(test_list%first%prev)) then
+       print *,'Error: first%prev is not null'
+       error stop
+    end if
+
+    if(associated(test_list%last).and.associated(test_list%last%next)) then
+       print *,'Error: last%next is not null'
+       error stop
+    end if
+
+    ! Iterate over list and check contents
+    current_node=>test_list%first
+    i=1
+    do while(associated(current_node))
+       if(i>size(read_inds)) then
+          print *,'Error: Reached end of read_inds but not end of list.'
+          error stop
+       end if
+       if(.not.associated(current_node%data,data(read_inds(i)))) then
+          print *,'Error: Wrong data in node',i
+          error stop
+       end if
+       if(i>1 .and..not.associated(current_node%prev%data,data(read_inds(i-1)))) then
+          print *,'Error: Wrong prev for node ',i
+          error stop
+       end if
+       if(i>1) then
+          if(.not.associated(current_node%prev,last_node)) then
+             print *,'Error: Wrong prev for node ',i
+             error stop
+          end if
+       end if
+       last_node=>current_node
+       current_node=>current_node%next
+       i=i+1
+    end do
+
+    if(associated(test_list%last).and..not.associated(last_node,test_list%last)) then
+       print *,'Error: Wrong last node'
+       error stop
+    end if
+
+  end subroutine check_list
+
   subroutine test_linked_list
     use linked_list
 
     type(list)::test_list
     type(list_node),pointer::current_node
     integer,target::data(4)
-    integer::read_data(4)
     integer::i
 
     ! Populate data array
     data=(/1,2,3,4/)
+
+    call check_list(test_list,data,(/ integer :: /))
 
     ! Push data into list
     do i=1,4
        call test_list%push_back(data(i))
     end do
 
-    ! Iterate over list and check contents
+    ! Check contents of list
+    call check_list(test_list,data,(/1,2,3,4/))
     current_node=>test_list%first
-    do i=1,4
-       if(.not.associated(current_node%data,data(i))) then
-          print *,'Error: Wrong data in node',i
-          error stop
-       end if
+
+    ! Find third node
+    do i=1,2
        current_node=>current_node%next
+    end do
+
+    ! Delete third node
+    call test_list%remove(current_node)
+
+    ! Check contents of list
+    call check_list(test_list,data,(/1,2,4/))
+
+    ! Push data(3) to front of list
+    call test_list%push_front(data(3))
+
+    ! Check contents of list
+    call check_list(test_list,data,(/3,1,2,4/))
+
+    ! Delete last node
+    call test_list%remove(test_list%last)
+
+    ! Check contents of list
+    call check_list(test_list,data,(/3,1,2/))
+
+    ! Insert before last node
+    call test_list%last%insert_before(data(4))
+
+    ! Check contents of list
+    call check_list(test_list,data,(/3,1,4,2/))
+
+    ! Empty list
+    do i=1,4
+       call test_list%remove(test_list%last)
     end do
 
   end subroutine test_linked_list
