@@ -142,7 +142,7 @@ contains
   end subroutine insert_after
 
   subroutine remove(this,delete_node)
-    !! Remove node from list
+    !! Remove node `delete_node` from list `this`
 
     ! Arguments
     class(list),intent(inout)::this
