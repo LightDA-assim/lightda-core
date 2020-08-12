@@ -146,8 +146,9 @@ contains
 
     ! Arguments
     class(list),intent(inout)::this
-    type(list_node),intent(inout),pointer::delete_node
         !! List object
+    type(list_node),intent(inout),pointer::delete_node
+        !! Node to delete
 
     type(list_node),pointer::current_node
         !! Local pointer to the target of delete_node
