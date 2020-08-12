@@ -168,7 +168,7 @@ contains
     call check_list(test_list,data,(/3,1,4,2/))
 
     ! Empty list
-    do i=1,4
+    do while(associated(test_list%last))
        call test_list%remove(test_list%last)
     end do
 
