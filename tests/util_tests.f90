@@ -127,9 +127,18 @@ contains
 
     ! Check contents of list
     call check_list(test_list,data,(/1,2,3,4/))
-    current_node=>test_list%first
+
+    ! Remove last node
+    call test_list%remove(test_list%last)
+
+    ! Check contents of list
+    call check_list(test_list,data,(/1,2,3/))
+
+    ! Push last node back on list
+    call test_list%push_back(data(4))
 
     ! Find third node
+    current_node=>test_list%first
     do i=1,2
        current_node=>current_node%next
     end do
