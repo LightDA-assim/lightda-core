@@ -149,17 +149,28 @@ contains
     type(list_node),intent(inout),pointer::delete_node
         !! List object
 
-    if(associated(delete_node%prev)) then
-       delete_node%prev%next=>delete_node%next
+    type(list_node),pointer::current_node
+        !! Local pointer to the target of delete_node
+
+    ! delete_node will be null on exit. If the caller passes
+    ! this%first or this%last, it will be overwritten too.
+    ! To prevent this we assign a local variable to point to the same target
+    ! as delete_node, and deallocate that instead.
+    current_node=>delete_node
+
+    if(associated(current_node%prev)) then
+       current_node%prev%next=>current_node%next
     else
-       this%first=>delete_node%next
+       this%first=>current_node%next
     end if
 
-    if(associated(delete_node%next)) then
-       delete_node%next%prev=>delete_node%prev
+    if(associated(current_node%next)) then
+       current_node%next%prev=>current_node%prev
     else
-       this%last=>delete_node%prev
+       this%last=>current_node%prev
     end if
+
+    deallocate(current_node)
 
   end subroutine remove
 
