@@ -12,6 +12,8 @@ module linked_list
      procedure::push_front
      procedure::push_back
      procedure::remove
+     procedure::remove_all
+     final::cleanup
   end type list
 
   type::list_node
@@ -174,5 +176,34 @@ contains
     deallocate(current_node)
 
   end subroutine remove
+
+  subroutine remove_all(this)
+
+    !! Remove all nodes from the list `this`
+
+    class(list),intent(inout)::this
+        !! List object
+
+    ! Empty list
+    do while(associated(this%last))
+       call this%remove(this%last)
+    end do
+
+  end subroutine remove_all
+
+  subroutine cleanup(this)
+    !! Remove all nodes from the list `this`
+    !!
+    !! Cleanup simply calls this%remove_all; the reason for the additional
+    !! subroutine is that destructors in Fortran must have the object declared
+    !! with type() while type-bound procedures must have the bound type
+    !! declared with class().
+
+    ! Arguments
+    type(list),intent(inout)::this
+        !! List object
+
+    call this%remove_all()
+  end subroutine cleanup
 
 end module linked_list

@@ -167,10 +167,14 @@ contains
     ! Check contents of list
     call check_list(test_list,data,(/3,1,4,2/))
 
-    ! Empty list
-    do while(associated(test_list%last))
-       call test_list%remove(test_list%last)
-    end do
+    ! Empty the list.
+    ! Note that this is ordinarily not needed since remove_all will be called
+    ! automatically when a list goes of scope, but here we call it explicitly
+    ! so we can test afterward that the list was emptied.
+    !call test_list%remove_all()
+
+    ! Verify that the list is now empty
+    !call check_list(test_list,data,(/ integer:: /))
 
   end subroutine test_linked_list
 
