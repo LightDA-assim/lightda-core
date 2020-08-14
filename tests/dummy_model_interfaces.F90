@@ -333,7 +333,7 @@ contains
     real(kind=8),intent(in)::subset_state(subset_size)
     class(error_status),intent(out),allocatable,optional::status
         !! Error status
-    real(kind=8),target::empty(0)
+
     integer::rank,ierr
 
     call mpi_comm_rank(this%comm,rank,ierr)
