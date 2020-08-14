@@ -34,7 +34,7 @@ contains
 
   end subroutine transfer_data
 
-  subroutine write_segment_data(this,offset,data)
+  subroutine write_segment_data(this,offset,data,status)
     !! Write to the segment's data array.
     !! Note that the offset must correspond to a location within the extent
     !! of the segment and the length of data must be small enough to stay
@@ -42,12 +42,16 @@ contains
     !! This routine must only be called on the processor whose rank corresponds
     !! to `this%rank`.
 
+    use exceptions, ONLY: throw, new_exception, error_status
+
     class(darray_segment)::this
         !! Distributed array segment
     integer,intent(in)::offset
         !! Offset relative to the start of the global distributed array
     real(kind=8),intent(in)::data(:)
         !! Data to write
+    class(error_status),allocatable,optional::status
+        !! Error status
 
     integer::rank !! MPI rank
     integer::ierr !! Error code returned from MPI
@@ -55,14 +59,16 @@ contains
     call mpi_comm_rank(this%comm,rank,ierr)
 
     if(rank/=this%rank) then
-       print *,'Error: write_segment_data called from a foreign processor rank'
-       error stop
+       call throw(status, new_exception( &
+            'write_segment_data called from a foreign processor rank', &
+            'write_segment_data'))
     end if
 
     if(offset<this%offset .or. &
          offset+size(data)>this%offset+size(this%data)) then
-       print *,'Error: Attempt to write to data outside of segment'
-       error stop
+       call throw(status, &
+            new_exception('Attempt to write to data outside of segment', &
+            'write_segment_data'))
     end if
 
   end subroutine write_segment_data
