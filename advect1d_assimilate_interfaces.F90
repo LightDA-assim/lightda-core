@@ -4,7 +4,7 @@ module advect1d_assimilate_interfaces
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use iso_c_binding
-
+  use exceptions, ONLY: throw, new_exception, error_status
   use hdf5
 
   implicit none
@@ -162,7 +162,7 @@ contains
 
   end function get_local_io_index
 
-  function get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
+  function get_subset_obs_count(this,istep,subset_offset,subset_size,status) result(obs_count)
 
     !! Get the number of observations affecting a given subset of the
     !! model domain. Returns the total number of observations regardless
@@ -179,6 +179,8 @@ contains
         !! Offset of subset from start of state array
     integer,intent(in)::subset_size
         !! Size of subset
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     ! Returns
     integer::obs_count
@@ -188,7 +190,7 @@ contains
 
   end function get_subset_obs_count
 
-  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
+  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions,status)
 
     !! Get the predictions for a given subset of the model state. Returns
     !! all predictions regardless of what subset is requested.
@@ -206,16 +208,20 @@ contains
         !! Size of subset
     real(kind=8),intent(out)::predictions(:,:)
         !! Predicted values
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::i,imember,ierr
+    character(:),allocatable::errstr
 
     if(size(predictions,1) /= this%n_observations .or. &
        size(predictions,2) /= this%n_ensemble) then
-       print '(A,I0,A,I0,A,I0,A,I0,A)', &
+       write(errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
             'Wrong shape passed to predictions argument of get_subset_predictions. Expected (', &
             this%n_observations,',',this%n_ensemble, &
             '), got (',size(predictions,1),',',size(predictions,2),').'
-       call mpi_abort(this%comm,1,ierr)
+       call throw(status,new_exception(errstr,'get_subset_predictions'))
+       return
     end if
 
     if(.not. this%observations_read) then
@@ -230,7 +236,7 @@ contains
 
   end subroutine get_subset_predictions
 
-  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations)
+  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations,status)
 
     !! Get the observations for a given subset of the model state. Returns
     !! all predictions regardless of what subset is requested.
@@ -250,14 +256,18 @@ contains
         !! Size of subset
     real(kind=8),intent(out)::observations(:)
         !! Observation values
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::ierr
+    character(:),allocatable::errstr
 
     if(size(observations) /= this%n_observations) then
-       print '(A,I0,A,I0,A,I0)', &
+       write(errstr,'(A,I0,A,I0,A,I0)') &
             'Wrong size array passed to observations argument of get_batch_observations. Expected size=', &
             this%n_observations,', got size=',size(observations)
-       call mpi_abort(this%comm,1,ierr)
+       call throw(status,new_exception(errstr,'get_subset_observations'))
+       return
     end if
 
     if(.not. this%observations_read) then
@@ -268,7 +278,7 @@ contains
 
   end subroutine get_subset_observations
 
-  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err)
+  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err,status)
 
     !! Get the errors (uncertainties) associated with the observations
     !! affecting a given subset of the model domain.
@@ -286,6 +296,8 @@ contains
         !! Size of subset
     REAL(c_double), INTENT(out) :: obs_err(:)
         !! Observation errors
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     if(.not. this%observations_read) then
        call this%read_observations(istep)
@@ -309,7 +321,7 @@ contains
 
   end function get_obs_positions
 
-  function get_weight_obs_obs(this,istep,iobs1,iobs2) result(weight)
+  function get_weight_obs_obs(this,istep,iobs1,iobs2,status) result(weight)
 
     !! Get localization weights for a given pair of observations.
     !! Uses a Gaspari-Cohn localization function with a hard-coded cutoff.
@@ -325,6 +337,8 @@ contains
         !! Index of the first observation
     integer,intent(in)::iobs2
         !! Index of the second observation
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     ! Returns
     real(kind=8)::weight
@@ -333,21 +347,27 @@ contains
     real(kind=8)::pos1,pos2,delta,distance
     integer::domain_size
 
+    character(:),allocatable::errstr
+
     if(.not. this%observations_read) then
-       print *,'Error observations not yet read'
-       error stop
+       call throw(status,new_exception( &
+            'Attempt to compute localization weights before observations have been read', &
+            'get_weight_obs_obs'))
+       return
     end if
 
     domain_size=this%state_size/2
 
     if(iobs1<1 .or. iobs1>this%n_observations) then
-       print *,'Invalid observation index',iobs1
-       error stop
+       write(errstr,*) 'Invalid observation index',iobs1
+       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
+       return
     end if
 
     if(iobs2<1 .or. iobs2>this%n_observations) then
-       print *,'Invalid observation index',iobs2
-       error stop
+       write(errstr,*) 'Invalid observation index',iobs1
+       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
+       return
     end if
 
     pos1=real(this%obs_positions(iobs1))/domain_size
@@ -356,8 +376,10 @@ contains
     distance=min(delta,1-delta)
 
     if(distance<-1e-8) then
-       print *,'Invalid distance',distance,'computed for obs. positions',pos1,'and ',pos2
-       error stop
+       write(errstr,*) 'Invalid distance',distance, &
+            'computed for obs. positions',pos1,'and ',pos2
+       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
+       return
     end if
 
     distance=max(distance,0.0)
@@ -366,7 +388,7 @@ contains
 
   end function get_weight_obs_obs
 
-  function get_weight_model_obs(this,istep,imodel,iobs) result(weight)
+  function get_weight_model_obs(this,istep,imodel,iobs,status) result(weight)
 
     !! Get localization weights for a given observation and location in the
     !! model state array. Uses a Gaspari-Cohn localization function with two
@@ -384,6 +406,8 @@ contains
         !! Index in the model state array
     integer,intent(in)::iobs
         !! Index in the observations array
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     ! Returns
     real(kind=8)::weight
@@ -391,6 +415,8 @@ contains
 
     real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
     integer::domain_size
+
+    character(:),allocatable::errstr
 
     domain_size=this%state_size/2
 
@@ -401,8 +427,9 @@ contains
     distance=min(delta,1-delta)
 
     if(distance<-1e-8) then
-       print *,'Invalid distance',distance,'computed for obs. position=',pos_obs,'and model position=',pos_model
-       error stop
+       write(errstr,*) 'Invalid distance',distance,'computed for obs. position=',pos_obs,'and model position=',pos_model
+       call throw(status,new_exception(errstr,'get_weight_model_obs'))
+       return
     end if
 
     distance=max(distance,0.0)
@@ -416,14 +443,16 @@ contains
     weight=localize_gaspari_cohn(distance,cutoff)
 
     if(weight>1 .or. weight <0) then
-       print *,'Invalid weight=',weight,'returned from localize_gaspari_cohn'
-       print *,'for distance=',distance,'and cutoff=',cutoff
-       error stop
+       write(errstr,*) 'Invalid weight=',weight, &
+            'returned from localize_gaspari_cohn for distance=',distance, &
+            'and cutoff=',cutoff
+       call throw(status,new_exception(errstr,'get_weight_model_obs'))
+       return
     end if
 
   end function get_weight_model_obs
 
-  subroutine read_observations(this,istep)
+  subroutine read_observations(this,istep,status)
 
     !! Read the observations from disk
 
@@ -432,6 +461,8 @@ contains
         !! Model interface
     integer,intent(in)::istep
         !! Iteration number
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     character(len=50)::obs_filename
     integer(HID_T)::h5file_h,dset_h,dataspace
@@ -497,8 +528,8 @@ contains
 
     if(any(this%obs_positions<0) .or. &
          any(this%obs_positions>this%state_size/2)) then
-       print *,'Out of range values in obs_positions array'
-       error stop
+       call throw(status,new_exception('Out of range values in obs_positions array','read_observations'))
+       return
     end if
 
     this%observations_read=.true.
@@ -602,7 +633,7 @@ contains
 
   end subroutine read_member_state
 
-  subroutine read_state(this,istep)
+  subroutine read_state(this,istep,status)
 
     !! Read the model state and observations from disk, compute predictions
 
@@ -611,6 +642,8 @@ contains
         !! Model interface
     integer,intent(in)::istep
         !! Iteration number
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::imember,local_io_counter,rank,ierr
 
@@ -634,7 +667,7 @@ contains
 
   end subroutine read_state
 
-  subroutine compute_predictions(this,istep)
+  subroutine compute_predictions(this,istep,status)
 
     !! Compute predictions for all ensemble members and broadcast to all
     !! processors
@@ -644,6 +677,8 @@ contains
         !! Model interface
     integer,intent(in)::istep
         !! Iteration number
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::imember,local_io_counter,rank,ierr,iobs
     real(kind=8)::member_predictions(this%n_observations)
@@ -655,8 +690,8 @@ contains
     end if
 
     if(.not. this%state_loaded) then
-       print *,'Error: Ensemble state not yet loaded'
-       error stop
+       call throw(status,new_exception('compute_predictions called before ensemble state is loaded','compute_predictions'))
+       return
     end if
 
     local_io_counter=1
@@ -684,7 +719,7 @@ contains
     this%predictions_computed=.true.
   end subroutine compute_predictions
 
-  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
+  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets,status)
 
     !! Provides the rank assignments for model state i/o, in the form of
     !! an array of processor ranks, and arrays of lengths and offsets
@@ -709,6 +744,8 @@ contains
     integer,intent(out),allocatable::offsets(:)
         !! Offsets indicating where each segment begins from the start of the
         !! model state array
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::comm_size,ierr
 
@@ -722,7 +759,7 @@ contains
 
   end subroutine get_io_ranks
 
-  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(subset_state)
+  function get_state_subset(this,istep,imember,subset_offset,subset_size,status) result(subset_state)
 
     !! Returns the model state values in the requested subset.
 
@@ -737,6 +774,8 @@ contains
         !! Offset of subset from start of state array
     integer,intent(in)::subset_size
         !! Size of subset
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     ! Returns
     real(kind=8)::subset_state(subset_size)
@@ -755,13 +794,13 @@ contains
             get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
 
     else
-       print *,'Error: Indices for non-local ensemble state passed to get_state_subset'
-       error stop
+       call throw(status,new_exception('Indices for non-local ensemble state passed to get_state_subset','get_state_subset'))
+       return
     end if
 
   end function get_state_subset
 
-  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
+  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state,status)
 
     !! Update the state for a portion of the model domain.
 
@@ -778,6 +817,8 @@ contains
         !! Size of subset
     real(kind=8),intent(in)::subset_state(subset_size)
         !! Values to set
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::rank,ierr
 
@@ -792,13 +833,13 @@ contains
        )=subset_state
 
     else
-       print *,'Error: Indices for non-local ensemble state passed to get_state_subset'
-       error stop
+       call throw(status,new_exception('Indices for non-local ensemble state passed to set_state_subset','set_state_subset'))
+       return
     end if
 
   end subroutine set_state_subset
 
-  function get_state_size(this,istep) result(size)
+  function get_state_size(this,istep,status) result(size)
 
     !! Get the size of the model state array
 
@@ -807,12 +848,16 @@ contains
         !! Model interface
     integer,intent(in)::istep
         !! Iteration number
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::size
+
     size=this%state_size
+
   end function get_state_size
 
-  subroutine write_state(this,istep)
+  subroutine write_state(this,istep,status)
 
     !! Write the new state to disk
 
@@ -821,6 +866,8 @@ contains
         !! Model interface
     integer,intent(in)::istep
         !! Iteration number
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer::imember,rank,ierr,imember_local
 

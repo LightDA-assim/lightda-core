@@ -5,6 +5,7 @@ module dummy_model_interfaces
   use system_mpi
   use iso_c_binding
   use random, ONLY: random_normal
+  use exceptions, ONLY: throw, new_exception, error_status
 
   implicit none
 
@@ -69,11 +70,15 @@ contains
 
   end function new_dummy_model
 
-  function get_state_size(this,istep) result(size)
+  function get_state_size(this,istep,status) result(size)
     class(dummy_model_interface)::this
     integer,intent(in)::istep
     integer::size
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
     size=this%state_size
+
   end function get_state_size
 
   function get_member_ranks(comm_size,n_ensemble) result(io_ranks)
@@ -88,11 +93,13 @@ contains
 
   end function get_member_ranks
 
-  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets)
+  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets,status)
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember
     integer,intent(out),allocatable::ranks(:),counts(:),offsets(:)
     integer::comm_size,ierr
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     call mpi_comm_size(this%comm,comm_size,ierr)
 
@@ -118,19 +125,21 @@ contains
 
   end function get_rank_io_size
 
-  function get_subset_obs_count(this,istep,subset_offset,subset_size) result(obs_count)
+  function get_subset_obs_count(this,istep,subset_offset,subset_size,status) result(obs_count)
 
     implicit none
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,subset_offset,subset_size
     integer::obs_count
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     obs_count=this%n_observations
 
   end function get_subset_obs_count
 
-  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions)
+  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions,status)
 
     use iso_c_binding
 
@@ -138,21 +147,26 @@ contains
     integer,intent(in)::istep,subset_offset,subset_size
     real(kind=8),intent(out)::predictions(:,:)
     integer::i,imember,ierr
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    character(:),allocatable::errstr
 
     if(size(predictions,1) /= this%n_observations .or. &
        size(predictions,2) /= this%n_ensemble) then
-       print '(A,I0,A,I0,A,I0,A,I0,A)', &
+       write(errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
             'Wrong shape passed to predictions argument of get_subset_predictions. Expected (', &
             this%n_observations,',',this%n_ensemble, &
             '), got (',size(predictions,1),',',size(predictions,2),').'
-       call mpi_abort(this%comm,1,ierr)
+       call throw(status,new_exception(errstr,'get_subset_predictions'))
+       return
     end if
 
     predictions=this%predictions
 
   end subroutine get_subset_predictions
 
-  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations)
+  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations,status)
 
     use iso_c_binding
 
@@ -162,23 +176,30 @@ contains
     integer,intent(in)::istep,subset_offset,subset_size
     real(kind=8),intent(out)::observations(:)
     integer::ierr
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    character(:),allocatable::errstr
 
     if(size(observations) /= this%n_observations) then
-       print '(A,I0,A,I0,A,I0)', &
+       write(errstr,'(A,I0,A,I0,A,I0)') &
             'Wrong size array passed to observations argument of get_batch_observations. Expected size=', &
             this%n_observations,', got size=',size(observations)
-       call mpi_abort(this%comm,1,ierr)
+       call throw(status,new_exception(errstr,'get_subset_observations'))
+       return
     end if
 
     observations=this%observations
 
   end subroutine get_subset_observations
 
-  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err)
+  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err,status)
     USE iso_c_binding
     class(dummy_model_interface)::this
     integer,intent(in)::istep,subset_offset,subset_size
     REAL(c_double), INTENT(out) :: obs_err(:)
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     obs_err=this%obs_errors
 
@@ -215,9 +236,12 @@ contains
 
   end subroutine load_observations
 
-  subroutine read_state(this,istep)
+  subroutine read_state(this,istep,status)
     class(dummy_model_interface)::this
     integer,intent(in)::istep
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
     integer::imember,rank,ierr,i
     real(kind=8)::r
 
@@ -273,12 +297,17 @@ contains
     end do
   end subroutine compute_predictions
 
-  function get_state_subset(this,istep,imember,subset_offset,subset_size) result(buffer)
+  function get_state_subset(this,istep,imember,subset_offset,subset_size,status) result(buffer)
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
     real(kind=8)::buffer(subset_size)
+
     integer::rank,ierr
+    character(:),allocatable::errstr
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
@@ -289,18 +318,21 @@ contains
             imember)
 
     else
-       print *,'Error: Indices for non-local ensemble state passed to get_state_subset.'
-       print *,'Data for member',imember,'requested on rank',rank
-       error stop
+       write(errstr,*) 'Indices for non-local ensemble state passed to get_state_subset. Data for member', &
+            imember,'requested on rank',rank
+       call throw(status,new_exception(errstr,'get_state_subset'))
+       return
     end if
 
   end function get_state_subset
 
-  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state)
+  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state,status)
 
     class(dummy_model_interface)::this
     integer,intent(in)::istep,imember,subset_offset,subset_size
     real(kind=8),intent(in)::subset_state(subset_size)
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
     real(kind=8),target::empty(0)
     integer::rank,ierr
 
@@ -313,8 +345,8 @@ contains
             imember)=subset_state
 
     else
-       print *,'Error: Indices for non-local ensemble state passed to set_state_subset'
-       error stop
+       call throw(status,new_exception('Indices for non-local ensemble state passed to set_state_subset'))
+       return
     end if
 
   end subroutine set_state_subset
