@@ -3,6 +3,7 @@
 module distributed_array
 
   use system_mpi
+  use exceptions, ONLY: throw, error_status, new_exception
 
   implicit none
 
@@ -62,6 +63,7 @@ contains
        call throw(status, new_exception( &
             'write_segment_data called from a foreign processor rank', &
             'write_segment_data'))
+       return
     end if
 
     if(offset<this%offset .or. &
@@ -69,6 +71,7 @@ contains
        call throw(status, &
             new_exception('Attempt to write to data outside of segment', &
             'write_segment_data'))
+       return
     end if
 
   end subroutine write_segment_data
