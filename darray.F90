@@ -23,8 +23,12 @@ module distributed_array
   end type darray_segment
 
   type :: darray
+     !! Distributed array type
+
      MPI_COMM_TYPE::comm
+         !! MPI communicator
      type(darray_segment),allocatable::segments(:)
+         !! Array of segments, each stored on one processor
    contains
   end type darray
 
