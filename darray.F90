@@ -59,6 +59,37 @@ contains
 
   end subroutine transfer_data
 
+  function new_darray(segments,comm,status)
+
+    !! Create a new darray
+
+    ! Arguments
+    type(darray_segment),allocatable::segments(:)
+        !! Array of darray segments
+    MPI_COMM_TYPE,intent(in)::comm
+        !! MPI communicator
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    type(darray)::new_darray
+        !! New darray to create
+
+    integer::i ! Loop counter
+
+    do i=1,size(segments)
+       if(segments(i)%comm/=comm) then
+          call throw(status,new_exception( &
+               'darray and all its segments must use the same MPI communicator', &
+               'new_darray'))
+          return
+       end if
+    end do
+
+    new_darray%segments=segments
+    new_darray%comm=comm
+
+  end function new_darray
+
   subroutine write_segment_data(this,offset,data,status)
     !! Write to the segment's data array.
     !! Note that the offset must correspond to a location within the extent
