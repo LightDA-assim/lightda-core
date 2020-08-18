@@ -109,6 +109,7 @@ contains
 
     integer::rank !! MPI rank
     integer::ierr !! Error code returned from MPI
+    integer::local_start, local_end !! Range on the local array
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
@@ -126,6 +127,13 @@ contains
             'write_segment_data'))
        return
     end if
+
+    ! Determine segment-local array indices
+    local_start=offset-this%offset+1
+    local_end=offset-this%offset+size(data)
+
+    ! Copy data to output array
+    this%data(local_start:local_end)=data
 
   end subroutine write_segment_data
 
@@ -152,6 +160,7 @@ contains
 
     integer::rank !! MPI rank
     integer::ierr !! Error code returned from MPI
+    integer::local_start, local_end !! Range on the local array
 
     character(*),parameter::nameproc='read_segment_data'
 
@@ -171,6 +180,13 @@ contains
             'write_segment_data'))
        return
     end if
+
+    ! Determine segment-local array indices
+    local_start=offset-this%offset+1
+    local_end=offset-this%offset+length
+
+    ! Copy data to output array
+    data=this%data(local_start:local_end)
 
   end function read_segment_data
   
