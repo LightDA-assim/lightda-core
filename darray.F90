@@ -13,6 +13,8 @@ module distributed_array
          !! Processor rank that holds the segment data
      integer::offset
          !! Offset of the segment from the start of the global array
+     integer::length
+         !! Length of data
      MPI_COMM_TYPE::comm
          !! MPI communicator
      real(kind=8),allocatable::data(:)
