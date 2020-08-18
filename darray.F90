@@ -98,8 +98,6 @@ contains
     !! This routine must only be called on the processor whose rank corresponds
     !! to `this%rank`.
 
-    use exceptions, ONLY: throw, new_exception, error_status
-
     class(darray_segment)::this
         !! Distributed array segment
     integer,intent(in)::offset
