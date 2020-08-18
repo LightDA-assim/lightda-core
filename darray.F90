@@ -98,13 +98,13 @@ contains
     !! This routine must only be called on the processor whose rank corresponds
     !! to `this%rank`.
 
-    class(darray_segment)::this
+    class(darray_segment),intent(inout)::this
         !! Distributed array segment
     integer,intent(in)::offset
         !! Offset relative to the start of the global distributed array
     real(kind=8),intent(in)::data(:)
         !! Data to write
-    class(error_status),allocatable,optional::status
+    class(error_status),intent(out),allocatable,optional::status
         !! Error status
 
     integer::rank !! MPI rank
@@ -144,7 +144,7 @@ contains
         !! Offset relative to the start of the global distributed array
     integer,intent(in)::length
         !! Number of elements to read
-    class(error_status),allocatable,optional::status
+    class(error_status),intent(out),allocatable,optional::status
         !! Error status
 
     real(kind=8)::data(length)
