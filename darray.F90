@@ -24,7 +24,7 @@ module distributed_array
 
   type :: darray
      MPI_COMM_TYPE::comm
-     type(darray_segment),allocatable::segments
+     type(darray_segment),allocatable::segments(:)
    contains
   end type darray
 
