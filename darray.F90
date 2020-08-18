@@ -34,13 +34,28 @@ module distributed_array
 
 contains
 
-  subroutine transfer_data(source,dest)
+  subroutine transfer_data(source,dest,status)
     !! Transfer data between two distributed arrays
 
-    class(darray)::source
+    ! Arguments
+    class(darray),intent(in)::source
         !! Source array
-    class(darray)::dest
+    class(darray),intent(inout)::dest
         !! Destination array
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    integer::rank !! MPI rank
+    integer::ierr !! MPI error code
+
+    if(source%comm/=dest%comm) then
+       call throw(status,new_exception( &
+            'source and destination arrays must use the same MPI communicator', &
+            'transfer_data'))
+       return
+    end if
+
+    call mpi_comm_rank(source%comm,rank,ierr)
 
   end subroutine transfer_data
 
