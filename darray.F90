@@ -8,10 +8,15 @@ module distributed_array
   implicit none
 
   type :: darray_segment
+     !! Process-local contiguous segment of a distributed array
      integer::rank
+         !! Processor rank that holds the segment data
      integer::offset
+         !! Offset of the segment from the start of the global array
      MPI_COMM_TYPE::comm
+         !! MPI communicator
      real(kind=8),allocatable::data(:)
+         !! Segment data
    contains
      procedure::write_data=>write_segment_data
      procedure::read_data=>write_segment_data
