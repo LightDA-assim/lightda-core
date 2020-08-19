@@ -4,8 +4,10 @@ module batch_manager_tests
   use system_mpi
   use assimilation_batch_manager,ONLY:assim_batch_manager, new_batch_manager
   use dummy_model_interfaces,ONLY:dummy_model_interface,new_dummy_model
+  use exceptions, ONLY: throw, error_status, new_exception
   use dummy_assimilator
   use iso_c_binding
+  use util, ONLY: str
 
   implicit none
 contains
@@ -80,7 +82,10 @@ contains
 
   end subroutine test_batch_math
 
-  subroutine test_empty_assimilator()
+  subroutine test_empty_assimilator(status)
+
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     type(assim_batch_manager)::batch_manager
     type(dummy_model_interface),target::model_interface
@@ -103,6 +108,7 @@ contains
     real(kind=8)::delta
     MPI_COMM_TYPE::comm
     real(kind=8),parameter::forget=0.6
+    character(:),allocatable::errstr ! Error string
 
     istep=1
 
@@ -110,6 +116,13 @@ contains
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
+
+    if(comm_size<=1) then
+       errstr='Not enough processes to run test. Have '//str(comm_size)// &
+            ' process on MPI communicator, need at least 2.'
+       call throw(status,new_exception(errstr,'test_darray_transfer'))
+       return
+    end if
 
     model_interface=new_dummy_model(n_ensemble,n_observations,state_size,comm)
 

@@ -91,10 +91,14 @@ contains
 
   end subroutine check_darray_contents
 
-  subroutine test_darray_transfer()
+  subroutine test_darray_transfer(status)
 
     !! Test transferring data between darrays with different processor
     !! layouts
+
+    ! Arguments
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
 
     integer,parameter::n=98     ! Number of array elements
     integer,parameter::np_src=4  ! Number of source processes
@@ -106,8 +110,21 @@ contains
     type(darray)::dest_darray    ! Destination darray
     integer::rank                ! MPI processor rank
     integer::ierr                ! MPI error code
+    integer::nproc               ! Number of processes
+
+    character(:),allocatable::errstr ! Error string
 
     call MPI_Comm_rank(MPI_COMM_WORLD,rank,ierr)
+
+    call MPI_Comm_size(MPI_COMM_WORLD,nproc,ierr)
+
+    if(nproc<max(np_src,np_dest)) then
+       errstr='Not enough processes to run test. Have '//str(nproc)// &
+            ' process on MPI communicator, need at least '// &
+            str(max(np_src,np_dest))//'.'
+       call throw(status,new_exception(errstr,'test_darray_transfer'))
+       return
+    end if
 
     do i=1,n
        src_arr(i)=i
