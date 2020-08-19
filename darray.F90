@@ -401,6 +401,8 @@ contains
     integer::imid           ! Midpoint of bracket
     integer::offset_min, offset_max ! Range of valid offsets for the array
 
+    character(:),allocatable::errstr ! Error string
+
     ilower=1
     iupper=size(this%segments)
 
@@ -409,7 +411,11 @@ contains
          this%segments(size(this%segments))%length
 
     if(offset<offset_min .or. offset>offset_max) then
-       call throw(status,new_exception('Requested offset is out of range of the array'))
+
+       errstr='Request for offset '//str(offset)// &
+            ' which is out of the range of the array ('//str(offset_min)// &
+            '-'//str(offset_max)//')'
+       call throw(status,new_exception(errstr,'get_segment_index_for_offset'))
        return
     end if
 
