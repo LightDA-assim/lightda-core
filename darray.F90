@@ -241,8 +241,8 @@ contains
        if(segments(i)%rank==rank .and. &
             segments(i)%length/=size(segments(i)%data)) then
 
-          errstr='segment('//str(i)//')%length is '//str(segments(i)%length)// &
-               ' but segment('//str(i)//')%data has a size of '// &
+          errstr='segments('//str(i)//')%length is '//str(segments(i)%length)// &
+               ' but segments('//str(i)//')%data has a size of '// &
                str(size(segments(i)%data))//'.'
 
           call throw(status,new_exception(errstr,'new_darray'))
