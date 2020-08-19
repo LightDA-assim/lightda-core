@@ -294,6 +294,36 @@ contains
         !! Error status
 
     integer::iseg !! Segment index
+
+    integer::ilower, iupper ! Bounds of search bracket for matching segment
+    integer::imid           ! Midpoint of bracket
+    integer::offset_min, offset_max ! Range of valid offsets for the array
+
+    ilower=1
+    iupper=size(this%segments)
+
+    offset_min=this%segments(1)%offset
+    offset_max=this%segments(size(this%segments))%offset+ &
+         this%segments(size(this%segments))%length
+
+    if(offset<offset_min .or. offset>offset_max) then
+       call throw(status,new_exception('Requested offset is out of range of the array'))
+       return
+    end if
+
+    ! Bisection search for the matching segment
+    do while(this%segments(ilower)%offset>offset .or. &
+         this%segments(ilower)%offset+this%segments(ilower)%length<offset)
+       ! Midpoint of bracket
+       imid=(ilower+iupper)/2
+
+       ! Reduce bracket size by comparing offset to this%segments(imid)%offset
+       if(this%segments(imid)%offset>=offset) iupper=imid
+       if(this%segments(imid)%offset<offset) ilower=imid
+    end do
+
+    iseg=ilower
+
   end function get_segment_index_for_offset
 
 end module distributed_array
