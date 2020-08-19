@@ -193,6 +193,11 @@ contains
     character(:),allocatable::errstr ! Error string
     integer::expected_offset ! Expected offset for segment
 
+    integer::rank !! MPI rank
+    integer::ierr !! MPI error code
+
+    call mpi_comm_rank(comm,rank,ierr)
+
     ! Loop over segments and do sanity checks
     do i=1,size(segments)
 
@@ -233,7 +238,7 @@ contains
 
        end if
 
-       if(segments(i)%length>0 .and. &
+       if(segments(i)%rank==rank .and. &
             segments(i)%length/=size(segments(i)%data)) then
 
           errstr='segment('//str(i)//')%length is '//str(segments(i)%length)// &
