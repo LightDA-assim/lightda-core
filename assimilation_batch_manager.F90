@@ -240,12 +240,7 @@ contains
     integer::imember,ierr,ibatch,ibatch_local,intercomm,comm_size, &
          batch_length,batch_offset,iobs,rank, &
          irank
-#ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE,allocatable::statuses(:)
-#else
-    MPI_STATUS_TYPE,allocatable::statuses(:,:)
-#endif
-    MPI_REQUEST_TYPE,allocatable::receive_reqs(:),receive_req
+    MPI_REQUEST_TYPE,allocatable::receive_reqs(:)
     integer,allocatable::io_ranks(:),io_counts(:),io_offsets(:)
     integer::batch_io_offsets,batch_segment_start,batch_segment_end, &
          overlap_start,overlap_end,local_batch_length,ireq
@@ -424,14 +419,8 @@ contains
 
     end do
 
-#ifdef HAVE_MPI_F08_MODULE
-    allocate(statuses(size(receive_reqs)))
-#else
-    allocate(statuses(MPI_STATUS_SIZE,size(receive_reqs)))
-#endif
-
     ! Wait for receives to complete
-    call MPI_Waitall(size(receive_reqs),receive_reqs,statuses,ierr)
+    call system_mpi_waitall(receive_reqs)
 
   end subroutine load_ensemble_state
 
@@ -444,13 +433,6 @@ contains
     real(kind=8),intent(in),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
     integer::imember,ibatch,n_batches,batch_rank,batch_offset,batch_length, &
          member_rank,local_io_index,ierr
-#ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE,allocatable::statuses(:)
-    MPI_STATUS_TYPE::status
-#else
-    MPI_STATUS_TYPE,allocatable::statuses(:,:)
-    MPI_STATUS_TYPE::status
-#endif
     integer::rank,comm_size,ireq,completed_req_count,req_ind,ibatch_local
     integer::completed_req_inds(this%n_ensemble*this%n_batches)
     integer::batch_segment_start,batch_segment_end
@@ -460,6 +442,7 @@ contains
     real(kind=8),pointer::sendbuf(:)
     real(kind=8),allocatable::recvbuf(:)
     real(kind=8),target::empty(0)
+    MPI_STATUS_TYPE::status
     MPI_REQUEST_TYPE,allocatable::req
     MPI_REQUEST_TYPE,allocatable::reqs(:)
     logical::flag
@@ -595,13 +578,7 @@ contains
 
     end do
 
-#ifdef HAVE_MPI_F08_MODULE
-    allocate(statuses(size(reqs)))
-#else
-    allocate(statuses(MPI_STATUS_SIZE,size(reqs)))
-#endif
-
-    call MPI_Waitall(size(reqs),reqs,statuses,ierr)
+    call system_mpi_waitall(reqs)
 
     this%batch_results_received=.true.
 
