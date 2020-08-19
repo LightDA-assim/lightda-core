@@ -62,6 +62,12 @@ contains
         ! destination segment
     integer::i ! Loop counter
 
+    MPI_REQUEST_TYPE,allocatable::segment_reqs(:) ! Segment MPI requests
+    MPI_REQUEST_TYPE,allocatable::reqs(:)         ! Combined MPI requests
+
+    ! Initialize reqs
+    allocate(reqs(0))
+
     if(source%comm/=dest%comm) then
        call throw(status,new_exception( &
             'source and destination arrays must use the same MPI communicator', &
@@ -75,9 +81,14 @@ contains
 
        dest_segment=>dest%segments(i)
 
-       call source%transfer_to_segment(dest_segment,status=status)
+       call source%transfer_to_segment(dest_segment,reqs_out=segment_reqs, &
+            status=status)
+
+       reqs=[reqs,segment_reqs]
 
     end do
+
+    call system_mpi_waitall(reqs)
 
   end subroutine transfer_data
 
