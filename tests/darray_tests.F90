@@ -24,12 +24,18 @@ contains
     type(darray)::built_darray
         !! Built darray
 
+    integer::rank                ! MPI processor rank
+    integer::ierr                ! MPI error code
+
     type(darray_segment)::segments(np)   ! Array segments
     integer::n                    ! Array size
 
     integer::step                 ! Maximum size of an array segment
 
     integer::i    ! Loop counter
+
+    call MPI_Comm_rank(MPI_COMM_WORLD,rank,ierr)
+
     n=size(arr)
 
     step=n/np+min(1,mod(n,np))
