@@ -36,6 +36,7 @@ module distributed_array
      procedure::get_segments_for_range
      procedure::get_segment_index_for_offset
      procedure::transfer_to_segment
+     procedure::transfer_to_darray=>transfer_data
   end type darray
 
 contains
