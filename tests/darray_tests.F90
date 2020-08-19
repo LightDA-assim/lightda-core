@@ -41,7 +41,7 @@ contains
     step=n/np+min(1,mod(n,np))
     do i=1,np
        segments(i)%offset=(i-1)*step
-       segments(i)%length=min(step,n-(i-1)*step)
+       segments(i)%length=min(step,n-segments(i)%offset)
        segments(i)%rank=i-1
        segments(i)%comm=comm
        if(rank==segments(i)%rank) then
