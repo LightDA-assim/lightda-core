@@ -33,6 +33,8 @@ module distributed_array
      type(darray_segment),allocatable::segments(:)
          !! Array of segments, each stored on one processor
    contains
+     procedure::get_segments_for_range
+     procedure::get_segment_index_for_offset
   end type darray
 
 contains
@@ -43,13 +45,17 @@ contains
     ! Arguments
     class(darray),intent(in)::source
         !! Source array
-    class(darray),intent(inout)::dest
+    class(darray),target,intent(inout)::dest
         !! Destination array
     class(error_status),intent(out),allocatable,optional::status
         !! Error status
 
     integer::rank !! MPI rank
     integer::ierr !! MPI error code
+
+    class(darray_segment),pointer::dest_segment ! Pointer to destination segment
+    class(darray_segment),pointer::overlapping_source_segments(:) ! Pointer to an array of source segments that overlap with a given destination segment
+    integer::i ! Loop counter
 
     if(source%comm/=dest%comm) then
        call throw(status,new_exception( &
@@ -59,6 +65,15 @@ contains
     end if
 
     call mpi_comm_rank(source%comm,rank,ierr)
+
+    do i=1,size(dest%segments)
+
+       dest_segment=>dest%segments(i)
+
+       overlapping_source_segments=>source%get_segments_for_range( &
+            dest_segment%offset,dest_segment%offset+dest_segment%length)
+
+    end do
 
   end subroutine transfer_data
 
@@ -240,5 +255,45 @@ contains
     data=this%data(local_start:local_end)
 
   end function read_segment_data
-  
+
+  function get_segments_for_range(this,offset,length,status) result(segments)
+    !! Get array segments that cover the range of array elements
+    !! `offset`+1:`offset`+`length`
+
+    ! Arguments
+    class(darray),target::this
+        !! Distributed array segment
+    integer,intent(in)::offset
+        !! Offset relative to the start of the global distributed array
+    integer,intent(in)::length
+        !! Length of range
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    class(darray_segment),pointer::segments(:)
+        !! List of segments
+
+    integer::istart,iend ! Start and end indices in this%segments
+
+    istart=this%get_segment_index_for_offset(offset,status)
+    iend=this%get_segment_index_for_offset(offset+length,status)
+
+    segments=>this%segments(istart:iend)
+
+  end function get_segments_for_range
+
+  function get_segment_index_for_offset(this,offset,status) result(iseg)
+    !! Get index of in this%segments for the segment containing the element with offset `offset`
+
+    ! Arguments
+    class(darray)::this
+        !! Distributed array segment
+    integer,intent(in)::offset
+        !! Offset relative to the start of the global distributed array
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+
+    integer::iseg !! Segment index
+  end function get_segment_index_for_offset
+
 end module distributed_array
