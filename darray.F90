@@ -55,8 +55,11 @@ contains
     integer::rank !! MPI rank
     integer::ierr !! MPI error code
 
-    class(darray_segment),pointer::dest_segment ! Pointer to destination segment
-    class(darray_segment),pointer::overlapping_source_segments(:) ! Pointer to an array of source segments that overlap with a given destination segment
+    class(darray_segment),pointer::dest_segment
+        ! Pointer to destination segment
+    class(darray_segment),pointer::overlapping_source_segments(:)
+        ! Pointer to an array of source segments that overlap with a given
+        ! destination segment
     integer::i ! Loop counter
 
     if(source%comm/=dest%comm) then
