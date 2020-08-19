@@ -51,8 +51,7 @@ contains
        end if
     end do
 
-    built_darray%segments=segments
-    built_darray%comm=comm
+    built_darray=new_darray(segments,comm)
 
   end function build_darray
 
