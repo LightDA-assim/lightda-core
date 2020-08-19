@@ -35,6 +35,7 @@ module distributed_array
    contains
      procedure::get_segments_for_range
      procedure::get_segment_index_for_offset
+     procedure::transfer_to_segment
   end type darray
 
 contains
@@ -70,12 +71,40 @@ contains
 
        dest_segment=>dest%segments(i)
 
-       overlapping_source_segments=>source%get_segments_for_range( &
-            dest_segment%offset,dest_segment%offset+dest_segment%length)
+       call source%transfer_to_segment(dest_segment)
 
     end do
 
   end subroutine transfer_data
+
+  subroutine transfer_to_segment(this,dest_segment,status)
+
+    !! Transfer data to darray segment `dest_segment`
+
+    ! Arguments
+    class(darray),target::this
+        !! Distributed array segment
+    class(error_status),intent(out),allocatable,optional::status
+        !! Error status
+    class(darray_segment),pointer::dest_segment ! Pointer to destination segment
+
+    class(darray_segment),pointer::source_segments(:)
+        !! List of segments
+
+    integer::rank !! MPI rank
+    integer::ierr !! MPI error code
+
+    integer::i ! Loop counter
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    source_segments=>this%get_segments_for_range( &
+         dest_segment%offset,dest_segment%offset+dest_segment%length,status)
+
+    do i=1,size(source_segments)
+    end do
+
+  end subroutine transfer_to_segment
 
   function new_darray(segments,comm,status)
 
