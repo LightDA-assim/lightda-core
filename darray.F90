@@ -72,13 +72,13 @@ contains
 
        dest_segment=>dest%segments(i)
 
-       call source%transfer_to_segment(dest_segment)
+       call source%transfer_to_segment(dest_segment,status=status)
 
     end do
 
   end subroutine transfer_data
 
-  subroutine transfer_to_segment(this,dest_segment,status)
+  subroutine transfer_to_segment(this,dest_segment,reqs_out,status)
 
     !! Transfer data to darray segment `dest_segment`
 
@@ -87,23 +87,90 @@ contains
         !! Distributed array segment
     class(error_status),intent(out),allocatable,optional::status
         !! Error status
-    class(darray_segment),pointer::dest_segment ! Pointer to destination segment
+    class(darray_segment),intent(inout),pointer::dest_segment
+        !! Pointer to destination segment
+    MPI_REQUEST_TYPE,intent(out),allocatable,target,optional::reqs_out(:)
+        !! MPI requests to be returned to sender
+
+    MPI_REQUEST_TYPE,pointer::reqs(:)
+        !! MPI requests
 
     class(darray_segment),pointer::source_segments(:)
         !! List of segments
 
+    real(kind=8),pointer::source_data(:)
+    real(kind=8),pointer::dest_data(:)
     integer::rank !! MPI rank
     integer::ierr !! MPI error code
 
     integer::i ! Loop counter
 
+    integer::overlap_start,overlap_end
+        ! Start/end offsets of an overlapping array section
+
     call mpi_comm_rank(this%comm,rank,ierr)
 
+    ! Get the segments in this array that overlap with the destination segment
     source_segments=>this%get_segments_for_range( &
-         dest_segment%offset,dest_segment%offset+dest_segment%length,status)
+         dest_segment%offset,dest_segment%length,status)
+
+    ! Allocate requests array
+    if(present(reqs_out)) then
+       allocate(reqs_out(size(source_segments)*2))
+       reqs=>reqs_out
+    else
+       allocate(reqs(size(source_segments)*2))
+    end if
+
+    reqs=MPI_REQUEST_NULL
 
     do i=1,size(source_segments)
+
+       ! Locate the overlapping region between source-segments(i) and
+       ! dest_segment
+       overlap_start=max(source_segments(i)%offset,dest_segment%offset)
+       overlap_end=min( &
+            source_segments(i)%offset+source_segments(i)%length, &
+            dest_segment%offset+dest_segment%length)
+
+       if(dest_segment%rank==rank) then
+
+          ! Configure destination buffer
+          dest_data=>dest_segment%data( &
+               overlap_start-dest_segment%offset+1: &
+               overlap_end-dest_segment%offset)
+       end if
+
+       if(source_segments(i)%rank==rank) then
+
+          ! Configure source data buffer
+          source_data=>source_segments(i)%data( &
+               overlap_start-source_segments(i)%offset+1: &
+               overlap_end-source_segments(i)%offset)
+
+          if(dest_segment%rank==rank) then
+             ! Copy from the source buffer to the destination buffer
+             dest_data=source_data
+          else
+             ! Send to destination segment rank
+             call MPI_Isend(source_data,size(source_data), &
+                  MPI_DOUBLE_PRECISION,dest_segment%rank,1,this%comm, &
+                  reqs(i),ierr)
+          end if
+       else
+
+
+          if(dest_segment%rank==rank) then
+             ! Receive from source segment rank
+             call MPI_Irecv(dest_data,size(dest_data),MPI_DOUBLE_PRECISION, &
+                  source_segments(i)%rank,1,this%comm, &
+                  reqs(i+size(source_segments)),ierr)
+          end if
+       end if
+
     end do
+
+    if(.not.present(reqs_out)) call system_mpi_waitall(reqs)
 
   end subroutine transfer_to_segment
 
