@@ -96,6 +96,7 @@ contains
 
        if(i==1) then
 
+          ! Check that first segment is at start of array
           if(segments(i)%offset/=0) then
              call throw(status,new_exception( &
                   'First segment offset must be 0', &
@@ -104,6 +105,8 @@ contains
           end if
 
        else
+
+          ! Check that subsequent segments cover the array without gaps
 
           expected_offset=segments(i-1)%offset+segments(i-1)%length
 
