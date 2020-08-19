@@ -77,14 +77,61 @@ contains
         !! New darray to create
 
     integer::i ! Loop counter
+    character(:),allocatable::errstr ! Error string
+    integer::expected_offset ! Expected offset for segment
 
+    ! Loop over segments and do sanity checks
     do i=1,size(segments)
+
        if(segments(i)%comm/=comm) then
-          call throw(status,new_exception( &
-               'darray and all its segments must use the same MPI communicator', &
-               'new_darray'))
+
+          write (errstr,'(A,I0,A)') &
+               'Segment ',i,' uses a different communicator than the one specified for the darray'
+
+          call throw(status,new_exception(errstr, 'new_darray'))
+
           return
+
        end if
+
+       if(i==1) then
+
+          if(segments(i)%offset/=0) then
+             call throw(status,new_exception( &
+                  'First segment offset must be 0', &
+                  'new_darray'))
+             return
+          end if
+
+       else
+
+          expected_offset=segments(i-1)%offset+segments(i-1)%length
+
+          if(expected_offset/=segments(i)%offset) then
+             write(errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
+                  'Expected segment(',i,')%offset=', &
+                  expected_offset,', got segment(',i,')%offset=', &
+                  segments(i)%offset,'.'
+             call throw(status,new_exception(errstr,'new_darray'))
+             return
+          end if
+
+       end if
+
+       if(segments(i)%length>0 .and. &
+            segments(i)%length/=size(segments(i)%data)) then
+
+          write (errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
+               'segment(',i,')%length is ',segments(i)%length, &
+               ' but segment(',i,')%data has a size of ', &
+               size(segments(i)%data),'.'
+
+          call throw(status,new_exception(errstr,'new_darray'))
+
+          return
+
+       end if
+
     end do
 
     new_darray%segments=segments
