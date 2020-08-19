@@ -4,6 +4,7 @@ module distributed_array
 
   use system_mpi
   use exceptions, ONLY: throw, error_status, new_exception
+  use util, ONLY: str
 
   implicit none
 
@@ -85,8 +86,7 @@ contains
 
        if(segments(i)%comm/=comm) then
 
-          write (errstr,'(A,I0,A)') &
-               'Segment ',i,' uses a different communicator than the one specified for the darray'
+          errstr='Segment '//str(i,'(I0)')//' uses a different communicator than the one specified for the darray'
 
           call throw(status,new_exception(errstr, 'new_darray'))
 
@@ -111,10 +111,10 @@ contains
           expected_offset=segments(i-1)%offset+segments(i-1)%length
 
           if(expected_offset/=segments(i)%offset) then
-             write(errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
-                  'Expected segment(',i,')%offset=', &
-                  expected_offset,', got segment(',i,')%offset=', &
-                  segments(i)%offset,'.'
+             errstr='Expected segment('//str(i)//')%offset='// &
+                  str(expected_offset)// &
+                  ', got segment('//str(i)//')%offset='// &
+                  str(segments(i)%offset)//'.'
              call throw(status,new_exception(errstr,'new_darray'))
              return
           end if
@@ -124,10 +124,9 @@ contains
        if(segments(i)%length>0 .and. &
             segments(i)%length/=size(segments(i)%data)) then
 
-          write (errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
-               'segment(',i,')%length is ',segments(i)%length, &
-               ' but segment(',i,')%data has a size of ', &
-               size(segments(i)%data),'.'
+          errstr='segment('//str(i)//')%length is '//str(segments(i)%length)// &
+               ' but segment('//str(i)//')%data has a size of '// &
+               str(size(segments(i)%data))//'.'
 
           call throw(status,new_exception(errstr,'new_darray'))
 

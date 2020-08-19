@@ -6,6 +6,7 @@ module advect1d_assimilate_interfaces
   use iso_c_binding
   use exceptions, ONLY: throw, new_exception, error_status
   use hdf5
+  use util, ONLY: str
 
   implicit none
 
@@ -216,10 +217,10 @@ contains
 
     if(size(predictions,1) /= this%n_observations .or. &
        size(predictions,2) /= this%n_ensemble) then
-       write(errstr,'(A,I0,A,I0,A,I0,A,I0,A)') &
-            'Wrong shape passed to predictions argument of get_subset_predictions. Expected (', &
-            this%n_observations,',',this%n_ensemble, &
-            '), got (',size(predictions,1),',',size(predictions,2),').'
+       errstr='Wrong shape passed to predictions argument of get_subset_predictions. Expected ('// &
+            str(this%n_observations)//','//str(this%n_ensemble)// &
+            '), got ('//str(size(predictions,1))//','// &
+            str(size(predictions,2))//').'
        call throw(status,new_exception(errstr,'get_subset_predictions'))
        return
     end if
@@ -263,9 +264,8 @@ contains
     character(:),allocatable::errstr
 
     if(size(observations) /= this%n_observations) then
-       write(errstr,'(A,I0,A,I0,A,I0)') &
-            'Wrong size array passed to observations argument of get_batch_observations. Expected size=', &
-            this%n_observations,', got size=',size(observations)
+       errstr='Wrong size array passed to observations argument of get_batch_observations. Expected size='// &
+            str(this%n_observations)//', got size='//str(size(observations))
        call throw(status,new_exception(errstr,'get_subset_observations'))
        return
     end if
@@ -359,13 +359,13 @@ contains
     domain_size=this%state_size/2
 
     if(iobs1<1 .or. iobs1>this%n_observations) then
-       write(errstr,*) 'Invalid observation index',iobs1
+       errstr='Invalid observation index'//str(iobs1)
        call throw(status,new_exception(errstr,'get_weight_obs_obs'))
        return
     end if
 
     if(iobs2<1 .or. iobs2>this%n_observations) then
-       write(errstr,*) 'Invalid observation index',iobs1
+       errstr='Invalid observation index'//str(iobs1)
        call throw(status,new_exception(errstr,'get_weight_obs_obs'))
        return
     end if
@@ -376,8 +376,8 @@ contains
     distance=min(delta,1-delta)
 
     if(distance<-1e-8) then
-       write(errstr,*) 'Invalid distance',distance, &
-            'computed for obs. positions',pos1,'and ',pos2
+       errstr='Invalid distance'//str(distance)// &
+            'computed for obs. positions'//str(pos1)//'and '//str(pos2)
        call throw(status,new_exception(errstr,'get_weight_obs_obs'))
        return
     end if
@@ -427,7 +427,9 @@ contains
     distance=min(delta,1-delta)
 
     if(distance<-1e-8) then
-       write(errstr,*) 'Invalid distance',distance,'computed for obs. position=',pos_obs,'and model position=',pos_model
+       errstr='Invalid distance'//str(distance)// &
+            'computed for obs. position='//str(pos_obs)// &
+            'and model position='//str(pos_model)
        call throw(status,new_exception(errstr,'get_weight_model_obs'))
        return
     end if
@@ -443,9 +445,9 @@ contains
     weight=localize_gaspari_cohn(distance,cutoff)
 
     if(weight>1 .or. weight <0) then
-       write(errstr,*) 'Invalid weight=',weight, &
-            'returned from localize_gaspari_cohn for distance=',distance, &
-            'and cutoff=',cutoff
+       errstr='Invalid weight='//str(weight)// &
+            'returned from localize_gaspari_cohn for distance='// &
+            str(distance)//'and cutoff='//str(cutoff)
        call throw(status,new_exception(errstr,'get_weight_model_obs'))
        return
     end if
