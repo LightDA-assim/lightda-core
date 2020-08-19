@@ -422,6 +422,7 @@ contains
     ! Bisection search for the matching segment
     do while(this%segments(ilower)%offset>offset .or. &
          this%segments(ilower)%offset+this%segments(ilower)%length<offset)
+
        ! Midpoint of bracket
        imid=(ilower+iupper)/2
 
@@ -429,6 +430,7 @@ contains
        if(this%segments(imid)%offset>=offset) iupper=imid
        if(this%segments(imid)%offset<=offset) ilower=imid
        if(this%segments(iupper)%offset<=offset) ilower=iupper
+
     end do
 
     iseg=ilower
