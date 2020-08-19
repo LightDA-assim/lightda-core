@@ -179,7 +179,7 @@ contains
     !! Create a new darray
 
     ! Arguments
-    type(darray_segment),allocatable::segments(:)
+    class(darray_segment),intent(in)::segments(:)
         !! Array of darray segments
     MPI_COMM_TYPE,intent(in)::comm
         !! MPI communicator
