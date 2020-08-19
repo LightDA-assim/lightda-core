@@ -427,7 +427,8 @@ contains
 
        ! Reduce bracket size by comparing offset to this%segments(imid)%offset
        if(this%segments(imid)%offset>=offset) iupper=imid
-       if(this%segments(imid)%offset<offset) ilower=imid
+       if(this%segments(imid)%offset<=offset) ilower=imid
+       if(this%segments(iupper)%offset<=offset) ilower=iupper
     end do
 
     iseg=ilower
