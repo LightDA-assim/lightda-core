@@ -39,7 +39,7 @@ contains
        if(present(fmt)) then
           write(str_tmp,fmt) x
        else
-          write(str_tmp,*) x
+          write(str_tmp,'(I0)') x
        end if
     class default
        call throw(status, &
