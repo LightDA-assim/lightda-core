@@ -6,6 +6,8 @@ module darray_tests
   use exceptions, ONLY: throw, error_status, new_exception
   use util, ONLY: str
 
+  implicit none
+
 contains
 
   function build_darray(arr,np,comm) result(built_darray)
@@ -25,6 +27,9 @@ contains
     type(darray_segment)::segments(np)   ! Array segments
     integer::n                    ! Array size
 
+    integer::step                 ! Maximum size of an array segment
+
+    integer::i    ! Loop counter
     n=size(arr)
 
     step=n/np+min(1,mod(n,np))
@@ -65,6 +70,8 @@ contains
     type(darray_segment),pointer::segment ! Pointer to a darray segment
 
     character(:),allocatable::errstr ! Error string
+
+    integer::i    ! Loop counter
 
     call MPI_Comm_rank(MPI_COMM_WORLD,rank,ierr)
 
@@ -113,6 +120,8 @@ contains
     integer::nproc               ! Number of processes
 
     character(:),allocatable::errstr ! Error string
+
+    integer::i    ! Loop counter
 
     call MPI_Comm_rank(MPI_COMM_WORLD,rank,ierr)
 
