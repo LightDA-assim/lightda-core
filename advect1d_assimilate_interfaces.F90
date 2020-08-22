@@ -7,6 +7,7 @@ module advect1d_assimilate_interfaces
   use exceptions, ONLY: throw, new_exception, error_status
   use hdf5
   use util, ONLY: str
+  use distributed_array, ONLY: darray, darray_segment, new_darray
 
   implicit none
 
@@ -37,6 +38,7 @@ module advect1d_assimilate_interfaces
      procedure::read_state
      procedure::write_state
      procedure::get_obs_positions
+     procedure::get_state_darray
   end type advect1d_interface
 
 contains
@@ -720,6 +722,45 @@ contains
 
     this%predictions_computed=.true.
   end subroutine compute_predictions
+
+  function get_state_darray(this,istep,imember) result(state_darray)
+
+    !! Get the requested ensemble member state as a darray
+
+    ! Arguments
+    class(advect1d_interface)::this
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+
+    type(darray)::state_darray
+        !! State array represented as a darray object
+
+    type(darray_segment)::segments(1) ! Array of segments comprising the darray
+
+    integer::rank !! MPI rank
+    integer::ierr !! MPI status code
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    ! Populate the segment indicating that it covers the entire model state
+    ! and is stored on the processor rank found in this%io_ranks(imember)
+    segments(1)%rank=this%io_ranks(imember)
+    segments(1)%comm=this%comm
+    segments(1)%offset=0
+    segments(1)%length=this%state_size
+
+    if(this%io_ranks(imember)==rank) then
+       ! Copy the member state data to the darray segment
+       segments(1)%data=this%local_io_data(1:this%state_size, &
+            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+    end if
+
+    state_darray=new_darray(segments,this%comm)
+
+  end function get_state_darray
 
   subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets,status)
 

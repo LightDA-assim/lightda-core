@@ -6,6 +6,7 @@ module dummy_model_interfaces
   use iso_c_binding
   use random, ONLY: random_normal
   use exceptions, ONLY: throw, new_exception, error_status
+  use distributed_array, ONLY: darray, darray_segment, new_darray
 
   implicit none
 
@@ -31,6 +32,7 @@ module dummy_model_interfaces
      procedure::read_state
      procedure,private::load_observations
      procedure::get_ensemble_state
+     procedure::get_state_darray
   end type dummy_model_interface
 
 contains
@@ -296,6 +298,44 @@ contains
 
     end do
   end subroutine compute_predictions
+
+  function get_state_darray(this,istep,imember) result(state_darray)
+
+    !! Get the requested ensemble member state as a darray
+
+    ! Arguments
+    class(dummy_model_interface)::this
+        !! Model interface
+    integer,intent(in)::istep
+        !! Iteration number
+    integer,intent(in)::imember
+        !! Ensemble member index
+
+    type(darray)::state_darray
+        !! State array represented as a darray object
+
+    type(darray_segment)::segments(1)
+
+    integer::rank !! MPI rank
+    integer::ierr !! MPI status code
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    ! Populate the segment indicating that it covers the entire model state
+    ! and is stored on the processor rank found in this%io_ranks(imember)
+    segments(1)%rank=this%io_ranks(imember)
+    segments(1)%comm=this%comm
+    segments(1)%offset=0
+    segments(1)%length=this%state_size
+
+    if(this%io_ranks(imember)==rank) then
+       ! Copy the member state data to the darray segment
+       segments(1)%data=this%local_io_data(1:this%state_size,imember)
+    end if
+
+    state_darray=new_darray(segments,this%comm)
+
+  end function get_state_darray
 
   function get_state_subset(this,istep,imember,subset_offset,subset_size,status) result(buffer)
 

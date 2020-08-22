@@ -17,6 +17,7 @@ module assimilation_model_interface
      procedure(I_get_io_ranks), deferred::get_io_ranks
      procedure(I_get_state_subset), deferred::get_state_subset
      procedure(I_set_state_subset), deferred::set_state_subset
+     procedure(I_get_state_darray), deferred::get_state_darray
      procedure::get_weight_obs_obs
      procedure::get_weight_model_obs
      procedure::read_state
@@ -24,6 +25,27 @@ module assimilation_model_interface
   end type base_model_interface
 
   abstract interface
+
+     function I_get_state_darray(this,istep,imember) result(state_darray)
+
+       !! Get the requested ensemble member state as a darray
+
+       use distributed_array, ONLY: darray
+       import base_model_interface
+
+       ! Arguments
+       class(base_model_interface)::this
+           !! Model interface
+       integer,intent(in)::istep
+           !! Iteration number
+       integer,intent(in)::imember
+           !! Ensemble member index
+
+       ! Returns
+       type(darray)::state_darray
+           !! State array represented as a darray object
+
+     end function I_get_state_darray
 
      function I_get_state_size(this,istep,status) result(size)
 
