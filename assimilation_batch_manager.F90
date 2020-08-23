@@ -552,57 +552,6 @@ contains
 
   end subroutine receive_results
 
-  subroutine print_remaining_batches(this)
-
-    !! Print information about batches for which assimilation results are
-    !! still pending
-
-    ! Arguments
-    class(assim_batch_manager)::this
-        !! Batch manager
-
-    integer::imember,ibatch ! Loop counters
-    integer::rank           ! MPI rank
-    integer::ierr           ! MPI status code
-
-    call mpi_comm_rank(this%comm,rank,ierr)
-
-    print *,'Batches still pending:'
-
-    do imember=1,this%n_ensemble
-       do ibatch=1,this%n_batches
-
-          if(.not.this%batch_results_received(imember,ibatch)) then
-
-             print *,'member',imember,'batch',ibatch,&
-                  'from rank',this%batch_ranks(ibatch)
-
-          end if
-
-       end do
-    end do
-
-  end subroutine print_remaining_batches
-
-  subroutine request_batch_index(this,req_ind,imember,ibatch)
-
-    !! Get the batch index associated with an MPI request
-
-    ! Arguments
-    class(assim_batch_manager)::this
-        !! Batch manager
-    integer,intent(in)::req_ind
-        !! Request index
-    integer,intent(out)::imember
-        !! Ensemble member
-    integer,intent(out)::ibatch
-        !! Batch index
-
-    imember=mod(req_ind,this%n_ensemble)+1
-    ibatch=(req_ind/this%n_ensemble)+1
-
-  end subroutine request_batch_index
-
   subroutine store_results(this,istep,local_batches)
 
     !! Store the assimilation results
