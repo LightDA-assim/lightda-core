@@ -32,6 +32,7 @@ module assimilation_batch_manager
      procedure::get_rank_batches
      procedure::get_batch_offset
      procedure::get_batch_length
+     procedure::get_batches_darray
      final::cleanup
   end type assim_batch_manager
 
@@ -227,6 +228,59 @@ contains
     overlap_end=min(segment1_end,segment2_end)
   end subroutine segment_range_overlap
 
+  function get_batches_darray(this) result(batches_darray)
+
+    !! Distributed array with the size of the model state and 
+
+    class(assim_batch_manager)::this
+        !! Batch manager
+
+    type(darray)::batches_darray
+        !! darray of model state with segments aligning to batch ranks
+
+    type(darray_segment),target::batch_segments(this%n_batches)
+        ! darray segments that make up batches_darray
+
+    type(darray_segment),pointer::batch_segment
+        ! Pointer to a member of batch_segments
+
+    real(kind=8)::empty_batch(this%batch_size)
+        ! Array of zeros to populate the array
+
+    integer::rank ! MPI rank
+    integer::ierr ! MPI status code
+
+    integer::ibatch ! Loop counter
+
+    call mpi_comm_rank(this%comm,rank,ierr)
+
+    empty_batch=0
+
+    ! Build darray segments for each batch
+    do ibatch=1,this%n_batches
+       batch_segment=>batch_segments(ibatch)
+       batch_segment%offset=this%get_batch_offset(ibatch)
+       batch_segment%length=this%get_batch_length(ibatch)
+       batch_segment%rank=this%batch_ranks(ibatch)
+       batch_segment%comm=this%comm
+
+       if(this%batch_ranks(ibatch)==rank) then
+
+          ! A straightforward allocate() call doesn't work on members of
+          ! derived types, so instead we use assignment which causes the
+          ! array to be allocated implictly. Copying an array of the
+          ! correct size triggers the required allocation.
+
+          batch_segment%data=empty_batch(1:batch_segment%length)
+
+       end if
+    end do
+
+    ! Create the darray from the array of segments
+    batches_darray=new_darray(batch_segments,this%comm)
+
+  end function get_batches_darray
+
   subroutine load_ensemble_state(this,istep,local_batches)
 
     !! Get the ensemble state from the model interface, divide into
@@ -248,41 +302,14 @@ contains
     type(darray)::state_darray   ! Model state darray from the model interface
     type(darray)::batches_darray ! darray with segments aligning to batch ranks
 
-    type(darray_segment),target::batch_segments(this%n_batches)
-        ! darray segments that make up batches_darray
-
-    type(darray_segment),pointer::batch_segment
-        ! Pointer to a member of batch_segments
-
     call mpi_comm_rank(this%comm,rank,ierr)
 
     call this%model_interface%read_state(istep)
 
+    ! Get the assimilation batches darray
+    batches_darray=this%get_batches_darray()
+
     do imember=1,this%n_ensemble
-
-       ! Build darray segments for each batch
-       do ibatch=1,this%n_batches
-          batch_segment=>batch_segments(ibatch)
-          batch_segment%offset=this%get_batch_offset(ibatch)
-          batch_segment%length=this%get_batch_length(ibatch)
-          batch_segment%rank=this%batch_ranks(ibatch)
-          batch_segment%comm=this%comm
-
-          if(this%batch_ranks(ibatch)==rank) then
-
-             ! A straightforward allocate() call doesn't work on members of
-             ! derived types, so instead we use assignment which causes the
-             ! array to be allocated implictly. We don't care what data is there
-             ! since we will overwrite it with the real data shortly, so we just
-             ! copy the data from the first batch in local_batches
-
-             batch_segment%data=local_batches(:batch_segment%length,1,imember)
-
-          end if
-       end do
-
-       ! Create the darray from the array of segments
-       batches_darray=new_darray(batch_segments,this%comm)
 
        ! Get the model state darray from the model interface
        state_darray=this%model_interface%get_state_darray(istep,imember)
