@@ -400,6 +400,7 @@ contains
 
     ! Build darray segments for each batch
     do ibatch=1,this%n_batches
+
        batch_segment=>batch_segments(ibatch)
        batch_segment%offset=this%get_batch_offset(ibatch)
        batch_segment%length=this%get_batch_length(ibatch)
@@ -645,6 +646,7 @@ contains
 
     real(kind=8)::obs_err(dim_obs)
         !! Observation errors
+
     integer::iobs           !! Loop counter
     integer::batch_offset   !! Location of batch in the model state array
     integer::batch_length   !! Batch size
