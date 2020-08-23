@@ -287,6 +287,7 @@ contains
     !! assimilation batches, and transmit the batch data to each processor
 
     class(assim_batch_manager)::this
+        !! Batch manager
 
     integer,intent(in)::istep
         !! Assimilation step
