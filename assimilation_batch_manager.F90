@@ -11,12 +11,33 @@ module assimilation_batch_manager
   implicit none
 
   type :: assim_batch_manager
+
+     !! Batch manager for data assimilation. Divides the model state into
+     !! batches, assigns batches to MPI processor ranks, and handles
+     !! transmission of model state data, observations, and predictions
+     !! to the processor ranks assigned to assimilate each batch.
+
      private
      class(base_model_interface),pointer,public::model_interface
+         !! Interface to the model
      integer,allocatable::batch_ranks(:)
-     integer::n_ensemble,state_size,n_observations,n_batches,batch_size,n_local_batches
+         !! Array of MPI ranks assigned to compute assimilation on each batch
+     integer::n_ensemble
+         !! Number of ensemble members
+     integer::state_size
+         !! Size of model state
+     integer::n_observations
+         !! Number of observations
+     integer::n_batches
+         !! Number of batches
+     integer::batch_size
+         !! Maximum batch size
+     integer::n_local_batches
+         !! Number of batches assigned to the local processor rank
      MPI_COMM_TYPE::comm
+         !! MPI communicator
      logical,allocatable::batch_results_received(:,:)
+         !! Whether assimilation results have been received for each batch
    contains
      procedure::load_ensemble_state
      procedure::receive_results
@@ -39,11 +60,26 @@ module assimilation_batch_manager
 contains
 
   function new_batch_manager(model_interface,n_ensemble,state_size,batch_size,comm)
-    integer(c_int),intent(in)::n_ensemble,state_size,batch_size
+    !! Create a new batch manager
+
+    ! Arguments
+    integer,intent(in)::n_ensemble
+        !! Number of ensemble members
+    integer,intent(in)::state_size
+        !! Number of elements in model state
+    integer,intent(in)::batch_size
+        !! Maximum batch size
     MPI_COMM_TYPE::comm
+        !! MPI communicator
     class(base_model_interface),intent(inout),target::model_interface
+        !! Model interface
+
     type(assim_batch_manager)::new_batch_manager
-    integer::ierr,rank,comm_size
+        !! Newly created batch manager
+
+    integer::ierr        ! MPI status code
+    integer::rank        ! MPI rank
+    integer::comm_size   ! Size of MPI communicator
 
     ! Initialize state info
     new_batch_manager%comm=comm
@@ -72,47 +108,93 @@ contains
   end function new_batch_manager
 
   function get_comm(this) result(comm)
+
+    !! Get batch manager's MPI communicator
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
+
+    ! Result
     MPI_COMM_TYPE::comm
+        !! MPI communicator
 
     comm=this%comm
     
   end function get_comm
 
   function get_batch_size(this) result(batch_size)
+
+    !! Get batch manager's maximum batch size
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
+
+    ! Result
     integer::batch_size
+        !! Batch size
 
     batch_size=this%batch_size
     
   end function get_batch_size
 
   function get_state_size(this) result(state_size)
+
+    !! Get batch model state size
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
+
+    ! Result
     integer::state_size
+        !! State size
 
     state_size=this%state_size
     
   end function get_state_size
 
   function get_n_batches(this) result(n_batches)
+
+    !! Get number of batches
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
+
+    ! Result
     integer::n_batches
+        !! Number of batches
 
     n_batches=this%n_batches
     
   end function get_n_batches
 
   function get_n_ensemble(this) result(n_ensemble)
+
+    !! Get ensemble size
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
+
+    ! Result
     integer::n_ensemble
+        !! Ensemble size
 
     n_ensemble=this%n_ensemble
     
   end function get_n_ensemble
 
   subroutine shuffle(a)
+
+    !! Randomize the order of elements in an array in-place
+
+    ! Arguments
     integer, intent(inout) :: a(:)
+        !! Array to reorder
+
     integer :: i, randpos, temp
  
     do i = size(a), 2, -1
@@ -125,11 +207,23 @@ contains
   end subroutine shuffle
 
   subroutine get_batch_ranks(comm_size,batch_ranks)
+
+    !! Assign MPI ranks to a set of assimilation batches
+
+    ! Arguments
     integer,intent(in)::comm_size
+        !! MPI communicator size
+
     integer,intent(inout)::batch_ranks(:)
+        !! Array of batch ranks
+
     integer::random_size
+        !! Size of random number seed
     integer,dimension(:),allocatable::seed
-    integer::i,ibatch,rank
+        !! Random number seed
+
+    integer::i,ibatch !! Loop counters
+    integer::rank !! MPI rank
 
     ! Start at highest rank (so if distribution is uneven, rank 0 gets
     ! fewer batches)
@@ -159,33 +253,79 @@ contains
 
   function get_batch_count(state_size,batch_size) result(count)
 
-    integer,intent(in)::state_size,batch_size
+    !! Get the number of batches required to cover the given model state size
+    !! with the given batch size
+
+    ! Arguments
+    integer,intent(in)::state_size
+        !! Model state size
+    integer,intent(in)::batch_size
+        !! Batch size
+
+    ! Result
     integer::count
+        !! Number of batches
+
     count=state_size/batch_size+min(mod(state_size,batch_size),1)
+
   end function get_batch_count
 
   function get_batch_offset(this,ibatch) result(offset)
 
+    !! Locate a batch in the model state array
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::ibatch
+        !! Batch index
+
+    ! Result
     integer::offset
+        !! Offset from the start of the model state array
+
     offset=this%batch_size*(ibatch-1)
+
   end function get_batch_offset
 
   function get_batch_length(this,ibatch) result(length)
 
+    !! Get the length of a given batch
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::ibatch
-    integer::offset,length
+        !! Batch index
+
+    ! Result
+    integer::length
+        !! Length of batch
+
+    integer::offset
+        !! Offset of batch from start of the model state array
+
     offset=this%get_batch_offset(ibatch)
     length=min(this%state_size,offset+this%batch_size)-offset
+
   end function get_batch_length
 
   function get_rank_batch_count(this,rank) result(count)
 
+    !! Get the number of batches assigned to a given MPI processor rank
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::rank
-    integer::ibatch,count
+        !! MPI processor rank
+
+    ! Result
+    integer::count
+        !! Number of batches assigned to `rank`
+
+    integer::ibatch ! Loop counter
+
     count=0
 
     do ibatch=1,this%n_batches
@@ -195,11 +335,22 @@ contains
   end function get_rank_batch_count
 
   subroutine get_rank_batches(this,rank,batches)
+
+    !! Get an array of batches assigned to the MPI processor `rank`.
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::rank
+        !! MPI processor rank
     integer,intent(out)::batches(:)
+        !! Array of batch indices assigned to `rank`
+
     integer::n_batches
-    integer::ibatch_rank,ibatch,ierr
+        ! Number of batches assigned to `rank`
+
+    integer::ibatch_rank,ibatch ! Loop counters
+    integer::ierr ! MPI status code
 
     n_batches=this%get_rank_batch_count(rank)
 
@@ -286,9 +437,9 @@ contains
     !! Get the ensemble state from the model interface, divide into
     !! assimilation batches, and transmit the batch data to each processor
 
+    ! Arguments
     class(assim_batch_manager)::this
         !! Batch manager
-
     integer,intent(in)::istep
         !! Assimilation step
     real(kind=8),intent(out),target::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
@@ -338,14 +489,24 @@ contains
 
   subroutine receive_results(this,istep,local_batches)
 
-    class(assim_batch_manager)::this
-    integer,intent(in)::istep
-    real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
-    integer::imember,ibatch, ierr
-    integer::rank,ibatch_local,isegment
+    !! Receive assimilation results and transmit them to the model interface
 
-    type(darray),target::state_darray   ! Model state darray from the model interface
-    type(darray)::batches_darray ! darray with segments aligning to batch ranks
+    ! Arguments
+    class(assim_batch_manager)::this
+        !! Batch manager
+    integer,intent(in)::istep
+        !! Assimilation step
+    real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
+        !! Array of local batch data
+
+    integer::imember,ibatch,ibatch_local,isegment ! Loop counters
+    integer::ierr ! MPI status code
+    integer::rank ! MPI processor rank
+
+    type(darray),target::state_darray
+        ! Model state darray from the model interface
+    type(darray)::batches_darray
+        ! darray with segments aligning to batch ranks
 
     type(darray_segment),pointer::state_segment
 
@@ -400,8 +561,17 @@ contains
   end subroutine receive_results
 
   subroutine print_remaining_batches(this)
+
+    !! Print information about batches for which assimilation results are
+    !! still pending
+
+    ! Arguments
     class(assim_batch_manager)::this
-    integer::imember,ibatch,rank,ierr
+        !! Batch manager
+
+    integer::imember,ibatch ! Loop counters
+    integer::rank           ! MPI rank
+    integer::ierr           ! MPI status code
 
     call mpi_comm_rank(this%comm,rank,ierr)
 
@@ -409,18 +579,32 @@ contains
 
     do imember=1,this%n_ensemble
        do ibatch=1,this%n_batches
+
           if(.not.this%batch_results_received(imember,ibatch)) then
+
              print *,'member',imember,'batch',ibatch,&
                   'from rank',this%batch_ranks(ibatch)
+
           end if
+
        end do
     end do
+
   end subroutine print_remaining_batches
 
   subroutine request_batch_index(this,req_ind,imember,ibatch)
+
+    !! Get the batch index associated with an MPI request
+
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::req_ind
-    integer,intent(out)::imember,ibatch
+        !! Request index
+    integer,intent(out)::imember
+        !! Ensemble member
+    integer,intent(out)::ibatch
+        !! Batch index
 
     imember=mod(req_ind,this%n_ensemble)+1
     ibatch=(req_ind/this%n_ensemble)+1
@@ -428,33 +612,57 @@ contains
 
   subroutine store_results(this,istep,local_batches)
 
+    !! Store the assimilation results
+
     implicit none
 
+    ! Arguments
     class(assim_batch_manager)::this
+        !! Batch manager
     integer,intent(in)::istep
+        !! Assimilation step
     real(kind=8),intent(in)::local_batches(this%batch_size,this%n_local_batches,this%n_ensemble)
+        !! Assimilation results
+
     integer::imember,rank,ierr
 
     do while(any(this%batch_results_received.eqv..false.))
+       ! Receive any pending results
        call this%receive_results(istep,local_batches)
     end do
 
+    ! Tell the model interface that we've finished receiving results
     call this%model_interface%write_state(istep)
 
   end subroutine store_results
 
   SUBROUTINE add_obs_err(this,istep,ibatch,dim_obs,HPH)
-    ! Add observation error covariance matrix
+
+    !! Add observation error covariance matrix to the array `HPH`
+
+    ! Arguments
     class(assim_batch_manager)::this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
-    REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
+        !! Batch manager
+    integer, intent(in), value :: istep
+        !! Assimilation index
+    integer,intent(in)::ibatch
+        !! Batch index
+    integer,intent(in)::dim_obs
+        !! Dimensions of the observation array
+    real(kind=8), INTENT(inout) :: HPH(dim_obs,dim_obs)
+        !! Input array
+
     real(kind=8)::obs_err(dim_obs)
-    integer::iobs,batch_offset,batch_length
+        !! Observation errors
+    integer::iobs           !! Loop counter
+    integer::batch_offset   !! Location of batch in the model state array
+    integer::batch_length   !! Batch size
 
     ! Locate batch in the state array
     batch_offset=this%get_batch_offset(ibatch)
     batch_length=this%get_batch_length(ibatch)
 
+    ! Get the observation errors
     call this%model_interface%get_subset_obs_err(istep,batch_offset, &
          batch_length,obs_err)
 
@@ -465,13 +673,32 @@ contains
   END SUBROUTINE add_obs_err
 
   SUBROUTINE localize(this,istep,ibatch,dim_p,dim_obs,HP_p,HPH)
-    ! Apply localization to HP and HPH^T
-    USE iso_c_binding
+    !! Apply localization to HP and HPH^T
+
+    ! Arguments
     class(assim_batch_manager)::this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
-    REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
+        !! Batch manager
+    integer,intent(in)::istep
+        !! Assimilation step
+    integer,intent(in)::ibatch
+        !! Batch index
+    integer,intent(in)::dim_p
+        !! Batch size
+    integer,intent(in)::dim_obs
+        !! Number of observations
+
+    real(kind=8), INTENT(inout) :: HP_p(dim_obs,dim_p)
+        !! HP array
+    real(kind=8), INTENT(inout) :: HPH(dim_obs,dim_obs)
+        !! HPH array
+
     real(kind=8)::cutoff,cutoff_u_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta,w
-    integer::domain_size,iobs1,iobs2,ipos,batch_offset,batch_length
+    integer::domain_size
+
+    integer::batch_offset     ! Location of batch in the model state array
+    integer::batch_length     ! Batch size
+
+    integer::iobs1,iobs2,ipos ! Loop counters
 
     cutoff=0.1
     cutoff_u_a=0.2
@@ -488,16 +715,21 @@ contains
     do iobs1=1,dim_obs
 
        do iobs2=1,dim_obs
+
+          ! Get localization weights
           w=this%model_interface%get_weight_obs_obs(istep,iobs1,iobs2)
 
+          ! Multiply HPH by the localization weights
           HPH(iobs1,iobs2)=HPH(iobs1,iobs2)*w
 
        end do
 
        do ipos=1,dim_p
 
+          ! Get localization weights
           w=this%model_interface%get_weight_model_obs(istep,ipos+batch_offset,iobs1)
 
+          ! Multiply HP_p by the localization weights
           HP_p(iobs1,ipos)=HP_p(iobs1,ipos)*w
 
        end do
