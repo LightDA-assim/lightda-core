@@ -176,7 +176,10 @@ contains
     do imember=1,n_ensemble
        do i=1,state_size
           delta=ensemble_after_assimilation(i,imember)-ensemble_before_assimilation(i,imember)
-          if(abs(delta)>1e-8)print *,imember,i,ensemble_before_assimilation(i,imember),ensemble_after_assimilation(i,imember),delta
+          if(abs(delta)>1e-8) then
+             print *,imember,i,ensemble_before_assimilation(i,imember), &
+                  ensemble_after_assimilation(i,imember),delta
+          end if
        end do
     end do
 

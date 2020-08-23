@@ -65,8 +65,9 @@ contains
     end select
   end subroutine add_obs_err_wrapper
 
-  subroutine lenkf_analysis_rsm_c(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &
-       state_p, ens_p, predictions, innovations, U_add_obs_err, U_localize, forget, flag, info_ptr) bind(c)
+  subroutine lenkf_analysis_rsm_c(step,ind_p,dim_p, dim_obs_p, dim_obs, &
+       dim_ens, rank_ana, state_p, ens_p, predictions, innovations, &
+       U_add_obs_err, U_localize, forget, flag, info_ptr) bind(c)
 
     abstract INTERFACE
        SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH) BIND(C)
@@ -108,9 +109,10 @@ contains
     c_functions_container%localize_fptr=U_localize
     c_functions_container%add_obs_err_fptr=U_add_obs_err
 
-    call lenkf_rsm_fortran(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &
-
-         state_p, ens_p, predictions, innovations, add_obs_err_wrapper, localize_wrapper, forget, flag,c_functions_container)
+    call lenkf_rsm_fortran(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, &
+         rank_ana, state_p, ens_p, predictions, innovations, &
+         add_obs_err_wrapper, localize_wrapper, forget, flag, &
+         c_functions_container)
 
   end subroutine lenkf_analysis_rsm_c
 

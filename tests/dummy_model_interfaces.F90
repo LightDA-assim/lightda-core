@@ -419,7 +419,8 @@ contains
 
     do imember=1,this%n_ensemble
 
-       call MPI_Bcast(this%local_io_data(:,imember),this%state_size,MPI_DOUBLE_PRECISION,this%io_ranks(imember),this%comm,ierr)
+       call MPI_Bcast(this%local_io_data(:,imember),this%state_size, &
+            MPI_DOUBLE_PRECISION,this%io_ranks(imember),this%comm,ierr)
 
     end do
 
