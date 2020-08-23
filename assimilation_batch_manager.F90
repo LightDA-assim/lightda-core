@@ -600,13 +600,12 @@ contains
 
     imember=mod(req_ind,this%n_ensemble)+1
     ibatch=(req_ind/this%n_ensemble)+1
+
   end subroutine request_batch_index
 
   subroutine store_results(this,istep,local_batches)
 
     !! Store the assimilation results
-
-    implicit none
 
     ! Arguments
     class(assim_batch_manager)::this
