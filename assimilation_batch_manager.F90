@@ -54,7 +54,6 @@ module assimilation_batch_manager
      procedure::get_batch_offset
      procedure::get_batch_length
      procedure::get_batches_darray
-     final::cleanup
   end type assim_batch_manager
 
 contains
@@ -371,14 +370,6 @@ contains
 
   end subroutine get_rank_batches
 
-  subroutine segment_range_overlap(segment1_start,segment1_end,segment2_start,segment2_end,overlap_start,overlap_end)
-    integer,intent(in)::segment1_start,segment1_end,segment2_start,segment2_end
-    integer,intent(out)::overlap_start,overlap_end
-
-    overlap_start=max(segment1_start,segment2_start)
-    overlap_end=min(segment1_end,segment2_end)
-  end subroutine segment_range_overlap
-
   function get_batches_darray(this) result(batches_darray)
 
     !! Distributed array with the size of the model state and 
@@ -692,16 +683,14 @@ contains
     real(kind=8), INTENT(inout) :: HPH(dim_obs,dim_obs)
         !! HPH array
 
-    real(kind=8)::cutoff,cutoff_u_a,pos,pos_obs1,pos_obs2,pos_obs,c,distance,delta,w
     integer::domain_size
 
     integer::batch_offset     ! Location of batch in the model state array
     integer::batch_length     ! Batch size
 
-    integer::iobs1,iobs2,ipos ! Loop counters
+    real(kind=8)::w           ! Localization weight
 
-    cutoff=0.1
-    cutoff_u_a=0.2
+    integer::iobs1,iobs2,ipos ! Loop counters
 
     ! Locate batch in the state array
     batch_offset=this%get_batch_offset(ibatch)
@@ -736,16 +725,5 @@ contains
     end do
 
   END SUBROUTINE localize
-
-  subroutine cleanup(this)
-    type(assim_batch_manager)::this
-#ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE,allocatable::status(:)
-#else
-    MPI_STATUS_TYPE,allocatable::status(:,:)
-#endif
-    integer::ierr
-
-  end subroutine cleanup
 
 end module assimilation_batch_manager
