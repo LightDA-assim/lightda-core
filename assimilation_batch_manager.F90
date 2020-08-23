@@ -286,8 +286,6 @@ contains
     !! Get the ensemble state from the model interface, divide into
     !! assimilation batches, and transmit the batch data to each processor
 
-    use util, ONLY: append_array
-
     class(assim_batch_manager)::this
 
     integer,intent(in)::istep
