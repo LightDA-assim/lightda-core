@@ -3,7 +3,7 @@ module dummy_assimilator
   implicit none
 
 contains
-  
+
   ! Copyright (c) 2004-2018 Lars Nerger
   !
   ! This file is part of PDAF.
@@ -27,16 +27,17 @@ contains
   ! !ROUTINE: PDAF_lenkf_analysis_rsm --- Perform LEnKF analysis step
   !
   ! !INTERFACE:
-  SUBROUTINE dummy_assimilator_assimilate(step,ind_p,dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &
-       state_p, ens_p, predictions, innovations, U_add_obs_err, U_localize, forget, flag,info)
-
+  SUBROUTINE dummy_assimilator_assimilate( &
+    step, ind_p, dim_p, dim_obs_p, dim_obs, dim_ens, rank_ana, &
+    state_p, ens_p, predictions, innovations, U_add_obs_err, &
+    U_localize, forget, flag, info)
 
     ! !DESCRIPTION:
-    ! Analysis step of ensemble Kalman filter with 
-    ! representer-type formulation.  In this version 
-    ! HP is explicitly computed.  This variant is 
-    ! optimal if the number of observations is 
-    ! smaller than or equal to half of the ensemble 
+    ! Analysis step of ensemble Kalman filter with
+    ! representer-type formulation.  In this version
+    ! HP is explicitly computed.  This variant is
+    ! optimal if the number of observations is
+    ! smaller than or equal to half of the ensemble
     ! size.
     ! The final ensemble update uses a block
     ! formulation to reduce memory requirements.
@@ -59,20 +60,21 @@ contains
     IMPLICIT NONE
 
     abstract INTERFACE
-       SUBROUTINE add_obs_err(step,ind_p,dim_obs,HPH,info)
-         ! Add observation error covariance matrix
-         USE iso_c_binding
-         INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
-         REAL(c_double), INTENT(inout) :: HPH(dim_obs,dim_obs)
-         class(*),intent(in)::info
-       END SUBROUTINE add_obs_err
-       SUBROUTINE localize(step,ind_p,dim_p,dim_obs,HP_p,HPH,info)
-         ! Apply localization to HP and HPH^T
-         USE iso_c_binding
-         INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
-         REAL(c_double), INTENT(inout) :: HP_p(dim_obs,dim_p), HPH(dim_obs,dim_obs)
-         class(*),intent(in)::info
-       END SUBROUTINE localize
+      SUBROUTINE add_obs_err(step, ind_p, dim_obs, HPH, info)
+        ! Add observation error covariance matrix
+        USE iso_c_binding
+        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+        REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
+        class(*), intent(in)::info
+      END SUBROUTINE add_obs_err
+      SUBROUTINE localize(step, ind_p, dim_p, dim_obs, HP_p, HPH, info)
+        ! Apply localization to HP and HPH^T
+        USE iso_c_binding
+        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+        REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
+        REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
+        class(*), intent(in)::info
+      END SUBROUTINE localize
 
     END INTERFACE
 
@@ -90,7 +92,7 @@ contains
     REAL(c_double), INTENT(in)     :: innovations(dim_obs, dim_ens) ! Global array of innovations
     REAL(c_double), INTENT(in), value     :: forget    ! Forgetting factor
     INTEGER(c_int32_t), INTENT(out) :: flag    ! Status flag
-    class(*),intent(inout)::info
+    class(*), intent(inout)::info
 
     procedure(add_obs_err) :: U_add_obs_err
     procedure(localize) :: U_localize

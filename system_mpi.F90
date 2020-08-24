@@ -18,14 +18,14 @@ contains
     !! of the appropriate type for the MPI interface in use, then calls
     !! MPI_Waitall on the provided array of requests
 
-    MPI_REQUEST_TYPE,intent(inout)::reqs(:)
+    MPI_REQUEST_TYPE, intent(inout)::reqs(:)
         !! Array of MPI requests
 
 #ifdef HAVE_MPI_F08_MODULE
-    MPI_STATUS_TYPE,allocatable::statuses(:)
+    MPI_STATUS_TYPE, allocatable::statuses(:)
         !! Statuses returned from MPI requests
 #else
-    MPI_STATUS_TYPE,allocatable::statuses(:,:)
+    MPI_STATUS_TYPE, allocatable::statuses(:, :)
         !! Statuses returned from MPI requests
 #endif
 
@@ -33,12 +33,12 @@ contains
 
     ! Allocate the statuses array
 #ifdef HAVE_MPI_F08_MODULE
-    allocate(statuses(size(reqs)))
+    allocate (statuses(size(reqs)))
 #else
-    allocate(statuses(MPI_STATUS_SIZE,size(reqs)))
+    allocate (statuses(MPI_STATUS_SIZE, size(reqs)))
 #endif
 
-    call MPI_Waitall(size(reqs),reqs,statuses,ierr)
+    call MPI_Waitall(size(reqs), reqs, statuses, ierr)
 
   end subroutine system_mpi_waitall
 

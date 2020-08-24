@@ -14,158 +14,160 @@ module advect1d_assimilate_interfaces
   type, extends(base_model_interface)::advect1d_interface
      !! I/O interface for the advect1d model
 
-     private
-     real(kind=8),allocatable::observations(:),obs_errors(:),predictions(:,:)
-     real(kind=8),pointer::local_io_data(:,:)
-     real(kind=8)::cutoff,cutoff_u_a
-     integer,allocatable::obs_positions(:),io_ranks(:)
-     integer::n_observations,state_size,local_io_size
-     MPI_COMM_TYPE::comm
-     logical::observations_read,predictions_computed,state_loaded
-   contains
-     procedure::get_state_size
-     procedure::get_io_ranks
-     procedure::get_state_subset
-     procedure::set_state_subset
-     procedure::get_subset_obs_count
-     procedure::get_subset_predictions
-     procedure::get_subset_observations
-     procedure::get_subset_obs_err
-     procedure::get_weight_obs_obs
-     procedure::get_weight_model_obs
-     procedure::read_observations
-     procedure,private::compute_predictions
-     procedure::read_state
-     procedure::write_state
-     procedure::get_obs_positions
-     procedure::get_state_darray
+    private
+    real(kind=8), allocatable::observations(:), obs_errors(:), predictions(:, :)
+    real(kind=8), pointer::local_io_data(:, :)
+    real(kind=8)::cutoff, cutoff_u_a
+    integer, allocatable::obs_positions(:), io_ranks(:)
+    integer::n_observations, state_size, local_io_size
+    MPI_COMM_TYPE::comm
+    logical::observations_read, predictions_computed, state_loaded
+  contains
+    procedure::get_state_size
+    procedure::get_io_ranks
+    procedure::get_state_subset
+    procedure::set_state_subset
+    procedure::get_subset_obs_count
+    procedure::get_subset_predictions
+    procedure::get_subset_observations
+    procedure::get_subset_obs_err
+    procedure::get_weight_obs_obs
+    procedure::get_weight_model_obs
+    procedure::read_observations
+    procedure, private::compute_predictions
+    procedure::read_state
+    procedure::write_state
+    procedure::get_obs_positions
+    procedure::get_state_darray
   end type advect1d_interface
 
 contains
 
-  function new_advect1d_interface(n_ensemble,n_observations,state_size,comm) result(this)
+  function new_advect1d_interface( &
+    n_ensemble, n_observations, state_size, comm) result(this)
     !! Create a new advect1d_interface instance
 
-    integer(c_int),intent(in)::n_ensemble,n_observations,state_size
+    integer(c_int), intent(in)::n_ensemble, n_observations, state_size
     MPI_COMM_TYPE::comm
     type(advect1d_interface)::this
-    integer::ierr,rank,comm_size
+    integer::ierr, rank, comm_size
 
-    this%n_ensemble=n_ensemble
-    this%n_observations=n_observations
-    this%state_size=state_size
-    this%comm=comm
+    this%n_ensemble = n_ensemble
+    this%n_observations = n_observations
+    this%state_size = state_size
+    this%comm = comm
 
-    this%cutoff=0.1
-    this%cutoff_u_a=0.2
+    this%cutoff = 0.1
+    this%cutoff_u_a = 0.2
 
-    this%observations_read=.false.
-    this%predictions_computed=.false.
-    this%state_loaded=.false.
+    this%observations_read = .false.
+    this%predictions_computed = .false.
+    this%state_loaded = .false.
 
-    call mpi_comm_rank(comm,rank,ierr)
-    call mpi_comm_size(comm,comm_size,ierr)
+    call mpi_comm_rank(comm, rank, ierr)
+    call mpi_comm_size(comm, comm_size, ierr)
 
-    allocate(this%observations(this%n_observations))
-    allocate(this%obs_errors(this%n_observations))
-    allocate(this%obs_positions(this%n_observations))
-    allocate(this%predictions(this%n_observations,this%n_ensemble))
-    allocate(this%io_ranks(n_ensemble))
+    allocate (this%observations(this%n_observations))
+    allocate (this%obs_errors(this%n_observations))
+    allocate (this%obs_positions(this%n_observations))
+    allocate (this%predictions(this%n_observations, this%n_ensemble))
+    allocate (this%io_ranks(n_ensemble))
 
     ! Assign ensemble members to processors for i/o purposes
-    this%io_ranks=get_member_ranks(comm_size,n_ensemble)
+    this%io_ranks = get_member_ranks(comm_size, n_ensemble)
 
     ! Get the number of ensemble members read and written locally
-    this%local_io_size=get_rank_io_size(n_ensemble,this%io_ranks,rank)
+    this%local_io_size = get_rank_io_size(n_ensemble, this%io_ranks, rank)
 
     ! Allocate array for local i/o data
-    allocate(this%local_io_data(state_size,this%local_io_size))
+    allocate (this%local_io_data(state_size, this%local_io_size))
 
     call h5open_f(ierr)
 
   end function new_advect1d_interface
 
-  function get_member_ranks(comm_size,n_ensemble) result(io_ranks)
+  function get_member_ranks(comm_size, n_ensemble) result(io_ranks)
     !! Returns an array of rank assignments for ensemble members
 
     ! Arguments
-    integer,intent(in)::comm_size
+    integer, intent(in)::comm_size
          !! MPI communicator size
-    integer,intent(in)::n_ensemble
+    integer, intent(in)::n_ensemble
          !! Number of ensemble members
 
     integer::io_ranks(n_ensemble)
          !! Array containing the MPI rank that handles I/O for each ensemble
          !! member
 
-    integer::i,stride
+    integer::i, stride
 
-    stride=max(comm_size/n_ensemble,1)
+    stride = max(comm_size/n_ensemble, 1)
 
-    do i=1,n_ensemble
-       io_ranks(i)=mod(i*stride,comm_size)
+    do i = 1, n_ensemble
+      io_ranks(i) = mod(i*stride, comm_size)
     end do
 
   end function get_member_ranks
 
-  function get_rank_io_size(n_ensemble,io_ranks,rank) result(size)
+  function get_rank_io_size(n_ensemble, io_ranks, rank) result(size)
     !! Returns the number of ensemble members assigned to the given
     !! rank for i/o purposes
 
     ! Arguments
-    integer,intent(in)::n_ensemble
+    integer, intent(in)::n_ensemble
          !! Number of ensemble members
-    integer,intent(in)::io_ranks(n_ensemble)
+    integer, intent(in)::io_ranks(n_ensemble)
          !! Array of rank assignments
-    integer,intent(in)::rank
+    integer, intent(in)::rank
          !! MPI rank
 
-    integer::i,size
+    integer::i, size
 
-    size=0
+    size = 0
 
-    do i=1,n_ensemble
-       if(io_ranks(i)==rank) size=size+1
+    do i = 1, n_ensemble
+      if (io_ranks(i) == rank) size = size + 1
     end do
 
   end function get_rank_io_size
 
-  function get_local_io_index(n_ensemble,io_ranks,rank,imember) result(index)
+  function get_local_io_index(n_ensemble, io_ranks, rank, imember) result(index)
     !! Returns the index of the specified ensemble member in the local i/o
     !! data array for the given MPI rank
 
     ! Araguments
-    integer,intent(in)::n_ensemble
+    integer, intent(in)::n_ensemble
          !! Number of ensemble members
-    integer,intent(in)::io_ranks(n_ensemble)
+    integer, intent(in)::io_ranks(n_ensemble)
          !! Array of rank assignments
-    integer,intent(in)::rank
+    integer, intent(in)::rank
          !! MPI rank
-    integer,intent(in)::imember
+    integer, intent(in)::imember
          !! Global index of requested ensemble member
 
     integer::index
          !! Local i/o index of requested ensemble member
 
-    integer::i,local_io_counter
+    integer::i, local_io_counter
 
-    index=-1
+    index = -1
 
-    local_io_counter=0
+    local_io_counter = 0
 
-    do i=1,n_ensemble
-       if(io_ranks(i)==rank) then
-          local_io_counter=local_io_counter+1
-          if(i==imember) then
-             index=local_io_counter
-             exit
-          end if
-       end if
+    do i = 1, n_ensemble
+      if (io_ranks(i) == rank) then
+        local_io_counter = local_io_counter + 1
+        if (i == imember) then
+          index = local_io_counter
+          exit
+        end if
+      end if
     end do
 
   end function get_local_io_index
 
-  function get_subset_obs_count(this,istep,subset_offset,subset_size,status) result(obs_count)
+  function get_subset_obs_count( &
+    this, istep, subset_offset, subset_size, status) result(obs_count)
 
     !! Get the number of observations affecting a given subset of the
     !! model domain. Returns the total number of observations regardless
@@ -176,24 +178,25 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     ! Returns
     integer::obs_count
         !! Number of observations
 
-    obs_count=this%n_observations
+    obs_count = this%n_observations
 
   end function get_subset_obs_count
 
-  subroutine get_subset_predictions(this,istep,subset_offset,subset_size,predictions,status)
+  subroutine get_subset_predictions( &
+    this, istep, subset_offset, subset_size, predictions, status)
 
     !! Get the predictions for a given subset of the model state. Returns
     !! all predictions regardless of what subset is requested.
@@ -203,43 +206,46 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
-    real(kind=8),intent(out)::predictions(:,:)
+    real(kind=8), intent(out)::predictions(:, :)
         !! Predicted values
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::i,imember,ierr
-    character(:),allocatable::errstr
+    integer::i, imember, ierr
+    character(:), allocatable::errstr
 
-    if(size(predictions,1) /= this%n_observations .or. &
-       size(predictions,2) /= this%n_ensemble) then
-       errstr='Wrong shape passed to predictions argument of get_subset_predictions. Expected ('// &
-            str(this%n_observations)//','//str(this%n_ensemble)// &
-            '), got ('//str(size(predictions,1))//','// &
-            str(size(predictions,2))//').'
-       call throw(status,new_exception(errstr,'get_subset_predictions'))
-       return
+    if (size(predictions, 1) /= this%n_observations .or. &
+        size(predictions, 2) /= this%n_ensemble) then
+
+      errstr = 'Wrong shape passed to predictions argument of &
+           &get_subset_predictions. Expected ('// &
+              str(this%n_observations)//','//str(this%n_ensemble)// &
+              '), got ('//str(size(predictions, 1))//','// &
+              str(size(predictions, 2))//').'
+      call throw(status, new_exception(errstr, 'get_subset_predictions'))
+      return
     end if
 
-    if(.not. this%observations_read) then
-       call this%read_observations(istep)
+    if (.not. this%observations_read) then
+      call this%read_observations(istep)
     end if
 
-    if(.not. this%predictions_computed) then
-       call this%compute_predictions(istep)
+    if (.not. this%predictions_computed) then
+      call this%compute_predictions(istep)
     end if
 
-    predictions=this%predictions
+    predictions = this%predictions
 
   end subroutine get_subset_predictions
 
-  subroutine get_subset_observations(this,istep,subset_offset,subset_size,observations,status)
+  subroutine get_subset_observations( &
+    this, istep, subset_offset, subset_size, observations, status)
 
     !! Get the observations for a given subset of the model state. Returns
     !! all predictions regardless of what subset is requested.
@@ -251,36 +257,38 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
-    real(kind=8),intent(out)::observations(:)
+    real(kind=8), intent(out)::observations(:)
         !! Observation values
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     integer::ierr
-    character(:),allocatable::errstr
+    character(:), allocatable::errstr
 
-    if(size(observations) /= this%n_observations) then
-       errstr='Wrong size array passed to observations argument of get_batch_observations. Expected size='// &
-            str(this%n_observations)//', got size='//str(size(observations))
-       call throw(status,new_exception(errstr,'get_subset_observations'))
-       return
+    if (size(observations) /= this%n_observations) then
+      errstr = 'Wrong size array passed to observations argument of &
+           &get_batch_observations. Expected size='// &
+               str(this%n_observations)//', got size='//str(size(observations))
+      call throw(status, new_exception(errstr, 'get_subset_observations'))
+      return
     end if
 
-    if(.not. this%observations_read) then
-       call this%read_observations(istep)
+    if (.not. this%observations_read) then
+      call this%read_observations(istep)
     end if
 
-    observations=this%observations
+    observations = this%observations
 
   end subroutine get_subset_observations
 
-  SUBROUTINE get_subset_obs_err(this,istep,subset_offset,subset_size,obs_err,status)
+  SUBROUTINE get_subset_obs_err( &
+    this, istep, subset_offset, subset_size, obs_err, status)
 
     !! Get the errors (uncertainties) associated with the observations
     !! affecting a given subset of the model domain.
@@ -290,22 +298,22 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
     REAL(c_double), INTENT(out) :: obs_err(:)
         !! Observation errors
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    if(.not. this%observations_read) then
-       call this%read_observations(istep)
+    if (.not. this%observations_read) then
+      call this%read_observations(istep)
     end if
 
-    obs_err=this%obs_errors
+    obs_err = this%obs_errors
 
   END SUBROUTINE get_subset_obs_err
 
@@ -319,11 +327,11 @@ contains
     integer::obs_positions(this%n_observations)
         !! Array of observation locations
 
-    obs_positions=this%obs_positions
+    obs_positions = this%obs_positions
 
   end function get_obs_positions
 
-  function get_weight_obs_obs(this,istep,iobs1,iobs2,status) result(weight)
+  function get_weight_obs_obs(this, istep, iobs1, iobs2, status) result(weight)
 
     !! Get localization weights for a given pair of observations.
     !! Uses a Gaspari-Cohn localization function with a hard-coded cutoff.
@@ -333,64 +341,65 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::iobs1
+    integer, intent(in)::iobs1
         !! Index of the first observation
-    integer,intent(in)::iobs2
+    integer, intent(in)::iobs2
         !! Index of the second observation
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     ! Returns
     real(kind=8)::weight
         !! Localization weight
 
-    real(kind=8)::pos1,pos2,delta,distance
+    real(kind=8)::pos1, pos2, delta, distance
     integer::domain_size
 
-    character(:),allocatable::errstr
+    character(:), allocatable::errstr
 
-    if(.not. this%observations_read) then
-       call throw(status,new_exception( &
-            'Attempt to compute localization weights before observations have been read', &
-            'get_weight_obs_obs'))
-       return
+    if (.not. this%observations_read) then
+      call throw(status, new_exception( &
+           'Attempt to compute localization weights before &
+           &observations have been read', &
+                 'get_weight_obs_obs'))
+      return
     end if
 
-    domain_size=this%state_size/2
+    domain_size = this%state_size/2
 
-    if(iobs1<1 .or. iobs1>this%n_observations) then
-       errstr='Invalid observation index'//str(iobs1)
-       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
-       return
+    if (iobs1 < 1 .or. iobs1 > this%n_observations) then
+      errstr = 'Invalid observation index'//str(iobs1)
+      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
+      return
     end if
 
-    if(iobs2<1 .or. iobs2>this%n_observations) then
-       errstr='Invalid observation index'//str(iobs1)
-       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
-       return
+    if (iobs2 < 1 .or. iobs2 > this%n_observations) then
+      errstr = 'Invalid observation index'//str(iobs1)
+      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
+      return
     end if
 
-    pos1=real(this%obs_positions(iobs1))/domain_size
-    pos2=real(this%obs_positions(iobs2))/domain_size
-    delta=abs(pos1-pos2)
-    distance=min(delta,1-delta)
+    pos1 = real(this%obs_positions(iobs1))/domain_size
+    pos2 = real(this%obs_positions(iobs2))/domain_size
+    delta = abs(pos1 - pos2)
+    distance = min(delta, 1 - delta)
 
-    if(distance<-1e-8) then
-       errstr='Invalid distance'//str(distance)// &
-            'computed for obs. positions'//str(pos1)//'and '//str(pos2)
-       call throw(status,new_exception(errstr,'get_weight_obs_obs'))
-       return
+    if (distance < -1e-8) then
+      errstr = 'Invalid distance'//str(distance)// &
+               'computed for obs. positions'//str(pos1)//'and '//str(pos2)
+      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
+      return
     end if
 
-    distance=max(distance,0.0)
+    distance = max(distance, 0.0)
 
-    weight=localize_gaspari_cohn(distance,this%cutoff)
+    weight = localize_gaspari_cohn(distance, this%cutoff)
 
   end function get_weight_obs_obs
 
-  function get_weight_model_obs(this,istep,imodel,iobs,status) result(weight)
+  function get_weight_model_obs(this, istep, imodel, iobs, status) result(weight)
 
     !! Get localization weights for a given observation and location in the
     !! model state array. Uses a Gaspari-Cohn localization function with two
@@ -402,276 +411,283 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imodel
+    integer, intent(in)::imodel
         !! Index in the model state array
-    integer,intent(in)::iobs
+    integer, intent(in)::iobs
         !! Index in the observations array
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     ! Returns
     real(kind=8)::weight
         !! Localization weight
 
-    real(kind=8)::pos_obs,pos_model,delta,distance,cutoff
+    real(kind=8)::pos_obs, pos_model, delta, distance, cutoff
     integer::domain_size
 
-    character(:),allocatable::errstr
+    character(:), allocatable::errstr
 
-    domain_size=this%state_size/2
+    domain_size = this%state_size/2
 
     ! Note that model positions are fortran array indices and indexed from 1, while obs positions are python array indices and indexed from 0.
-    pos_obs=real(this%obs_positions(iobs))/domain_size
-    pos_model=real(mod(imodel-1,domain_size))/domain_size
-    delta=abs(pos_obs-pos_model)
-    distance=min(delta,1-delta)
+    pos_obs = real(this%obs_positions(iobs))/domain_size
+    pos_model = real(mod(imodel - 1, domain_size))/domain_size
+    delta = abs(pos_obs - pos_model)
+    distance = min(delta, 1 - delta)
 
-    if(distance<-1e-8) then
-       errstr='Invalid distance'//str(distance)// &
-            'computed for obs. position='//str(pos_obs)// &
-            'and model position='//str(pos_model)
-       call throw(status,new_exception(errstr,'get_weight_model_obs'))
-       return
+    if (distance < -1e-8) then
+      errstr = 'Invalid distance'//str(distance)// &
+               'computed for obs. position='//str(pos_obs)// &
+               'and model position='//str(pos_model)
+      call throw(status, new_exception(errstr, 'get_weight_model_obs'))
+      return
     end if
 
-    distance=max(distance,0.0)
+    distance = max(distance, 0.0)
 
-    if(imodel<domain_size) then
-       cutoff=this%cutoff
+    if (imodel < domain_size) then
+      cutoff = this%cutoff
     else
-       cutoff=this%cutoff_u_a
+      cutoff = this%cutoff_u_a
     end if
 
-    weight=localize_gaspari_cohn(distance,cutoff)
+    weight = localize_gaspari_cohn(distance, cutoff)
 
-    if(weight>1 .or. weight <0) then
-       errstr='Invalid weight='//str(weight)// &
-            'returned from localize_gaspari_cohn for distance='// &
-            str(distance)//'and cutoff='//str(cutoff)
-       call throw(status,new_exception(errstr,'get_weight_model_obs'))
-       return
+    if (weight > 1 .or. weight < 0) then
+      errstr = 'Invalid weight='//str(weight)// &
+               'returned from localize_gaspari_cohn for distance='// &
+               str(distance)//'and cutoff='//str(cutoff)
+      call throw(status, new_exception(errstr, 'get_weight_model_obs'))
+      return
     end if
 
   end function get_weight_model_obs
 
-  subroutine read_observations(this,istep,status)
+  subroutine read_observations(this, istep, status)
 
     !! Read the observations from disk
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     character(len=50)::obs_filename
-    integer(HID_T)::h5file_h,dset_h,dataspace
-    integer(HSIZE_T)::dims(1),maxdims(1)
-    integer::ierr,rank
+    integer(HID_T)::h5file_h, dset_h, dataspace
+    integer(HSIZE_T)::dims(1), maxdims(1)
+    integer::ierr, rank
 
     ! Set the HDF5 filename
-    write(obs_filename,"(A,I0,A)") &
-         'ensembles/',istep,'/observations.h5'
+    write (obs_filename, "(A,I0,A)") &
+      'ensembles/', istep, '/observations.h5'
 
     ! Open the file
-    call h5fopen_f(obs_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
+    call h5fopen_f(obs_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
 
     ! Open the observations dataset
-    call h5dopen_f(h5file_h,'observations',dset_h,ierr)
+    call h5dopen_f(h5file_h, 'observations', dset_h, ierr)
 
     ! Get the dataspace handle
-    call h5dget_space_f(dset_h,dataspace,ierr)
+    call h5dget_space_f(dset_h, dataspace, ierr)
 
     ! Get the dataset size
-    call h5sget_simple_extent_dims_f(dataspace,dims,maxdims,ierr)
+    call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, ierr)
 
-    this%n_observations=dims(1)
+    this%n_observations = dims(1)
 
     ! Close the dataspace
-    call h5sclose_f(dataspace,ierr)
+    call h5sclose_f(dataspace, ierr)
 
-    deallocate(this%observations)
-    allocate(this%observations(this%n_observations))
+    deallocate (this%observations)
+    allocate (this%observations(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,this%observations,dims,ierr)
+    call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%observations, dims, ierr)
 
     ! Close the dataset
-    call h5dclose_f(dset_h,ierr)
+    call h5dclose_f(dset_h, ierr)
 
     ! Open the obs_positions dataset
-    call h5dopen_f(h5file_h,'obs_positions',dset_h,ierr)
+    call h5dopen_f(h5file_h, 'obs_positions', dset_h, ierr)
 
-    deallocate(this%obs_positions)
-    allocate(this%obs_positions(this%n_observations))
+    deallocate (this%obs_positions)
+    allocate (this%obs_positions(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_INTEGER,this%obs_positions,dims,ierr)
+    call h5dread_f(dset_h, H5T_NATIVE_INTEGER, this%obs_positions, dims, ierr)
 
     ! Close the dataset
-    call h5dclose_f(dset_h,ierr)
+    call h5dclose_f(dset_h, ierr)
 
     ! Open the obs_errors dataset
-    call h5dopen_f(h5file_h,'obs_errors',dset_h,ierr)
+    call h5dopen_f(h5file_h, 'obs_errors', dset_h, ierr)
 
-    deallocate(this%obs_errors)
-    allocate(this%obs_errors(this%n_observations))
+    deallocate (this%obs_errors)
+    allocate (this%obs_errors(this%n_observations))
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_NATIVE_DOUBLE,this%obs_errors,dims,ierr)
+    call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%obs_errors, dims, ierr)
 
     ! Close the dataset
-    call h5dclose_f(dset_h,ierr)
+    call h5dclose_f(dset_h, ierr)
 
     ! Close the file
-    call h5fclose_f(h5file_h,ierr)
+    call h5fclose_f(h5file_h, ierr)
 
-    if(any(this%obs_positions<0) .or. &
-         any(this%obs_positions>this%state_size/2)) then
-       call throw(status,new_exception('Out of range values in obs_positions array','read_observations'))
-       return
+    if (any(this%obs_positions < 0) .or. &
+        any(this%obs_positions > this%state_size/2)) then
+      call throw(status, new_exception( &
+                 'Out of range values in obs_positions array', &
+                 'read_observations'))
+      return
     end if
 
-    this%observations_read=.true.
+    this%observations_read = .true.
 
   end subroutine read_observations
 
-  subroutine load_observations_parallel(this,istep)
+  subroutine load_observations_parallel(this, istep)
 
     !! Load the observations from disk and broadcast them to all processors.
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
 
-    integer::ierr,rank
+    integer::ierr, rank
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
-    if(rank==0) call read_observations(this,istep)
+    if (rank == 0) call read_observations(this, istep)
 
-    call mpi_bcast(this%n_observations,1,MPI_INTEGER,0,this%comm,ierr)
+    call mpi_bcast(this%n_observations, 1, MPI_INTEGER, 0, this%comm, ierr)
 
-    if(rank>0) then
-       deallocate(this%observations)
-       allocate(this%observations(this%n_observations))
-       deallocate(this%obs_positions)
-       allocate(this%obs_positions(this%n_observations))
-       deallocate(this%obs_errors)
-       allocate(this%obs_errors(this%n_observations))
+    if (rank > 0) then
+      deallocate (this%observations)
+      allocate (this%observations(this%n_observations))
+      deallocate (this%obs_positions)
+      allocate (this%obs_positions(this%n_observations))
+      deallocate (this%obs_errors)
+      allocate (this%obs_errors(this%n_observations))
     end if
 
-    call mpi_bcast(this%observations,this%n_observations,MPI_DOUBLE_PRECISION,0, &
-         this%comm,ierr)
-    call mpi_bcast(this%obs_positions,this%n_observations,MPI_INTEGER,0, &
-         this%comm,ierr)
-    call mpi_bcast(this%obs_errors,this%n_observations,MPI_DOUBLE_PRECISION,0, &
-         this%comm,ierr)
+    call mpi_bcast( &
+      this%observations, this%n_observations, MPI_DOUBLE_PRECISION, 0, &
+      this%comm, ierr)
+    call mpi_bcast( &
+      this%obs_positions, this%n_observations, MPI_INTEGER, 0, &
+      this%comm, ierr)
+    call mpi_bcast( &
+      this%obs_errors, this%n_observations, MPI_DOUBLE_PRECISION, 0, &
+      this%comm, ierr)
 
-    this%observations_read=.true.
+    this%observations_read = .true.
 
   end subroutine load_observations_parallel
 
-  subroutine read_member_state(istep,imember,member_state,state_size)
-    
+  subroutine read_member_state(istep, imember, member_state, state_size)
+
     !! Read the model state from disk for a given ensemble member
 
     ! Arguments
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
-    real(kind=8),intent(inout)::member_state(state_size)
+    real(kind=8), intent(inout)::member_state(state_size)
         !! On exit, array holding the model state values
-    integer,intent(in)::state_size
+    integer, intent(in)::state_size
         !! Size of the model state
 
     character(len=50)::preassim_filename
-    integer(HID_T)::h5file_h,dset_h,dataspace,memspace
-    integer(HSIZE_T)::offset(2),count(2),stride(2),block(2)
+    integer(HID_T)::h5file_h, dset_h, dataspace, memspace
+    integer(HSIZE_T)::offset(2), count(2), stride(2), block(2)
     integer::ierr
 
-    stride=(/2,1/)
-    offset=(/imember-1,0/)
-    count=(/1,1/)
-    block=(/1,state_size/)
+    stride = (/2, 1/)
+    offset = (/imember - 1, 0/)
+    count = (/1, 1/)
+    block = (/1, state_size/)
 
     ! Set the HDF5 filename
-    write(preassim_filename,"(A,I0,A)") &
-         'ensembles/',istep,'/preassim.h5'
+    write (preassim_filename, "(A,I0,A)") &
+      'ensembles/', istep, '/preassim.h5'
 
     ! Open the file
-    call h5fopen_f(preassim_filename,h5F_ACC_RDONLY_F,h5file_h,ierr)
+    call h5fopen_f(preassim_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
 
     ! Open the dataset
-    call h5dopen_f(h5file_h,'ensemble_state',dset_h,ierr)
+    call h5dopen_f(h5file_h, 'ensemble_state', dset_h, ierr)
 
     ! Define a dataspace within the dataset so we only read the
     ! specified ensemble member
-    call h5dget_space_f(dset_h,dataspace,ierr)
-    call h5sselect_hyperslab_f(dataspace,H5S_SELECT_SET_F, &
-         offset,count,ierr,stride,block)
+    call h5dget_space_f(dset_h, dataspace, ierr)
+    call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
+                               offset, count, ierr, stride, block)
 
     ! Memory dataspace (needed since the local array shape differs
     ! from the dataspace in the file)
-    call h5screate_simple_f(2,block,memspace,ierr)
+    call h5screate_simple_f(2, block, memspace, ierr)
 
     ! Read the data
-    call h5dread_f(dset_h,H5T_IEEE_F64LE,member_state,block,ierr,file_space_id=dataspace,mem_space_id=memspace)
+    call h5dread_f(dset_h, H5T_IEEE_F64LE, member_state, block, ierr, &
+                   file_space_id=dataspace, mem_space_id=memspace)
 
     ! Close the dataspaces
-    call h5sclose_f(dataspace,ierr)
-    call h5sclose_f(memspace,ierr)
+    call h5sclose_f(dataspace, ierr)
+    call h5sclose_f(memspace, ierr)
 
     ! Close the dataset
-    call h5dclose_f(dset_h,ierr)
+    call h5dclose_f(dset_h, ierr)
 
     ! Close the file
-    call h5fclose_f(h5file_h,ierr)
+    call h5fclose_f(h5file_h, ierr)
 
   end subroutine read_member_state
 
-  subroutine read_state(this,istep,status)
+  subroutine read_state(this, istep, status)
 
     !! Read the model state and observations from disk, compute predictions
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::imember,local_io_counter,rank,ierr
+    integer::imember, local_io_counter, rank, ierr
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
-    call load_observations_parallel(this,istep)
+    call load_observations_parallel(this, istep)
 
-    local_io_counter=1
+    local_io_counter = 1
 
-    do imember=1,this%n_ensemble
-       if(this%io_ranks(imember)==rank) then
-          call read_member_state(istep,imember, &
-               this%local_io_data(:,local_io_counter),this%state_size)
-          local_io_counter=local_io_counter+1
-       end if
+    do imember = 1, this%n_ensemble
+      if (this%io_ranks(imember) == rank) then
+        call read_member_state(istep, imember, &
+                               this%local_io_data(:, local_io_counter), &
+                               this%state_size)
+        local_io_counter = local_io_counter + 1
+      end if
     end do
 
-    this%state_loaded=.true.
+    this%state_loaded = .true.
 
     call this%compute_predictions(istep)
 
   end subroutine read_state
 
-  subroutine compute_predictions(this,istep,status)
+  subroutine compute_predictions(this, istep, status)
 
     !! Compute predictions for all ensemble members and broadcast to all
     !! processors
@@ -679,60 +695,64 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::imember,local_io_counter,rank,ierr,iobs
+    integer::imember, local_io_counter, rank, ierr, iobs
     real(kind=8)::member_predictions(this%n_observations)
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
-    if(.not. this%observations_read) then
-       call this%read_observations(istep)
+    if (.not. this%observations_read) then
+      call this%read_observations(istep)
     end if
 
-    if(.not. this%state_loaded) then
-       call throw(status,new_exception('compute_predictions called before ensemble state is loaded','compute_predictions'))
-       return
+    if (.not. this%state_loaded) then
+      call throw(status, new_exception( &
+                 'compute_predictions called before ensemble state is loaded', &
+                 'compute_predictions'))
+      return
     end if
 
-    local_io_counter=1
+    local_io_counter = 1
 
-    do imember=1,this%n_ensemble
-       if(this%io_ranks(imember)==rank) then
+    do imember = 1, this%n_ensemble
+      if (this%io_ranks(imember) == rank) then
 
-          ! Compute predictions for this ensemble member
-          do iobs=1,this%n_observations
-             member_predictions(iobs)=this%local_io_data( &
-                  this%obs_positions(iobs)+1,local_io_counter)
-          end do
+        ! Compute predictions for this ensemble member
+        do iobs = 1, this%n_observations
+          member_predictions(iobs) = &
+            this%local_io_data(this%obs_positions(iobs) + 1, &
+                               local_io_counter)
+        end do
 
-          local_io_counter=local_io_counter+1
-       end if
+        local_io_counter = local_io_counter + 1
+      end if
 
-       ! Broadcast to all processors
-       call mpi_bcast(member_predictions,this%n_observations, &
-            MPI_DOUBLE_PRECISION,this%io_ranks(imember),this%comm,ierr)
+      ! Broadcast to all processors
+      call mpi_bcast(member_predictions, this%n_observations, &
+                     MPI_DOUBLE_PRECISION, this%io_ranks(imember), &
+                     this%comm, ierr)
 
-       this%predictions(:,imember)=member_predictions
+      this%predictions(:, imember) = member_predictions
 
     end do
 
-    this%predictions_computed=.true.
+    this%predictions_computed = .true.
   end subroutine compute_predictions
 
-  function get_state_darray(this,istep,imember) result(state_darray)
+  function get_state_darray(this, istep, imember) result(state_darray)
 
     !! Get the requested ensemble member state as a darray
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
 
     type(darray)::state_darray
@@ -743,26 +763,28 @@ contains
     integer::rank !! MPI rank
     integer::ierr !! MPI status code
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
     ! Populate the segment indicating that it covers the entire model state
     ! and is stored on the processor rank found in this%io_ranks(imember)
-    segments(1)%rank=this%io_ranks(imember)
-    segments(1)%comm=this%comm
-    segments(1)%offset=0
-    segments(1)%length=this%state_size
+    segments(1)%rank = this%io_ranks(imember)
+    segments(1)%comm = this%comm
+    segments(1)%offset = 0
+    segments(1)%length = this%state_size
 
-    if(this%io_ranks(imember)==rank) then
-       ! Copy the member state data to the darray segment
-       segments(1)%data=this%local_io_data(1:this%state_size, &
-            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+    if (this%io_ranks(imember) == rank) then
+      ! Copy the member state data to the darray segment
+      segments(1)%data = &
+        this%local_io_data(1:this%state_size, &
+                           get_local_io_index(this%n_ensemble, &
+                                              this%io_ranks, rank, imember))
     end if
 
-    state_darray=new_darray(segments,this%comm)
+    state_darray = new_darray(segments, this%comm)
 
   end function get_state_darray
 
-  subroutine get_io_ranks(this,istep,imember,ranks,counts,offsets,status)
+  subroutine get_io_ranks(this, istep, imember, ranks, counts, offsets, status)
 
     !! Provides the rank assignments for model state i/o, in the form of
     !! an array of processor ranks, and arrays of lengths and offsets
@@ -774,221 +796,238 @@ contains
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
 
-    integer,intent(out),allocatable::ranks(:)
+    integer, intent(out), allocatable::ranks(:)
         !! Array of processor ranks which hold portions of the model state
         !! for the requested ensemble member
-    integer,intent(out),allocatable::counts(:)
+    integer, intent(out), allocatable::counts(:)
         !! Length of the segments of the model state array
-    integer,intent(out),allocatable::offsets(:)
+    integer, intent(out), allocatable::offsets(:)
         !! Offsets indicating where each segment begins from the start of the
         !! model state array
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::comm_size,ierr
+    integer::comm_size, ierr
 
-    call mpi_comm_size(this%comm,comm_size,ierr)
+    call mpi_comm_size(this%comm, comm_size, ierr)
 
-    allocate(ranks(1),counts(1),offsets(1))
+    allocate (ranks(1), counts(1), offsets(1))
 
-    ranks(1)=this%io_ranks(imember)
-    counts(1)=this%state_size
-    offsets(1)=0
+    ranks(1) = this%io_ranks(imember)
+    counts(1) = this%state_size
+    offsets(1) = 0
 
   end subroutine get_io_ranks
 
-  function get_state_subset(this,istep,imember,subset_offset,subset_size,status) result(subset_state)
+  function get_state_subset( &
+    this, istep, imember, subset_offset, subset_size, status) &
+    result(subset_state)
 
     !! Returns the model state values in the requested subset.
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     ! Returns
     real(kind=8)::subset_state(subset_size)
         !! Model state values from the requested subset
 
-    real(kind=8),target::empty(0)
-    integer::rank,ierr
+    real(kind=8), target::empty(0)
+    integer::rank, ierr
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
-    if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
+    if (get_local_io_index(this%n_ensemble, this%io_ranks, rank, imember) &
+        > 0) then
 
-       ! Copy from this%local_io_data
-       subset_state=this%local_io_data( &
-            subset_offset+1:subset_offset+subset_size, &
-            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember))
+      ! Copy from this%local_io_data
+      subset_state = this%local_io_data( &
+                     subset_offset + 1:subset_offset + subset_size, &
+                     get_local_io_index(this%n_ensemble, &
+                                        this%io_ranks, rank, imember))
 
     else
-       call throw(status,new_exception('Indices for non-local ensemble state passed to get_state_subset','get_state_subset'))
-       return
+      call throw(status, new_exception( &
+             'Indices for non-local ensemble state &
+             &passed to get_state_subset', &
+             'get_state_subset'))
+      return
     end if
 
   end function get_state_subset
 
-  subroutine set_state_subset(this,istep,imember,subset_offset,subset_size,subset_state,status)
+  subroutine set_state_subset( &
+    this, istep, imember, subset_offset, subset_size, subset_state, status)
 
     !! Update the state for a portion of the model domain.
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
-    integer,intent(in)::subset_offset
+    integer, intent(in)::subset_offset
         !! Offset of subset from start of state array
-    integer,intent(in)::subset_size
+    integer, intent(in)::subset_size
         !! Size of subset
-    real(kind=8),intent(in)::subset_state(subset_size)
+    real(kind=8), intent(in)::subset_state(subset_size)
         !! Values to set
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::rank,ierr
+    integer::rank, ierr
 
-    call mpi_comm_rank(this%comm,rank,ierr)
+    call mpi_comm_rank(this%comm, rank, ierr)
 
-    if(get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember)>0) then
+    if (get_local_io_index(this%n_ensemble, this%io_ranks, rank, imember) &
+        > 0) then
 
-       ! Write to this%local_io_data
-       this%local_io_data( &
-            subset_offset+1:subset_offset+subset_size, &
-            get_local_io_index(this%n_ensemble,this%io_ranks,rank,imember) &
-       )=subset_state
+      ! Write to this%local_io_data
+      this%local_io_data( &
+        subset_offset + 1:subset_offset + subset_size, &
+        get_local_io_index(this%n_ensemble, this%io_ranks, rank, imember) &
+        ) = subset_state
 
     else
-       call throw(status,new_exception('Indices for non-local ensemble state passed to set_state_subset','set_state_subset'))
-       return
+      call throw(status, new_exception( &
+             'Indices for non-local ensemble state &
+             &passed to set_state_subset', &
+             'set_state_subset'))
+      return
     end if
 
   end subroutine set_state_subset
 
-  function get_state_size(this,istep,status) result(size)
+  function get_state_size(this, istep, status) result(size)
 
     !! Get the size of the model state array
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
     integer::size
 
-    size=this%state_size
+    size = this%state_size
 
   end function get_state_size
 
-  subroutine write_state(this,istep,status)
+  subroutine write_state(this, istep, status)
 
     !! Write the new state to disk
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    class(error_status),intent(out),allocatable,optional::status
+    class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    integer::imember,rank,ierr,imember_local
+    integer::imember, rank, ierr, imember_local
 
-    call MPI_Comm_rank(this%comm,rank,ierr)
+    call MPI_Comm_rank(this%comm, rank, ierr)
 
-    imember_local=1
+    imember_local = 1
 
-    do imember=1,this%n_ensemble
+    do imember = 1, this%n_ensemble
 
-       if(this%io_ranks(imember)==rank) then
+      if (this%io_ranks(imember) == rank) then
 
-          call write_ensemble_member(this,istep,imember,this%n_ensemble, &
-               this%comm,this%local_io_data(:,imember_local),this%state_size)
+        call write_ensemble_member( &
+          this, istep, imember, this%n_ensemble, &
+          this%comm, this%local_io_data(:, imember_local), &
+          this%state_size)
 
-          imember_local=imember_local+1
+        imember_local = imember_local + 1
 
-       end if
+      end if
 
     end do
 
   end subroutine write_state
 
-  subroutine write_ensemble_member(this,istep,imember,n_ensemble,comm,member_state,state_size)
+  subroutine write_ensemble_member( &
+    this, istep, imember, n_ensemble, comm, member_state, state_size)
 
     !! Write the new state to disk for one ensemble member
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer,intent(in)::istep
+    integer, intent(in)::istep
         !! Iteration number
-    integer,intent(in)::imember
+    integer, intent(in)::imember
         !! Ensemble member index
-    integer,intent(in)::n_ensemble
+    integer, intent(in)::n_ensemble
         !! Number of ensemble members
     MPI_COMM_TYPE::comm
         !! MPI communicator
-    real(kind=8),intent(in)::member_state(state_size)
+    real(kind=8), intent(in)::member_state(state_size)
         !! Model state values to write
-    integer,intent(in)::state_size
+    integer, intent(in)::state_size
         !! Size of model state
 
     character(len=80)::postassim_filename
-    integer(HID_T)::h5file_h,dset_h,dataspace,memspace
-    integer(HSIZE_T)::offset(2),count(2),stride(2),data_block(2)
+    integer(HID_T)::h5file_h, dset_h, dataspace, memspace
+    integer(HSIZE_T)::offset(2), count(2), stride(2), data_block(2)
     logical::exists
     integer::ierr
 
-    stride=(/2,1/)
-    offset=(/imember-1,0/)
-    count=(/1,1/)
-    data_block=(/1,state_size/)
+    stride = (/2, 1/)
+    offset = (/imember - 1, 0/)
+    count = (/1, 1/)
+    data_block = (/1, state_size/)
 
     ! Set the HDF5 filename
-    write(postassim_filename,"(A,I0,A,I0,A)") &
-         'ensembles/',istep,'/postassim_',imember-1,'.h5'
+    write (postassim_filename, "(A,I0,A,I0,A)") &
+      'ensembles/', istep, '/postassim_', imember - 1, '.h5'
 
     ! Create the file
-    call h5fcreate_f(postassim_filename,H5F_ACC_TRUNC_F,h5file_h,ierr)
+    call h5fcreate_f(postassim_filename, H5F_ACC_TRUNC_F, h5file_h, ierr)
 
     ! Define a dataspace
-    call h5screate_simple_f(1,(/int(state_size,8)/),dataspace,ierr)
+    call h5screate_simple_f(1, (/int(state_size, 8)/), dataspace, ierr)
 
     ! Create the dataset
-    call h5dcreate_f(h5file_h,'ensemble_state',H5T_IEEE_F64LE, &
-         dataspace,dset_h,ierr)
+    call h5dcreate_f(h5file_h, 'ensemble_state', H5T_IEEE_F64LE, &
+                     dataspace, dset_h, ierr)
 
     ! Write the data
-    call h5dwrite_f(dset_h,H5T_IEEE_F64LE,member_state,data_block,ierr,file_space_id=dataspace)
+    call h5dwrite_f( &
+      dset_h, H5T_IEEE_F64LE, member_state, data_block, ierr, &
+      file_space_id=dataspace)
 
     ! Close the dataspace
-    call h5sclose_f(dataspace,ierr)
+    call h5sclose_f(dataspace, ierr)
 
     ! Close the dataset
-    call h5dclose_f(dset_h,ierr)
+    call h5dclose_f(dset_h, ierr)
 
     ! Close the file
-    call h5fclose_f(h5file_h,ierr)
+    call h5fclose_f(h5file_h, ierr)
 
   end subroutine write_ensemble_member
 
