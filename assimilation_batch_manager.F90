@@ -7,6 +7,7 @@ module assimilation_batch_manager
   use random_integer, ONLY: randint
   use assimilation_model_interface
   use distributed_array, ONLY: darray, darray_segment, new_darray
+  use util, ONLY: str
 
   implicit none
 
@@ -336,7 +337,7 @@ contains
 
   end function get_rank_batch_count
 
-  subroutine get_rank_batches(this, rank, batches)
+  subroutine get_rank_batches(this, rank, batches, status)
 
     !! Get an array of batches assigned to the MPI processor `rank`.
 
@@ -347,20 +348,25 @@ contains
         !! MPI processor rank
     integer, intent(out)::batches(:)
         !! Array of batch indices assigned to `rank`
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
 
+    ! Result
     integer::n_batches
-    ! Number of batches assigned to `rank`
+        !! Number of batches assigned to `rank`
 
     integer::ibatch_rank, ibatch ! Loop counters
     integer::ierr ! MPI status code
 
+    character(:), allocatable :: errstr
+
     n_batches = this%get_rank_batch_count(rank)
 
     if (size(batches, 1) /= n_batches) then
-      print '(A,I0,A,I0)', 'Wrong array size passed to get_rank_batches. &
-           & Expected ', n_batches, ' got ', size(batches, 1)
-      error stop
-      call mpi_abort(this%comm, 1, ierr)
+      errstr = 'Wrong array size passed to get_rank_batches. &
+           &Expected '//str(n_batches)//' got '//str(size(batches, 1))
+      call throw(status, new_exception(errstr, 'get_rank_batches'))
+      return
     end if
 
     ibatch_rank = 1
