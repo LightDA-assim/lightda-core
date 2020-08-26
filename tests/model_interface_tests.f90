@@ -86,24 +86,6 @@ contains
 
   end subroutine test_localization
 
-  subroutine test_io_counts(iface)
-    class(base_model_interface)::iface
-    real(kind=8), allocatable::buf(:)
-    integer, allocatable::ranks(:), counts(:), offsets(:)
-    integer::i, istep
-
-    istep = 1
-
-    call iface%get_io_ranks(istep, 1, ranks, counts, offsets)
-
-    if (sum(counts) /= iface%get_state_size(istep)) then
-      print *, 'Expected io counts to add up to', &
-        iface%get_state_size(istep), 'got sum of', sum(counts)
-      error stop
-    end if
-
-  end subroutine test_io_counts
-
   subroutine test_buffer_readwrite(iface)
     class(base_model_interface)::iface
     real(kind=8), allocatable::buf(:)
@@ -169,7 +151,6 @@ contains
   subroutine run_all(iface)
     class(base_model_interface)::iface
 
-    call test_io_counts(iface)
     call test_darray_coverage(iface)
     call test_buffer_readwrite(iface)
     call test_localization(iface)
