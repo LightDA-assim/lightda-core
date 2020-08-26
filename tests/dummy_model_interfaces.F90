@@ -21,8 +21,6 @@ module dummy_model_interfaces
     logical::observations_read, predictions_computed, state_loaded
   contains
     procedure::get_state_size
-    procedure::get_io_ranks
-    procedure::get_state_subset
     procedure::set_state_subset
     procedure::get_subset_obs_count
     procedure::get_subset_predictions
@@ -95,24 +93,6 @@ contains
     end do
 
   end function get_member_ranks
-
-  subroutine get_io_ranks(this, istep, imember, ranks, counts, offsets, status)
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, imember
-    integer, intent(out), allocatable::ranks(:), counts(:), offsets(:)
-    integer::comm_size, ierr
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    call mpi_comm_size(this%comm, comm_size, ierr)
-
-    allocate (ranks(1), counts(1), offsets(1))
-
-    ranks(1) = this%io_ranks(imember)
-    counts(1) = this%state_size
-    offsets(1) = 0
-
-  end subroutine get_io_ranks
 
   function get_rank_io_size(n_ensemble, io_ranks, rank) result(size)
     integer, intent(in)::n_ensemble
@@ -346,37 +326,6 @@ contains
     state_darray = new_darray(segments, this%comm)
 
   end function get_state_darray
-
-  function get_state_subset( &
-    this, istep, imember, subset_offset, subset_size, status) result(buffer)
-
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, imember, subset_offset, subset_size
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    real(kind=8)::buffer(subset_size)
-
-    integer::rank, ierr
-    character(:), allocatable::errstr
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (this%io_ranks(imember) == rank) then
-
-      buffer = this%local_io_data( &
-               subset_offset + 1:subset_offset + subset_size, &
-               imember)
-
-    else
-      write (errstr, *) 'Indices for non-local ensemble state passed to &
-           &get_state_subset. Data for member', &
-           imember, 'requested on rank', rank
-      call throw(status, new_exception(errstr, 'get_state_subset'))
-      return
-    end if
-
-  end function get_state_subset
 
   subroutine set_state_subset( &
     this, istep, imember, subset_offset, subset_size, subset_state, status)

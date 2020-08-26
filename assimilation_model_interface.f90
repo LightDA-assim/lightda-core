@@ -14,8 +14,6 @@ module assimilation_model_interface
     procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
     procedure::get_innovations
     procedure(I_get_state_size), deferred::get_state_size
-    procedure(I_get_io_ranks), deferred::get_io_ranks
-    procedure(I_get_state_subset), deferred::get_state_subset
     procedure(I_set_state_subset), deferred::set_state_subset
     procedure(I_get_state_darray), deferred::get_state_darray
     procedure::get_weight_obs_obs
@@ -176,107 +174,6 @@ module assimilation_model_interface
            !! Error status
 
     end subroutine I_get_subset_obs_err
-
-    subroutine I_get_io_ranks( &
-      this, istep, imember, ranks, counts, offsets, status)
-
-       !! Provides the rank assignments for model state i/o, in the form of
-       !! an array of processor ranks, and arrays of lengths and offsets
-       !! indicating what portion of the state array is to be read/written
-       !! by each processor.
-       !!
-       !! For a parallel model, the model state may be distributed across
-       !! multiple processors, with no single processor holding the entire
-       !! model state in memory. Similarly, different processors may be
-       !! responsible for processing different ensemble members. This subroutine
-       !! lets other components know what processor holds each part of model
-       !! state.
-       !!
-       !! The three arrays ranks, counts, and offsets returned by get_io_ranks
-       !! are assumed to have the same length. The ranks array is a sequence
-       !! of MPI processor ranks, each of which holds a segment of the model
-       !! state array. The counts array is a sequence of integers indicating the size of the segment of the model state array held by each processor. The
-       !! offsets array indicates the locations of these segments in the model
-       !! state array.
-       !!
-       !! As an example, if a model state of size 10 is divided evenly across
-       !! two processors with ranks 0 and 1, the return values of get_io_ranks
-       !! would be
-       !!
-       !!    :::fortran
-       !!    ranks   = ( 0, 1 )
-       !!    counts  = ( 5, 5 )
-       !!    offsets = ( 0, 5 )
-       !!
-       !! In the case of a serial model, the entire model state will be held by
-       !! a single processor, and the return values from get_io_ranks should
-       !! indicate this. For example, for a serial model with a state array of
-       !! length 10 held on processor 0, the return value from get_io_ranks
-       !! would be
-       !!
-       !!    :::fortran
-       !!    ranks   = (/ 0 /)
-       !!    counts  = (/ 10 /)
-       !!    offsets = (/ 0 /)
-
-      use exceptions, ONLY: error_status
-      import base_model_interface
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::imember
-           !! Ensemble member index
-      integer, intent(out), allocatable::ranks(:)
-           !! Array of processor ranks which hold portions of the model state
-           !! for the requested ensemble member
-      integer, intent(out), allocatable::counts(:)
-           !! Length of the segments of the model state array
-      integer, intent(out), allocatable::offsets(:)
-           !! Offsets indicating where each segment begins from the start of the
-           !! model state array
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-    end subroutine I_get_io_ranks
-
-    function I_get_state_subset( &
-      this, istep, imember, subset_offset, subset_size, status) &
-      result(buffer)
-
-       !! Returns model state values for a given subset of the model state.
-       !! Note that availability of data may depend on the rank of the calling
-       !! processor, so this subroutine should only be called after a call to
-       !! get_io_ranks, and the values of subset_offset and subset_size should
-       !! be chosen to fall within a continguous segment of data stored on the
-       !! calling processor rank as determined by the output from get_io_ranks.
-       !! Failure to satisfy this requirement may result in an error.
-
-      use exceptions, ONLY: error_status
-      import base_model_interface
-
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::imember
-           !! Ensemble member index
-      integer, intent(in)::subset_offset
-           !! Offset of subset from start of state array
-      integer, intent(in)::subset_size
-           !! Size of subset
-      real(kind=8)::buffer(subset_size)
-           !! Values of the model state in the requested subset
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-    end function I_get_state_subset
 
     subroutine I_set_state_subset( &
       this, istep, imember, subset_offset, subset_size, subset_state, status)

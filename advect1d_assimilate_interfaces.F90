@@ -24,8 +24,6 @@ module advect1d_assimilate_interfaces
     logical::observations_read, predictions_computed, state_loaded
   contains
     procedure::get_state_size
-    procedure::get_io_ranks
-    procedure::get_state_subset
     procedure::set_state_subset
     procedure::get_subset_obs_count
     procedure::get_subset_predictions
@@ -783,94 +781,6 @@ contains
     state_darray = new_darray(segments, this%comm)
 
   end function get_state_darray
-
-  subroutine get_io_ranks(this, istep, imember, ranks, counts, offsets, status)
-
-    !! Provides the rank assignments for model state i/o, in the form of
-    !! an array of processor ranks, and arrays of lengths and offsets
-    !! indicating what portion of the state array is to be read/written
-    !! by each processor. Since this is a serial model, simply returns arrays
-    !! of size 1 indicating which processor has the data for the requested
-    !! ensemble member.
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::imember
-        !! Ensemble member index
-
-    integer, intent(out), allocatable::ranks(:)
-        !! Array of processor ranks which hold portions of the model state
-        !! for the requested ensemble member
-    integer, intent(out), allocatable::counts(:)
-        !! Length of the segments of the model state array
-    integer, intent(out), allocatable::offsets(:)
-        !! Offsets indicating where each segment begins from the start of the
-        !! model state array
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    integer::comm_size, ierr
-
-    call mpi_comm_size(this%comm, comm_size, ierr)
-
-    allocate (ranks(1), counts(1), offsets(1))
-
-    ranks(1) = this%io_ranks(imember)
-    counts(1) = this%state_size
-    offsets(1) = 0
-
-  end subroutine get_io_ranks
-
-  function get_state_subset( &
-    this, istep, imember, subset_offset, subset_size, status) &
-    result(subset_state)
-
-    !! Returns the model state values in the requested subset.
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::imember
-        !! Ensemble member index
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    real(kind=8)::subset_state(subset_size)
-        !! Model state values from the requested subset
-
-    real(kind=8), target::empty(0)
-    integer::rank, ierr
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (get_local_io_index(this%n_ensemble, this%io_ranks, rank, imember) &
-        > 0) then
-
-      ! Copy from this%local_io_data
-      subset_state = this%local_io_data( &
-                     subset_offset + 1:subset_offset + subset_size, &
-                     get_local_io_index(this%n_ensemble, &
-                                        this%io_ranks, rank, imember))
-
-    else
-      call throw(status, new_exception( &
-             'Indices for non-local ensemble state &
-             &passed to get_state_subset', &
-             'get_state_subset'))
-      return
-    end if
-
-  end function get_state_subset
 
   subroutine set_state_subset( &
     this, istep, imember, subset_offset, subset_size, subset_state, status)
