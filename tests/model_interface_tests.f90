@@ -2,8 +2,47 @@ module model_interface_tests
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use random_integer, ONLY: randint
+  use distributed_array, ONLY: darray, darray_segment, new_darray
   implicit none
 contains
+
+  subroutine test_darray_coverage(iface)
+    class(base_model_interface)::iface
+    type(darray),target::state_darray   ! Model state darray from the model interface
+    type(darray_segment), pointer::state_segment
+
+    integer,parameter::istep=1
+
+    integer::isegment
+
+    ! Get the model state darray from the model interface
+    state_darray = iface%get_state_darray(istep, 1)
+
+    do isegment = 1, size(state_darray%segments)
+
+       state_segment => state_darray%segments(isegment)
+
+       if(isegment>1 .and. &
+            state_segment%offset /= &
+            state_darray%segments(isegment+1)%offset + &
+            state_darray%segments(isegment+1)%length) then
+
+          print *,'Segment offset does not align with preceding segment'
+          error stop
+
+       end if
+
+       if(isegment==size(state_darray%segments) .and. &
+            state_segment%offset + state_segment%length /= &
+            iface%get_state_size(istep)) then
+          print *,'State array segments coverage does not correspond to length &
+               &returned by iface%get_state_size()'
+          error stop
+       end if
+
+    end do
+
+  end subroutine test_darray_coverage
 
   subroutine test_localization(iface)
 
@@ -124,7 +163,9 @@ contains
     class(base_model_interface)::iface
 
     call test_io_counts(iface)
+    call test_darray_coverage(iface)
     call test_buffer_readwrite(iface)
+    call test_localization(iface)
 
   end subroutine run_all
 
