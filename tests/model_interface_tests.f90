@@ -107,53 +107,60 @@ contains
   subroutine test_buffer_readwrite(iface)
     class(base_model_interface)::iface
     real(kind=8), allocatable::buf(:)
-    integer::length, ierr, i, irank
+    integer::length, ierr, i, isegment
     integer, parameter::shift = 1
-    integer, allocatable::ranks(:), counts(:), offsets(:)
     integer::rank, istep
+    type(darray),target::state_darray   ! Model state darray from the model interface
+    type(darray_segment), pointer::state_segment
 
     istep = 1
 
     call mpi_comm_rank(mpi_comm_world, rank, ierr)
 
-    call iface%get_io_ranks(istep, 1, ranks, counts, offsets)
+    ! Get the model state darray from the model interface
+    state_darray = iface%get_state_darray(istep, 1)
 
-    do irank = 1, size(ranks)
+    do isegment = 1, size(state_darray%segments)
 
-      if (ranks(irank) /= rank) cycle
+      state_segment => state_darray%segments(isegment)
 
-      ! Set requested buffer length
-      length = min(iface%get_state_size(istep), counts(irank), 5)
+      if ( state_segment%rank /= rank) cycle
 
-      allocate (buf(length))
+      ! Get state values
+      buf = state_segment%data
 
-      if (length > 0) then
+      ! Write to buffer
+      do i = 1, size(buf)
+         buf(i) = i
+      end do
 
-        ! Get model state subset
-        buf = iface%get_state_subset(istep, 1, offsets(irank), length)
+      ! Write model state subset
+      call iface%set_state_subset(istep, 1, state_segment%offset, &
+           state_segment%length, buf)
 
-        ! Write to buffer
-        do i = 1, size(buf)
-          buf(i) = i
-        end do
+     end do
 
-        ! Write model state subset
-        call iface%set_state_subset(istep, 1, offsets(irank), length, buf)
+     ! Get the model state darray again
+     state_darray = iface%get_state_darray(istep, 1)
 
-        ! Get new buffer, shifted relative to original
-        buf = iface%get_state_subset( &
-              istep, 1, offsets(irank) + shift, length - 1)
+     do isegment = 1, size(state_darray%segments)
 
-        ! Check values in new buffer
-        do i = 1, size(buf) - 1
-          if (buf(i) /= i + shift) then
-            print *, 'Wrote value of', i + shift, &
-              'read back value of', buf(i + shift)
+
+      state_segment => state_darray%segments(isegment)
+
+      if ( state_segment%rank /= rank) cycle
+
+      ! Get state values
+      buf = state_segment%data
+
+      ! Check values in state
+      do i = 1, size(buf)
+         if (buf(i) /= i) then
+            print *, 'Wrote value of', i, &
+                 'read back value of', buf(i)
             error stop
-          end if
-        end do
-
-      end if
+         end if
+      end do
 
     end do
 
