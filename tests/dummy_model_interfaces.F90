@@ -17,7 +17,6 @@ module dummy_model_interfaces
     real(kind=8)::cutoff, cutoff_u_a
     integer, allocatable::obs_positions(:), io_ranks(:)
     integer::n_observations, state_size, local_io_size
-    MPI_COMM_TYPE::comm
     logical::observations_read, predictions_computed, state_loaded
   contains
     procedure::get_state_size

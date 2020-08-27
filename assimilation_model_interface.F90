@@ -1,12 +1,18 @@
+#include "mpi_types.h"
+
 module assimilation_model_interface
 
   use exceptions, ONLY: throw, new_exception, error_status
+  use system_mpi
 
   implicit none
 
   type, abstract::base_model_interface
-     !! Base class for model interfaces
+
+    !! Base class for model interfaces
+
     integer::n_ensemble
+    MPI_COMM_TYPE::comm
   contains
     procedure(I_get_subset_predictions), deferred::get_subset_predictions
     procedure(I_get_subset_observations), deferred::get_subset_observations
