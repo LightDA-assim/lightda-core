@@ -1,8 +1,79 @@
 module localization
 
+  use observations, ONLY: observation_set
+  use assimilation_model_interface, ONLY: base_model_interface
+  use exceptions, ONLY: error_status
+
   implicit none
 
+  type::base_localizer
+  contains
+    procedure::get_weight_obs_obs
+    procedure::get_weight_model_obs
+  end type base_localizer
+
 contains
+
+  function get_weight_obs_obs(this, istep, obs_set1, iobs1, obs_set2, iobs2, &
+                              status) result(weight)
+
+    !! Get localization weight for a given pair of observations. Default
+    !! implementation returns 1 for any input (i.e., no localization).
+
+    ! Arguments
+    class(base_localizer)::this
+        !! Model interface
+    integer, intent(in)::istep
+        !! Iteration number
+    class(observation_set), pointer::obs_set1
+        !! Observation set 1
+    integer, intent(in)::iobs1
+        !! Index of an observation in observation set 1
+    class(observation_set), pointer::obs_set2
+        !! Observation set 2
+    integer, intent(in)::iobs2
+        !! Index of an observation in observation set 2
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    ! Returns
+    real(kind=8)::weight
+        !! Localization weight
+
+    weight = 1
+
+  end function get_weight_obs_obs
+
+  function get_weight_model_obs(this, istep, obs_set, iobs, model_interface, &
+                                imodel, status) result(weight)
+
+    !! Get localization weight for a given observation at a given index in the
+    !! model state. Default implementation returns 1 for any input (i.e., no
+    !! localization).
+
+    ! Arguments
+    class(base_localizer)::this
+        !! Model interface
+    integer, intent(in)::istep
+        !! Iteration number
+    class(base_model_interface)::model_interface
+        !! Model interface
+    integer, intent(in)::imodel
+        !! Index in the model state array
+    class(observation_set), pointer::obs_set
+        !! Observation set
+    integer, intent(in)::iobs
+        !! Index in the observation set
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    ! Returns
+    real(kind=8)::weight
+        !! Localization weight
+
+    weight = 1
+
+  end function get_weight_model_obs
 
   function gaspari_cohn_mid(z, c) result(f)
     real(kind=8), intent(in)::z, c
