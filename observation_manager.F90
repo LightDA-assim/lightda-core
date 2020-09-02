@@ -4,6 +4,10 @@ module mod_observation_manager
   use localization, ONLY: base_localizer
   use assimilation_model_interface, ONLY: base_model_interface
   use forward_operator, ONLY: base_forward_operator
+  use distributed_array, ONLY: darray
+  use exceptions, ONLY: error_status, throw, new_exception
+
+  implicit none
 
   type::observation_manager
 
@@ -20,12 +24,18 @@ module mod_observation_manager
 
     class(base_localizer), pointer :: localizer
 
+  contains
+
+    procedure::get_batches_obs_values
+    procedure::get_batches_obs_errors
+    procedure::get_batches_predictions
+
   end type observation_manager
 
 contains
 
   function new_observation_manager( &
-    model_interface, forward_operator, observation_sets, localizer)
+    model_interface, forward_operator, observation_sets, localizer, status)
 
     class(base_model_interface), intent(in), target::model_interface
         !! Model interface
@@ -37,6 +47,10 @@ contains
         !! Observation sets
 
     class(base_localizer), intent(in), target, optional :: localizer
+        !! Localizer
+
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
 
     ! Result
     type(observation_manager)::new_observation_manager
@@ -55,5 +69,71 @@ contains
     end if
 
   end function new_observation_manager
+
+  function get_batches_obs_values(this, istep, batches, status) &
+    result(obs_values)
+
+    !! Get observation values for each batch
+
+    class(observation_manager), intent(inout)::this
+        !! Observation manager
+    integer, intent(in) :: istep
+        !! Iteration number
+    class(darray), intent(in) :: batches
+        !! Model state array
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    type(darray) :: obs_values(size(batches%segments))
+        !! Observation values required for assimilation of each batch
+
+    call throw(status, &
+               new_exception('Not yet implemented', 'get_batches_obs_values'))
+
+  end function get_batches_obs_values
+
+  function get_batches_obs_errors(this, istep, batches, status) &
+    result(obs_errors)
+
+    !! Get observation errors for each batch
+
+    class(observation_manager), intent(inout)::this
+        !! Observation manager
+    integer, intent(in) :: istep
+        !! Iteration number
+    class(darray), intent(in) :: batches
+        !! Model state array
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    type(darray) :: obs_errors(size(batches%segments))
+        !! Observation errors required for assimilation of each batch
+
+    call throw(status, &
+               new_exception('Not yet implemented', 'get_batches_obs_errors'))
+
+  end function get_batches_obs_errors
+
+  function get_batches_predictions(this, istep, batches, status) &
+    result(predictions)
+
+    !! Get predictions for each batch
+
+    class(observation_manager), intent(inout)::this
+        !! Observation manager
+    integer, intent(in) :: istep
+        !! Iteration number
+    class(darray), intent(in) :: batches
+        !! Model state array
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    type(darray) :: predictions(size(batches%segments))
+        !! Observation errors required for assimilation of each batch
+
+    call throw(status, &
+               new_exception('Not yet implemented', 'get_batches_predictions'))
+
+  end function get_batches_predictions
 
 end module mod_observation_manager

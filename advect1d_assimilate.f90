@@ -3,10 +3,15 @@ program advect1d_assimmilate
   use advect1d_assimilate_interfaces, ONLY: advect1d_interface, &
                                             new_advect1d_interface
   use assimilation_batch_manager, ONLY: assim_batch_manager, new_batch_manager
-  use assimilate
   use system_mpi
   use iso_c_binding
   use lenkf_rsm, ONLY: lenkf_analysis_rsm
+  use mod_assimilation_manager, ONLY: assimilation_manager, &
+                                      new_assimilation_manager
+  use mod_lenkf_rsm_filter, ONLY: lenkf_rsm_filter
+  use mod_advect1d_forward_operator, ONLY: advect1d_forward_operator
+  use advect1d_observations, ONLY: advected_quantity_observation_set
+  use mod_advect1d_localization, ONLY: advect1d_localizer
 
   implicit none
 
@@ -15,6 +20,11 @@ program advect1d_assimmilate
 
   type(advect1d_interface), target::model_interface
   type(assim_batch_manager)::batch_manager
+  type(assimilation_manager)::assim_mgr
+  type(lenkf_rsm_filter)::filter
+  type(advect1d_forward_operator)::forward_operator
+  type(advected_quantity_observation_set)::observation_sets(1)
+  type(advect1d_localizer)::localizer
 
   call mpi_init(ierr)
 
@@ -30,13 +40,12 @@ program advect1d_assimmilate
   model_interface = new_advect1d_interface( &
                     n_ensemble, n_observations, state_size, mpi_comm_world)
 
-  batch_manager = new_batch_manager( &
-                  model_interface, n_ensemble, state_size, batch_size, &
-                  mpi_comm_world)
+  assim_mgr = new_assimilation_manager( &
+              model_interface, istep, n_ensemble, forward_operator, &
+              observation_sets, batch_size, localizer, filter, mpi_comm_world)
 
   ! Run the assimilation
-  call assimilate_parallel( &
-    batch_manager, lenkf_analysis_rsm, istep, n_observations, n_observations)
+  call assim_mgr%assimilate(istep)
 
   call mpi_finalize(ierr)
 

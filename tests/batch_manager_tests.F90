@@ -171,9 +171,6 @@ contains
         istep, batch_offset, batch_size, observations)
       call model_interface%get_subset_obs_err( &
         istep, batch_offset, batch_size, obs_errors)
-      call model_interface%get_innovations( &
-        istep, batch_offset, batch_length, observations, predictions, &
-        obs_errors, innovations)
 
       batch_states = local_batches(ibatch_local, :, :)
 

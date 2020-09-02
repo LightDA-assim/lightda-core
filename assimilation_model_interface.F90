@@ -18,7 +18,6 @@ module assimilation_model_interface
     procedure(I_get_subset_observations), deferred::get_subset_observations
     procedure(I_get_subset_obs_count), deferred::get_subset_obs_count
     procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
-    procedure::get_innovations
     procedure(I_get_state_size), deferred::get_state_size
     procedure(I_set_state_subset), deferred::set_state_subset
     procedure(I_get_state_darray), deferred::get_state_darray
@@ -254,74 +253,6 @@ contains
         !! Error status
 
   end subroutine write_state
-
-  subroutine get_innovations( &
-    this, istep, subset_offset, subset_size, observations, &
-    predictions, obs_errors, innovations, status)
-
-    !! Compute innovations for a given subset of the model domain.
-
-    use random
-
-    implicit none
-
-    ! Arguments
-    class(base_model_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    real(kind=8), intent(in)::observations(:)
-        !! Observation values for the subset
-    real(kind=8), intent(in)::obs_errors(:)
-        !! Observation errors for the subset
-    real(kind=8), intent(in)::predictions(:, :)
-        !! Predictions for the subset
-    real(kind=8), intent(out)::innovations(:, :)
-        !! Innovations for the subset
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    integer::imember, iobs, obs_count
-
-    obs_count = this%get_subset_obs_count(istep, subset_offset, subset_size)
-
-    if (size(observations) /= obs_count) then
-      print '(A,I0,A,I0)', 'Observations array has wrong length. Expected ', &
-        obs_count, ', got ', size(observations)
-      stop
-    end if
-
-    if (size(predictions, 1) /= obs_count .or. &
-        size(predictions, 2) /= this%n_ensemble) then
-      print '(A,I0,A,I0,A,I0,A,I0,A)', &
-        'Predictions array has wrong shape. Expected (' &
-        , obs_count, ',', this%n_ensemble, '), got (', &
-        size(predictions, 1), ',', size(predictions, 2), ')'
-      stop
-    end if
-
-    if (size(innovations, 1) /= obs_count .or. &
-        size(innovations, 2) /= this%n_ensemble) then
-      print '(A,I0,A,I0,A,I0,A,I0,A)', &
-        'Innovations array has wrong shape. Expected (', &
-        obs_count, ',', this%n_ensemble, '), got (' &
-        , size(innovations, 1), ',', size(innovations, 2), ')'
-      stop
-    end if
-
-    do imember = 1, this%n_ensemble
-      do iobs = 1, obs_count
-        innovations(iobs, imember) = observations(iobs) - &
-                                     predictions(iobs, imember) + &
-                                     random_normal()*obs_errors(iobs)
-      end do
-    end do
-
-  end subroutine get_innovations
 
   function get_weight_obs_obs(this, istep, iobs1, iobs2, status) result(weight)
 

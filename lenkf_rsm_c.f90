@@ -1,50 +1,48 @@
 module lenkf_rsm_c
   use lenkf_rsm, ONLY: lenkf_rsm_fortran => lenkf_analysis_rsm
+  use mod_base_assimilation_manager, ONLY: base_assimilation_manager
 
   use iso_c_binding
 
   implicit none
 
-  type :: c_function_container
+  type, extends(base_assimilation_manager):: c_function_container
     type(c_ptr)::info_ptr
     type(c_funptr)::localize_fptr
     type(c_funptr)::add_obs_err_fptr
+  contains
+    procedure::localize => localize_wrapper
+    procedure::add_obs_err => add_obs_err_wrapper
   end type c_function_container
 
 contains
 
-  subroutine localize_wrapper( &
-    istep, ibatch, dim_p, dim_obs, HP_p, HPH, container)
+  subroutine localize_wrapper(this, &
+                              istep, ibatch, dim_p, dim_obs, HP_p, HPH)
 
     abstract INTERFACE
       SUBROUTINE localize( &
-        step, ind_p, dim_p, dim_obs, HP_p, HPH, info_ptr) BIND(C)
+        istep, ind_p, dim_p, dim_obs, HP_p, HPH, info_ptr) BIND(C)
         ! Apply localization to HP and HPH^T
         USE iso_c_binding
-        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+        INTEGER(c_int32_t), INTENT(in), value :: istep, ind_p, dim_p, dim_obs
         REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
         REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
         type(c_ptr), value::info_ptr
       END SUBROUTINE localize
     end INTERFACE
 
-    class(*), intent(inout)::container
+    class(c_function_container) :: this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p), HPH(dim_obs, dim_obs)
     procedure(localize), pointer::U_localize
 
-    select type (container)
-    class is (c_function_container)
-      call c_f_procpointer(container%localize_fptr, U_localize)
-      call U_localize(istep, ibatch, dim_p, dim_obs, HP_p, HPH, &
-                      container%info_ptr)
-    class default
-      print *, 'Could not determine argument type. Should be &
-           &class c_function_container'
-    end select
+    call c_f_procpointer(this%localize_fptr, U_localize)
+    call U_localize(istep, ibatch, dim_p, dim_obs, HP_p, HPH, this%info_ptr)
+
   end subroutine localize_wrapper
 
-  subroutine add_obs_err_wrapper(istep, ibatch, dim_obs, HPH, container)
+  subroutine add_obs_err_wrapper(this, istep, ibatch, dim_obs, HPH)
 
     abstract INTERFACE
       SUBROUTINE add_obs_err(step, ind_p, dim_obs, HPH, info_ptr) BIND(C)
@@ -56,19 +54,13 @@ contains
       END SUBROUTINE add_obs_err
     end INTERFACE
 
-    class(*), intent(inout)::container
+    class(c_function_container)::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     procedure(add_obs_err), pointer::U_add_obs_err
 
-    select type (container)
-    class is (c_function_container)
-      call c_f_procpointer(container%add_obs_err_fptr, U_add_obs_err)
-      call U_add_obs_err(istep, ibatch, dim_obs, HPH, container%info_ptr)
-    class default
-      print *, 'Could not determine argument type. Should be &
-           &class c_function_container'
-    end select
+    call c_f_procpointer(this%add_obs_err_fptr, U_add_obs_err)
+    call U_add_obs_err(istep, ibatch, dim_obs, HPH, this%info_ptr)
   end subroutine add_obs_err_wrapper
 
   subroutine lenkf_analysis_rsm_c( &
@@ -119,8 +111,7 @@ contains
 
     call lenkf_rsm_fortran(step, ind_p, dim_p, dim_obs_p, dim_obs, dim_ens, &
                            rank_ana, state_p, ens_p, predictions, innovations, &
-                           add_obs_err_wrapper, localize_wrapper, forget, flag, &
-                           c_functions_container)
+                           forget, flag, c_functions_container)
 
   end subroutine lenkf_analysis_rsm_c
 
