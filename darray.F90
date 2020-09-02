@@ -25,13 +25,22 @@ module distributed_array
     procedure::read_data => write_segment_data
   end type darray_segment
 
-  type :: darray
-     !! Distributed array type
+  type :: darray_segment_set
+     !! Set of darray segments, which may be noncontiguous or overlapping.
 
     MPI_COMM_TYPE::comm
          !! MPI communicator
     type(darray_segment), allocatable::segments(:)
          !! Array of segments, each stored on one processor
+
+  contains
+    procedure::get_local_data
+  end type darray_segment_set
+
+  type, extends(darray_segment_set) :: darray
+     !! Distributed array comprised of contiguous and nonoverlapping darray
+     !! segments
+
   contains
     procedure::get_segments_for_range
     procedure::get_segment_index_for_offset
@@ -41,14 +50,64 @@ module distributed_array
 
 contains
 
+  function get_local_data(this) result(local_data)
+
+    !! Get the portion of the segment data that is stored on the local MPI
+    !! process as a flattened array
+
+    ! Arguments
+    class(darray_segment_set) :: this
+        !! Darray segment set
+
+    ! Result
+    real(kind=8), allocatable :: local_data(:)
+
+    integer::rank !! MPI rank
+    integer::ierr !! MPI error code
+
+    integer::i ! Loop counter
+
+    integer::local_data_size ! Size of local data
+    integer::local_offset ! Offset in the local data array
+
+    call mpi_comm_rank(this%comm, rank, ierr)
+
+    ! Determine size of local data
+    local_data_size = 0
+    do i = 1, size(this%segments)
+      if (rank == this%segments(i)%rank) then
+        local_data_size = local_data_size + this%segments(i)%length
+      end if
+    end do
+
+    ! Allocate the result array
+    allocate (local_data(local_data_size))
+
+    ! Copy the data into the array
+    local_offset = 0
+    do i = 1, size(this%segments)
+      if (rank == this%segments(i)%rank) then
+
+        ! Copy the data
+        local_data(local_offset + 1:local_offset + this%segments(i)%length) &
+          = this%segments(i)%data
+
+        ! Move the local offset to the end of this segment
+        local_offset = local_offset + this%segments(i)%length
+
+      end if
+    end do
+
+  end function get_local_data
+
   subroutine transfer_data(source, dest, status)
     !! Transfer data between two distributed arrays
 
     ! Arguments
     class(darray), intent(in)::source
         !! Source array
-    class(darray), target, intent(inout)::dest
-        !! Destination array
+    class(darray_segment_set), target, intent(inout)::dest
+        !! Destination segments
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
