@@ -8,10 +8,10 @@ contains
 
   subroutine test_darray_coverage(iface)
     class(base_model_interface)::iface
-    type(darray),target::state_darray   ! Model state darray from the model interface
+    type(darray), target::state_darray   ! Model state darray from the model interface
     type(darray_segment), pointer::state_segment
 
-    integer,parameter::istep=1
+    integer, parameter::istep = 1
 
     integer::isegment
 
@@ -20,25 +20,25 @@ contains
 
     do isegment = 1, size(state_darray%segments)
 
-       state_segment => state_darray%segments(isegment)
+      state_segment => state_darray%segments(isegment)
 
-       if(isegment>1 .and. &
-            state_segment%offset /= &
-            state_darray%segments(isegment+1)%offset + &
-            state_darray%segments(isegment+1)%length) then
+      if (isegment > 1 .and. &
+          state_segment%offset /= &
+          state_darray%segments(isegment + 1)%offset + &
+          state_darray%segments(isegment + 1)%length) then
 
-          print *,'Segment offset does not align with preceding segment'
-          error stop
+        print *, 'Segment offset does not align with preceding segment'
+        error stop
 
-       end if
+      end if
 
-       if(isegment==size(state_darray%segments) .and. &
-            state_segment%offset + state_segment%length /= &
-            iface%get_state_size(istep)) then
-          print *,'State array segments coverage does not correspond to length &
-               &returned by iface%get_state_size()'
-          error stop
-       end if
+      if (isegment == size(state_darray%segments) .and. &
+          state_segment%offset + state_segment%length /= &
+          iface%get_state_size(istep)) then
+        print *, 'State array segments coverage does not correspond to length &
+             &returned by iface%get_state_size()'
+        error stop
+      end if
 
     end do
 
@@ -92,7 +92,7 @@ contains
     integer::length, ierr, i, isegment
     integer, parameter::shift = 1
     integer::rank, istep
-    type(darray),target::state_darray   ! Model state darray from the model interface
+    type(darray), target::state_darray   ! Model state darray from the model interface
     type(darray_segment), pointer::state_segment
 
     istep = 1
@@ -106,42 +106,41 @@ contains
 
       state_segment => state_darray%segments(isegment)
 
-      if ( state_segment%rank /= rank) cycle
+      if (state_segment%rank /= rank) cycle
 
       ! Get state values
       buf = state_segment%data
 
       ! Write to buffer
       do i = 1, size(buf)
-         buf(i) = i
+        buf(i) = i
       end do
 
       ! Write model state subset
       call iface%set_state_subset(istep, 1, state_segment%offset, &
-           state_segment%length, buf)
+                                  state_segment%length, buf)
 
-     end do
+    end do
 
-     ! Get the model state darray again
-     state_darray = iface%get_state_darray(istep, 1)
+    ! Get the model state darray again
+    state_darray = iface%get_state_darray(istep, 1)
 
-     do isegment = 1, size(state_darray%segments)
-
+    do isegment = 1, size(state_darray%segments)
 
       state_segment => state_darray%segments(isegment)
 
-      if ( state_segment%rank /= rank) cycle
+      if (state_segment%rank /= rank) cycle
 
       ! Get state values
       buf = state_segment%data
 
       ! Check values in state
       do i = 1, size(buf)
-         if (buf(i) /= i) then
-            print *, 'Wrote value of', i, &
-                 'read back value of', buf(i)
-            error stop
-         end if
+        if (buf(i) /= i) then
+          print *, 'Wrote value of', i, &
+            'read back value of', buf(i)
+          error stop
+        end if
       end do
 
     end do
