@@ -210,8 +210,6 @@ program test_advect1d_model_interface
 
   call mpi_barrier(mpi_comm_world, ierr)
 
-  call model_interface%read_observations(1)
-
   call run_all(model_interface)
   call run_all_advect1d(model_interface)
 

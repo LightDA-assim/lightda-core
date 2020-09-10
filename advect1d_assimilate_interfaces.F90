@@ -30,7 +30,6 @@ module advect1d_assimilate_interfaces
     procedure::get_subset_obs_err
     procedure::get_weight_obs_obs
     procedure::get_weight_model_obs
-    procedure::read_observations
     procedure, private::compute_predictions
     procedure::read_state
     procedure::write_state
@@ -229,14 +228,6 @@ contains
       return
     end if
 
-    if (.not. this%observations_read) then
-      call this%read_observations(istep)
-    end if
-
-    if (.not. this%predictions_computed) then
-      call this%compute_predictions(istep)
-    end if
-
     predictions = this%predictions
 
   end subroutine get_subset_predictions
@@ -276,10 +267,6 @@ contains
       return
     end if
 
-    if (.not. this%observations_read) then
-      call this%read_observations(istep)
-    end if
-
     observations = this%observations
 
   end subroutine get_subset_observations
@@ -305,10 +292,6 @@ contains
         !! Observation errors
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
-
-    if (.not. this%observations_read) then
-      call this%read_observations(istep)
-    end if
 
     obs_err = this%obs_errors
 
@@ -462,133 +445,6 @@ contains
 
   end function get_weight_model_obs
 
-  subroutine read_observations(this, istep, status)
-
-    !! Read the observations from disk
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    character(len=50)::obs_filename
-    integer(HID_T)::h5file_h, dset_h, dataspace
-    integer(HSIZE_T)::dims(1), maxdims(1)
-    integer::ierr, rank
-
-    ! Set the HDF5 filename
-    write (obs_filename, "(A,I0,A)") &
-      'ensembles/', istep, '/observations.h5'
-
-    ! Open the file
-    call h5fopen_f(obs_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
-
-    ! Open the observations dataset
-    call h5dopen_f(h5file_h, 'observations', dset_h, ierr)
-
-    ! Get the dataspace handle
-    call h5dget_space_f(dset_h, dataspace, ierr)
-
-    ! Get the dataset size
-    call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, ierr)
-
-    this%n_observations = dims(1)
-
-    ! Close the dataspace
-    call h5sclose_f(dataspace, ierr)
-
-    deallocate (this%observations)
-    allocate (this%observations(this%n_observations))
-
-    ! Read the data
-    call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%observations, dims, ierr)
-
-    ! Close the dataset
-    call h5dclose_f(dset_h, ierr)
-
-    ! Open the obs_positions dataset
-    call h5dopen_f(h5file_h, 'obs_positions', dset_h, ierr)
-
-    deallocate (this%obs_positions)
-    allocate (this%obs_positions(this%n_observations))
-
-    ! Read the data
-    call h5dread_f(dset_h, H5T_NATIVE_INTEGER, this%obs_positions, dims, ierr)
-
-    ! Close the dataset
-    call h5dclose_f(dset_h, ierr)
-
-    ! Open the obs_errors dataset
-    call h5dopen_f(h5file_h, 'obs_errors', dset_h, ierr)
-
-    deallocate (this%obs_errors)
-    allocate (this%obs_errors(this%n_observations))
-
-    ! Read the data
-    call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%obs_errors, dims, ierr)
-
-    ! Close the dataset
-    call h5dclose_f(dset_h, ierr)
-
-    ! Close the file
-    call h5fclose_f(h5file_h, ierr)
-
-    if (any(this%obs_positions < 0) .or. &
-        any(this%obs_positions > this%state_size/2)) then
-      call throw(status, new_exception( &
-                 'Out of range values in obs_positions array', &
-                 'read_observations'))
-      return
-    end if
-
-    this%observations_read = .true.
-
-  end subroutine read_observations
-
-  subroutine load_observations_parallel(this, istep)
-
-    !! Load the observations from disk and broadcast them to all processors.
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-
-    integer::ierr, rank
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (rank == 0) call read_observations(this, istep)
-
-    call mpi_bcast(this%n_observations, 1, MPI_INTEGER, 0, this%comm, ierr)
-
-    if (rank > 0) then
-      deallocate (this%observations)
-      allocate (this%observations(this%n_observations))
-      deallocate (this%obs_positions)
-      allocate (this%obs_positions(this%n_observations))
-      deallocate (this%obs_errors)
-      allocate (this%obs_errors(this%n_observations))
-    end if
-
-    call mpi_bcast( &
-      this%observations, this%n_observations, MPI_DOUBLE_PRECISION, 0, &
-      this%comm, ierr)
-    call mpi_bcast( &
-      this%obs_positions, this%n_observations, MPI_INTEGER, 0, &
-      this%comm, ierr)
-    call mpi_bcast( &
-      this%obs_errors, this%n_observations, MPI_DOUBLE_PRECISION, 0, &
-      this%comm, ierr)
-
-    this%observations_read = .true.
-
-  end subroutine load_observations_parallel
-
   subroutine read_member_state(istep, imember, member_state, state_size)
 
     !! Read the model state from disk for a given ensemble member
@@ -665,8 +521,6 @@ contains
 
     call mpi_comm_rank(this%comm, rank, ierr)
 
-    call load_observations_parallel(this, istep)
-
     local_io_counter = 1
 
     do imember = 1, this%n_ensemble
@@ -701,10 +555,6 @@ contains
     real(kind=8)::member_predictions(this%n_observations)
 
     call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (.not. this%observations_read) then
-      call this%read_observations(istep)
-    end if
 
     if (.not. this%state_loaded) then
       call throw(status, new_exception( &
