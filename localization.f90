@@ -60,7 +60,7 @@ contains
         !! Model interface
     integer, intent(in)::imodel
         !! Index in the model state array
-    class(observation_set), pointer::obs_set
+    class(observation_set)::obs_set
         !! Observation set
     integer, intent(in)::iobs
         !! Index in the observation set
