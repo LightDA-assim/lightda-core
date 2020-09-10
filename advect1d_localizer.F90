@@ -13,6 +13,7 @@ module mod_advect1d_localization
   type, extends(base_localizer)::advect1d_localizer
     real(kind=8)::cutoff = 0.2
     real(kind=8)::cutoff_u_a = 0.2
+    integer::domain_size = 100
   contains
     procedure::get_weight_obs_obs
     procedure::get_weight_model_obs
@@ -55,7 +56,7 @@ contains
 
     select type (obs_set1)
     class is (advected_quantity_observation_set)
-      pos1 = obs_set1%get_position(istep, iobs1)
+      pos1 = real(obs_set1%get_position(istep, iobs1))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_obs_obs'))
@@ -64,7 +65,7 @@ contains
 
     select type (obs_set2)
     class is (advected_quantity_observation_set)
-      pos1 = obs_set2%get_position(istep, iobs2)
+      pos1 = real(obs_set2%get_position(istep, iobs2))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_obs_obs'))
@@ -121,7 +122,7 @@ contains
 
     select type (obs_set)
     class is (advected_quantity_observation_set)
-      pos_obs = obs_set%get_position(istep, iobs)
+      pos_obs = real(obs_set%get_position(istep, iobs))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_model_obs'))
