@@ -21,7 +21,13 @@ module mod_assimilation_manager
     class(assim_batch_manager), allocatable::batch_manager
     class(base_model_interface), pointer::model_interface
     class(assimilation_filter), pointer :: filter
-    class(observation_manager), allocatable::obs_manager
+    class(base_localizer), pointer :: localizer
+        !! Localizer
+    class(base_forward_operator), pointer::forward_operator
+        !! Forward operator
+    class(observation_set), pointer :: observation_sets(:)
+        !! Observation sets
+
     integer::n_ensemble
   contains
     procedure::assimilate
@@ -47,10 +53,11 @@ contains
         !! Number of ensemble members
     class(assimilation_filter), target :: filter
         !! Assimilation filter
-    class(observation_set)::observation_sets(:)
+    class(observation_set), target :: observation_sets(:)
         !! Observation sets
     class(base_forward_operator), target::forward_operator
-    class(base_localizer), optional::localizer
+        !! Forward operator
+    class(base_localizer), target, optional::localizer
         !! Localizer
     integer, optional::max_batch_size
         !! Maximum batch size
@@ -63,6 +70,8 @@ contains
 
     integer :: actual_max_batch_size
 
+    type(base_localizer), target::default_localizer
+
     if (present(max_batch_size)) then
       actual_max_batch_size = max_batch_size
     else
@@ -71,15 +80,19 @@ contains
 
     new_assimilation_manager%model_interface => model_interface
     new_assimilation_manager%filter => filter
+    new_assimilation_manager%forward_operator => forward_operator
+    new_assimilation_manager%observation_sets => observation_sets
     new_assimilation_manager%batch_manager = &
       new_batch_manager( &
       model_interface, n_ensemble, &
       model_interface%get_state_size(istep), &
       actual_max_batch_size, model_interface%comm)
 
-    new_assimilation_manager%obs_manager = &
-      new_observation_manager( &
-      model_interface, forward_operator, observation_sets, localizer)
+    if (present(localizer)) then
+      new_assimilation_manager%localizer => localizer
+    else
+      new_assimilation_manager%localizer => default_localizer
+    end if
 
   end function new_assimilation_manager
 
@@ -104,6 +117,7 @@ contains
               n_obs_batch, ibatch_local, batch_offset, batch_length, &
               batch_size, state_size, n_ensemble
     type(darray)::batches
+    type(observation_manager)::obs_manager
     MPI_COMM_TYPE::comm
 
     comm = this%batch_manager%get_comm()

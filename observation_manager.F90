@@ -15,6 +15,9 @@ module mod_observation_manager
      !! and assimilator. Obtains observation and prediction values for each
      !! batch.
 
+    integer :: istep
+        !! Assimilation step
+
     class(base_model_interface), pointer, public :: model_interface
          !! Interface to the model
 
@@ -23,6 +26,18 @@ module mod_observation_manager
     class(observation_set), pointer :: observation_sets(:)
 
     class(base_localizer), pointer :: localizer
+        !! Localizer
+
+    class(darray), pointer :: batches
+        !! Batches
+
+    type(segment_mask), allocatable :: batches_weight_masks(:,:)
+        !! Mask arrays of observations with nonzero weights for each batch
+
+    type(segment_mask), allocatable :: batches_prediction_masks(:,:)
+        !! Mask arrays of observations that can be predicted for each batch
+
+    real(kind=8) :: min_weight = 1e-10
 
   contains
 
@@ -35,10 +50,17 @@ module mod_observation_manager
 contains
 
   function new_observation_manager( &
-    model_interface, forward_operator, observation_sets, localizer, status)
+       istep, model_interface, batches, forward_operator, observation_sets, &
+       localizer, status)
+
+    integer::istep
+        !! Assimilation step
 
     class(base_model_interface), intent(in), target::model_interface
         !! Model interface
+
+    class(darray), target::batches
+        !! Assimilation batches
 
     class(base_forward_operator), intent(in), target::forward_operator
         !! Forward operator
@@ -58,7 +80,9 @@ contains
 
     type(base_localizer), target::default_localizer
 
+    new_observation_manager%istep = istep
     new_observation_manager%model_interface => model_interface
+    new_observation_manager%batches => batches
     new_observation_manager%forward_operator => forward_operator
     new_observation_manager%observation_sets => observation_sets
 
