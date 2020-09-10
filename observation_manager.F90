@@ -25,11 +25,13 @@ module mod_observation_manager
         !! Assimilation step
 
     class(base_model_interface), pointer, public :: model_interface
-         !! Interface to the model
+        !! Interface to the model
 
     class(base_forward_operator), pointer :: forward_operator
+        !! Forward operator
 
     class(observation_set), pointer :: observation_sets(:)
+        !! Observation sets
 
     class(base_localizer), pointer :: localizer
         !! Localizer
