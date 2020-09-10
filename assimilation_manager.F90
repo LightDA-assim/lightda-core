@@ -12,7 +12,7 @@ module mod_assimilation_manager
   use assimilation_model_interface
   use mod_base_assimilation_manager, ONLY: base_assimilation_manager
   use iso_c_binding
-  use distributed_array, ONLY: darray
+  use distributed_array, ONLY: darray, darray_segment
   use mod_assimilation_filter, ONLY: assimilation_filter
 
   implicit none
@@ -92,9 +92,9 @@ contains
         !! Iteration number
     real(kind=8), allocatable::local_batches(:, :, :)
     integer, allocatable::local_batch_inds(:)
-    type(darray), allocatable :: observations(:)
-    type(darray), allocatable :: obs_errors(:)
-    type(darray), allocatable :: predictions(:)
+    type(darray_segment), allocatable :: observations(:)
+    type(darray_segment), allocatable :: obs_errors(:)
+    type(darray_segment), allocatable :: predictions(:)
     real(kind=8), allocatable :: batch_observations(:)
     real(kind=8), allocatable :: batch_obs_err(:)
     real(kind=8), allocatable :: batch_predictions(:, :)
@@ -137,11 +137,15 @@ contains
     ! Load the ensemble state
     call this%batch_manager%load_ensemble_state(istep, local_batches)
 
-    observations = this%obs_manager%get_batches_obs_values(istep, batches)
+    obs_manager = &
+      new_observation_manager( &
+      istep, this%model_interface, batches, this%forward_operator, this%observation_sets, this%localizer)
 
-    obs_errors = this%obs_manager%get_batches_obs_errors(istep, batches)
+    observations = obs_manager%get_batches_obs_values()
 
-    predictions = this%obs_manager%get_batches_predictions(istep, batches)
+    obs_errors = obs_manager%get_batches_obs_errors()
+
+    predictions = obs_manager%get_batches_predictions()
 
     ! Assimilate local batches
     do ibatch_local = 1, n_local_batches
@@ -150,9 +154,9 @@ contains
       batch_offset = this%batch_manager%get_batch_offset(ibatch)
       batch_length = this%batch_manager%get_batch_length(ibatch)
 
-      batch_observations = observations(ibatch)%get_local_data()
-      batch_obs_err = obs_errors(ibatch)%get_local_data()
-      batch_predictions = reshape(predictions(ibatch)%get_local_data(), &
+      batch_observations = observations(ibatch)%data
+      batch_obs_err = obs_errors(ibatch)%data
+      batch_predictions = reshape(predictions(ibatch)%data, &
                                   (/size(batch_observations), n_ensemble/))
 
       batch_states = local_batches(:, ibatch_local, :)
