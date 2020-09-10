@@ -207,7 +207,7 @@ contains
         !! Error status
 
     ! Result
-    real(kind=8)::position
+    integer::position
         !! Coordinate in the model domain
 
     character(:), allocatable::errstr
@@ -218,7 +218,7 @@ contains
       return
     end if
 
-    call throw(status, new_exception('Not yet implemented', 'get_position'))
+    position = this%positions(iobs)
 
   end function get_position
 
