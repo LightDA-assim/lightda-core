@@ -4,7 +4,7 @@ module mod_observation_manager
   use localization, ONLY: base_localizer
   use assimilation_model_interface, ONLY: base_model_interface
   use forward_operator, ONLY: base_forward_operator
-  use distributed_array, ONLY: darray
+  use distributed_array, ONLY: darray, darray_segment
   use exceptions, ONLY: error_status, throw, new_exception
 
   implicit none
