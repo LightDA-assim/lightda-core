@@ -213,7 +213,7 @@ contains
     character(:), allocatable::errstr
 
     if (iobs < 1 .or. iobs > this%n_observations) then
-      errstr = 'Invalid observation index'//str(iobs)
+      errstr = 'Invalid observation index '//str(iobs)
       call throw(status, new_exception(errstr, 'get_position'))
       return
     end if
