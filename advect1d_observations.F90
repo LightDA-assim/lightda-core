@@ -63,6 +63,9 @@ contains
     integer(HSIZE_T)::dims(1), maxdims(1)
     integer::ierr, rank
 
+    call h5open_f(ierr)
+
+
     ! Set the HDF5 filename
     obs_filename = 'ensembles/'//str(istep)//'/observations.h5'
 
