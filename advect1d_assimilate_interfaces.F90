@@ -15,41 +15,31 @@ module advect1d_assimilate_interfaces
      !! I/O interface for the advect1d model
 
     private
-    real(kind=8), allocatable::observations(:), obs_errors(:), predictions(:, :)
     real(kind=8), pointer::local_io_data(:, :)
     real(kind=8)::cutoff, cutoff_u_a
-    integer, allocatable::obs_positions(:), io_ranks(:)
-    integer::n_observations, state_size, local_io_size
+    integer, allocatable::io_ranks(:)
+    integer::state_size, local_io_size
     logical::observations_read, predictions_computed, state_loaded
   contains
     procedure::get_state_size
     procedure::set_state_subset
-    procedure::get_subset_obs_count
-    procedure::get_subset_predictions
-    procedure::get_subset_observations
-    procedure::get_subset_obs_err
-    procedure::get_weight_obs_obs
-    procedure::get_weight_model_obs
-    procedure, private::compute_predictions
     procedure::read_state
     procedure::write_state
-    procedure::get_obs_positions
     procedure::get_state_darray
   end type advect1d_interface
 
 contains
 
   function new_advect1d_interface( &
-    n_ensemble, n_observations, state_size, comm) result(this)
+    n_ensemble, state_size, comm) result(this)
     !! Create a new advect1d_interface instance
 
-    integer(c_int), intent(in)::n_ensemble, n_observations, state_size
+    integer(c_int), intent(in)::n_ensemble, state_size
     MPI_COMM_TYPE::comm
     type(advect1d_interface)::this
     integer::ierr, rank, comm_size
 
     this%n_ensemble = n_ensemble
-    this%n_observations = n_observations
     this%state_size = state_size
     this%comm = comm
 
@@ -63,10 +53,6 @@ contains
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
 
-    allocate (this%observations(this%n_observations))
-    allocate (this%obs_errors(this%n_observations))
-    allocate (this%obs_positions(this%n_observations))
-    allocate (this%predictions(this%n_observations, this%n_ensemble))
     allocate (this%io_ranks(n_ensemble))
 
     ! Assign ensemble members to processors for i/o purposes
@@ -162,289 +148,6 @@ contains
 
   end function get_local_io_index
 
-  function get_subset_obs_count( &
-    this, istep, subset_offset, subset_size, status) result(obs_count)
-
-    !! Get the number of observations affecting a given subset of the
-    !! model domain. Returns the total number of observations regardless
-    !! of what subset is requested.
-
-    implicit none
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    integer::obs_count
-        !! Number of observations
-
-    obs_count = this%n_observations
-
-  end function get_subset_obs_count
-
-  subroutine get_subset_predictions( &
-    this, istep, subset_offset, subset_size, predictions, status)
-
-    !! Get the predictions for a given subset of the model state. Returns
-    !! all predictions regardless of what subset is requested.
-
-    use iso_c_binding
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    real(kind=8), intent(out)::predictions(:, :)
-        !! Predicted values
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    integer::i, imember, ierr
-    character(:), allocatable::errstr
-
-    if (size(predictions, 1) /= this%n_observations .or. &
-        size(predictions, 2) /= this%n_ensemble) then
-
-      errstr = 'Wrong shape passed to predictions argument of &
-           &get_subset_predictions. Expected ('// &
-              str(this%n_observations)//','//str(this%n_ensemble)// &
-              '), got ('//str(size(predictions, 1))//','// &
-              str(size(predictions, 2))//').'
-      call throw(status, new_exception(errstr, 'get_subset_predictions'))
-      return
-    end if
-
-    predictions = this%predictions
-
-  end subroutine get_subset_predictions
-
-  subroutine get_subset_observations( &
-    this, istep, subset_offset, subset_size, observations, status)
-
-    !! Get the observations for a given subset of the model state. Returns
-    !! all predictions regardless of what subset is requested.
-
-    use iso_c_binding
-
-    implicit none
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    real(kind=8), intent(out)::observations(:)
-        !! Observation values
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    integer::ierr
-    character(:), allocatable::errstr
-
-    if (size(observations) /= this%n_observations) then
-      errstr = 'Wrong size array passed to observations argument of &
-           &get_batch_observations. Expected size='// &
-               str(this%n_observations)//', got size='//str(size(observations))
-      call throw(status, new_exception(errstr, 'get_subset_observations'))
-      return
-    end if
-
-    observations = this%observations
-
-  end subroutine get_subset_observations
-
-  SUBROUTINE get_subset_obs_err( &
-    this, istep, subset_offset, subset_size, obs_err, status)
-
-    !! Get the errors (uncertainties) associated with the observations
-    !! affecting a given subset of the model domain.
-
-    USE iso_c_binding
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::subset_offset
-        !! Offset of subset from start of state array
-    integer, intent(in)::subset_size
-        !! Size of subset
-    REAL(c_double), INTENT(out) :: obs_err(:)
-        !! Observation errors
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    obs_err = this%obs_errors
-
-  END SUBROUTINE get_subset_obs_err
-
-  function get_obs_positions(this) result(obs_positions)
-
-    !! Get the locations of all the observations
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer::obs_positions(this%n_observations)
-        !! Array of observation locations
-
-    obs_positions = this%obs_positions
-
-  end function get_obs_positions
-
-  function get_weight_obs_obs(this, istep, iobs1, iobs2, status) result(weight)
-
-    !! Get localization weights for a given pair of observations.
-    !! Uses a Gaspari-Cohn localization function with a hard-coded cutoff.
-
-    use localization, ONLY: localize_gaspari_cohn
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::iobs1
-        !! Index of the first observation
-    integer, intent(in)::iobs2
-        !! Index of the second observation
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    real(kind=8)::weight
-        !! Localization weight
-
-    real(kind=8)::pos1, pos2, delta, distance
-    integer::domain_size
-
-    character(:), allocatable::errstr
-
-    if (.not. this%observations_read) then
-      call throw(status, new_exception( &
-           'Attempt to compute localization weights before &
-           &observations have been read', &
-                 'get_weight_obs_obs'))
-      return
-    end if
-
-    domain_size = this%state_size/2
-
-    if (iobs1 < 1 .or. iobs1 > this%n_observations) then
-      errstr = 'Invalid observation index'//str(iobs1)
-      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
-      return
-    end if
-
-    if (iobs2 < 1 .or. iobs2 > this%n_observations) then
-      errstr = 'Invalid observation index'//str(iobs1)
-      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
-      return
-    end if
-
-    pos1 = real(this%obs_positions(iobs1))/domain_size
-    pos2 = real(this%obs_positions(iobs2))/domain_size
-    delta = abs(pos1 - pos2)
-    distance = min(delta, 1 - delta)
-
-    if (distance < -1e-8) then
-      errstr = 'Invalid distance'//str(distance)// &
-               'computed for obs. positions'//str(pos1)//'and '//str(pos2)
-      call throw(status, new_exception(errstr, 'get_weight_obs_obs'))
-      return
-    end if
-
-    distance = max(distance, 0.0)
-
-    weight = localize_gaspari_cohn(distance, this%cutoff)
-
-  end function get_weight_obs_obs
-
-  function get_weight_model_obs(this, istep, imodel, iobs, status) result(weight)
-
-    !! Get localization weights for a given observation and location in the
-    !! model state array. Uses a Gaspari-Cohn localization function with two
-    !! hard coded cutoffs, one for the advected quantity and the other for
-    !! velocity.
-
-    use localization, ONLY: localize_gaspari_cohn
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::imodel
-        !! Index in the model state array
-    integer, intent(in)::iobs
-        !! Index in the observations array
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    real(kind=8)::weight
-        !! Localization weight
-
-    real(kind=8)::pos_obs, pos_model, delta, distance, cutoff
-    integer::domain_size
-
-    character(:), allocatable::errstr
-
-    domain_size = this%state_size/2
-
-    ! Note that model positions are fortran array indices and indexed from 1, while obs positions are python array indices and indexed from 0.
-    pos_obs = real(this%obs_positions(iobs))/domain_size
-    pos_model = real(mod(imodel - 1, domain_size))/domain_size
-    delta = abs(pos_obs - pos_model)
-    distance = min(delta, 1 - delta)
-
-    if (distance < -1e-8) then
-      errstr = 'Invalid distance'//str(distance)// &
-               'computed for obs. position='//str(pos_obs)// &
-               'and model position='//str(pos_model)
-      call throw(status, new_exception(errstr, 'get_weight_model_obs'))
-      return
-    end if
-
-    distance = max(distance, 0.0)
-
-    if (imodel < domain_size) then
-      cutoff = this%cutoff
-    else
-      cutoff = this%cutoff_u_a
-    end if
-
-    weight = localize_gaspari_cohn(distance, cutoff)
-
-    if (weight > 1 .or. weight < 0) then
-      errstr = 'Invalid weight='//str(weight)// &
-               'returned from localize_gaspari_cohn for distance='// &
-               str(distance)//'and cutoff='//str(cutoff)
-      call throw(status, new_exception(errstr, 'get_weight_model_obs'))
-      return
-    end if
-
-  end function get_weight_model_obs
-
   subroutine read_member_state(istep, imember, member_state, state_size)
 
     !! Read the model state from disk for a given ensemble member
@@ -534,61 +237,7 @@ contains
 
     this%state_loaded = .true.
 
-    call this%compute_predictions(istep)
-
   end subroutine read_state
-
-  subroutine compute_predictions(this, istep, status)
-
-    !! Compute predictions for all ensemble members and broadcast to all
-    !! processors
-
-    ! Arguments
-    class(advect1d_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    integer::imember, local_io_counter, rank, ierr, iobs
-    real(kind=8)::member_predictions(this%n_observations)
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (.not. this%state_loaded) then
-      call throw(status, new_exception( &
-                 'compute_predictions called before ensemble state is loaded', &
-                 'compute_predictions'))
-      return
-    end if
-
-    local_io_counter = 1
-
-    do imember = 1, this%n_ensemble
-      if (this%io_ranks(imember) == rank) then
-
-        ! Compute predictions for this ensemble member
-        do iobs = 1, this%n_observations
-          member_predictions(iobs) = &
-            this%local_io_data(this%obs_positions(iobs) + 1, &
-                               local_io_counter)
-        end do
-
-        local_io_counter = local_io_counter + 1
-      end if
-
-      ! Broadcast to all processors
-      call mpi_bcast(member_predictions, this%n_observations, &
-                     MPI_DOUBLE_PRECISION, this%io_ranks(imember), &
-                     this%comm, ierr)
-
-      this%predictions(:, imember) = member_predictions
-
-    end do
-
-    this%predictions_computed = .true.
-  end subroutine compute_predictions
 
   function get_state_darray(this, istep, imember) result(state_darray)
 

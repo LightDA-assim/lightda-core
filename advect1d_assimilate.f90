@@ -42,7 +42,7 @@ program advect1d_assimmilate
 
   ! Initialize i/o interface for accessing data for assimilation
   model_interface = new_advect1d_interface( &
-                    n_ensemble, n_observations, state_size, mpi_comm_world)
+                    n_ensemble, state_size, mpi_comm_world)
 
   assim_mgr = new_assimilation_manager( &
               model_interface, istep, n_ensemble, forward_operator, &
