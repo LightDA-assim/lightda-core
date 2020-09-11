@@ -5,7 +5,7 @@ module mod_advect1d_forward_operator
   use advect1d_observations, ONLY: advected_quantity_observation_set
   use advect1d_assimilate_interfaces, ONLY: advect1d_interface
   use exceptions, ONLY: error_status
-
+  use system_mpi
 
   implicit none
 
@@ -81,5 +81,53 @@ contains
     end select
 
   end function get_predictions_mask
+
+  subroutine get_advected_quantity_predictions(this, istep, obs_set, status)
+
+    use distributed_array, ONLY: darray
+
+    !! Compute predictions for all ensemble members and broadcast to all
+    !! processors
+
+    ! Arguments
+    class(advect1d_forward_operator)::this
+        !! Model interface
+    integer, intent(in)::istep
+        !! Iteration number
+    type(advected_quantity_observation_set), intent(in) :: obs_set
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    integer::imember, rank, ierr, iobs
+    real(kind=8), allocatable::member_predictions(:)
+    real(kind=8), allocatable::predictions(:,:)
+
+    class(darray), allocatable::state
+
+    call mpi_comm_rank(this%model_interface%comm, rank, ierr)
+
+    do imember = 1, this%model_interface%n_ensemble
+       state = this%model_interface%get_state_darray(istep,imember)
+
+      if (state%segments(1)%rank == rank) then
+
+        ! Compute predictions for this ensemble member
+        do iobs = 1, obs_set%get_size()
+           !member_predictions(iobs) = &
+           !    state%segments(1)%data(obs_set%get_position(iobs) + 1)
+        end do
+
+      end if
+
+      ! Broadcast to all processors
+      call mpi_bcast(member_predictions, obs_set%get_size(), &
+                     MPI_DOUBLE_PRECISION, state%segments(1)%rank, &
+                     state%comm, ierr)
+
+      predictions(:, imember) = member_predictions
+
+    end do
+
+  end subroutine get_advected_quantity_predictions
 
 end module mod_advect1d_forward_operator
