@@ -100,7 +100,7 @@ contains
 
   end subroutine write_observations
 
-  subroutine generate_inputs(iface)
+  subroutine generate_inputs(iface, n_obs)
 
     class(advect1d_interface)::iface
     real(kind=8), allocatable::observations(:), obs_errors(:)
@@ -108,7 +108,6 @@ contains
     integer::state_size, n_obs, i
 
     state_size = iface%get_state_size(istep)
-    n_obs = iface%get_subset_obs_count(istep, 0, state_size)
 
     allocate (observations(n_obs), obs_errors(n_obs), obs_positions(n_obs))
 
@@ -123,64 +122,8 @@ contains
 
   end subroutine generate_inputs
 
-  subroutine test_localization(iface)
-    class(advect1d_interface)::iface
-    integer::istep, subset_offset, subset_size, imodel, &
-              iobs1, iobs2, state_size, n_obs
-    integer, allocatable::obs_positions(:)
-    integer::i, model_pos, obs_pos1, obs_pos2, domain_size
-    real::weight
-
-    state_size = iface%get_state_size(istep)
-    n_obs = iface%get_subset_obs_count(istep, 0, state_size)
-
-    domain_size = state_size/2
-
-    allocate (obs_positions(n_obs))
-
-    obs_positions = iface%get_obs_positions()
-
-    do i = 1, 100
-      imodel = randint(state_size)
-      iobs1 = randint(n_obs)
-      iobs2 = randint(n_obs)
-
-      model_pos = mod(imodel - 1, domain_size)
-      obs_pos1 = obs_positions(iobs1)
-      obs_pos2 = obs_positions(iobs2)
-
-      weight = iface%get_weight_obs_obs(istep, iobs1, iobs2)
-
-      if (obs_pos1 /= obs_pos2 .and. weight >= 1) then
-        print *, 'Weight should be less than 1 for differently &
-             &placed observations'
-        error stop
-      end if
-
-      weight = iface%get_weight_model_obs(istep, imodel, iobs1)
-      if (model_pos /= obs_pos1 .and. &
-          abs(model_pos - obs_pos1) /= domain_size .and. weight == 1) then
-        print *, 'Weight should be less than 1 when model position &
-             &is different from observation position'
-        error stop
-      end if
-
-      weight = iface%get_weight_model_obs(istep, obs_pos1 + 1, iobs1)
-
-      if (weight /= 1) then
-        print *, 'Weight should equal one when model position &
-             &is the same as observing position'
-        error stop
-      end if
-
-    end do
-
-  end subroutine test_localization
-
   subroutine run_all_advect1d(iface)
     class(advect1d_interface)::iface
-
-    call test_localization(iface)
 
   end subroutine run_all_advect1d
 
@@ -202,11 +145,11 @@ program test_advect1d_model_interface
   call mpi_init(ierr)
 
   model_interface = new_advect1d_interface( &
-                    n_ensemble, n_observations, state_size, mpi_comm_world)
+                    n_ensemble, state_size, mpi_comm_world)
 
   call mpi_comm_rank(mpi_comm_world, rank, ierr)
 
-  if (rank == 0) call generate_inputs(model_interface)
+  if (rank == 0) call generate_inputs(model_interface, 20)
 
   call mpi_barrier(mpi_comm_world, ierr)
 

@@ -44,48 +44,6 @@ contains
 
   end subroutine test_darray_coverage
 
-  subroutine test_localization(iface)
-
-    class(base_model_interface)::iface
-    integer::istep, subset_offset, subset_size, imodel, &
-              iobs1, iobs2, state_size, n_obs, i
-    real::weight
-
-    istep = 1
-
-    state_size = iface%get_state_size(istep)
-    n_obs = iface%get_subset_obs_count(istep, 0, state_size)
-
-    do i = 1, 100
-      imodel = randint(state_size)
-      iobs1 = randint(n_obs)
-      iobs2 = randint(n_obs)
-
-      weight = iface%get_weight_obs_obs(istep, iobs1, iobs2)
-
-      if (weight > 1 .or. weight < 0) then
-        print *, 'Weight', weight, 'out of range.'
-        error stop
-      end if
-
-      weight = iface%get_weight_obs_obs(istep, iobs1, iobs1)
-
-      if (weight /= 1) then
-        print *, 'Weight should equal one for identical observations'
-        error stop
-      end if
-
-      weight = iface%get_weight_model_obs(istep, imodel, iobs1)
-
-      if (weight > 1 .or. weight < 0) then
-        print *, 'Weight', weight, 'out of range.'
-        error stop
-      end if
-
-    end do
-
-  end subroutine test_localization
-
   subroutine test_buffer_readwrite(iface)
     class(base_model_interface)::iface
     real(kind=8), allocatable::buf(:)
@@ -152,7 +110,6 @@ contains
 
     call test_darray_coverage(iface)
     call test_buffer_readwrite(iface)
-    call test_localization(iface)
 
   end subroutine run_all
 
