@@ -58,14 +58,13 @@ contains
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
-    character(len=50)::obs_filename
+    character(:),allocatable::obs_filename
     integer(HID_T)::h5file_h, dset_h, dataspace
     integer(HSIZE_T)::dims(1), maxdims(1)
     integer::ierr, rank
 
     ! Set the HDF5 filename
-    write (obs_filename, "(A,I0,A)") &
-      'ensembles/', istep, '/observations.h5'
+    obs_filename = 'ensembles/'//str(istep)//'/observations.h5'
 
     ! Open the file
     call h5fopen_f(obs_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
