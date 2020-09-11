@@ -158,6 +158,10 @@ contains
           end if
 
        end do
+
+       ! No weights above threshold, set mask to false
+       mask(iobs)=.false.
+
     end do
 
   end function get_batch_weight_mask
