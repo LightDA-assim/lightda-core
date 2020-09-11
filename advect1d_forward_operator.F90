@@ -4,14 +4,14 @@ module mod_advect1d_forward_operator
   use observations, ONLY: observation_set
   use advect1d_observations, ONLY: advected_quantity_observation_set
   use advect1d_assimilate_interfaces, ONLY: advect1d_interface
-  use exceptions, ONLY: error_status
+  use exceptions, ONLY: error_status, throw, new_exception
   use system_mpi
 
   implicit none
 
   type, extends(base_forward_operator) :: advect1d_forward_operator
 
-     class(advect1d_interface), pointer::model_interface
+     class(advect1d_interface), pointer::model_interface => null()
 
    contains
      procedure::get_predictions_mask
@@ -54,6 +54,12 @@ contains
     integer::iobs
 
     allocate(mask(obs_set%get_size()))
+
+    if(.not.associated(this%model_interface)) then
+       call throw(status,new_exception('Model interface is undefined', &
+            'get_predictions_mask'))
+       return
+    end if
 
     select type(obs_set)
     class is(advected_quantity_observation_set)
@@ -105,6 +111,12 @@ contains
     class(darray), allocatable::state
 
     call mpi_comm_rank(this%model_interface%comm, rank, ierr)
+
+    if(.not.associated(this%model_interface)) then
+       call throw(status,new_exception('Model interface is undefined', &
+            'get_predictions_mask'))
+       return
+    end if
 
     do imember = 1, this%model_interface%n_ensemble
        state = this%model_interface%get_state_darray(istep,imember)
