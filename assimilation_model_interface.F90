@@ -14,15 +14,9 @@ module assimilation_model_interface
     integer::n_ensemble
     MPI_COMM_TYPE::comm
   contains
-    procedure(I_get_subset_predictions), deferred::get_subset_predictions
-    procedure(I_get_subset_observations), deferred::get_subset_observations
-    procedure(I_get_subset_obs_count), deferred::get_subset_obs_count
-    procedure(I_get_subset_obs_err), deferred::get_subset_obs_err
     procedure(I_get_state_size), deferred::get_state_size
     procedure(I_set_state_subset), deferred::set_state_subset
     procedure(I_get_state_darray), deferred::get_state_darray
-    procedure::get_weight_obs_obs
-    procedure::get_weight_model_obs
     procedure::read_state
     procedure::write_state
   end type base_model_interface
@@ -72,113 +66,6 @@ module assimilation_model_interface
            !! State size
 
     end function I_get_state_size
-
-    subroutine I_get_subset_predictions( &
-      this, istep, subset_offset, subset_size, predictions, status)
-       !! Get prediction values for a subset of the model state
-
-      use exceptions, ONLY: error_status
-      import base_model_interface
-
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::subset_offset
-           !! Offset of subset from start of state array
-      integer, intent(in)::subset_size
-           !! Size of subset
-      real(kind=8), intent(out)::predictions(:, :)
-           !! Predicted values. Will have shape (n_observations,n_ensemble).
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-    end subroutine I_get_subset_predictions
-
-    function I_get_subset_obs_count( &
-      this, istep, subset_offset, subset_size, status) result(obs_count)
-       !! Get the number of observations affecting a given subset of the
-       !! model domain. This will be the length of the array returned by I_get_subset_observations.
-
-      use exceptions, ONLY: error_status
-      import base_model_interface
-
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::subset_offset
-           !! Offset of subset from start of state array
-      integer, intent(in)::subset_size
-           !! Size of subset
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-      integer::obs_count
-           !! Number of observations
-
-    end function I_get_subset_obs_count
-
-    subroutine I_get_subset_observations( &
-      this, istep, subset_offset, subset_size, observations, status)
-       !! Get the values of observations affecting a given subset of the
-       !! model domain.
-
-      use exceptions, ONLY: error_status
-      import base_model_interface
-
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::subset_offset
-           !! Offset of subset from start of state array
-      integer, intent(in)::subset_size
-           !! Size of subset
-      real(kind=8), intent(out)::observations(:)
-           !! Values of observations. Length must equal the value returned
-           !! by get_subset_obs_count
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-    end subroutine I_get_subset_observations
-
-    subroutine I_get_subset_obs_err( &
-      this, istep, subset_offset, subset_size, obs_err, status)
-       !! Get the errors (uncertainties) associated with the observations
-       !! affecting a given subset of the model domain.
-
-      USE iso_c_binding
-      use exceptions, ONLY: error_status
-      import base_model_interface
-
-      implicit none
-
-      ! Arguments
-      class(base_model_interface)::this
-           !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
-      integer, intent(in)::subset_offset
-           !! Offset of subset from start of state array
-      integer, intent(in)::subset_size
-           !! Size of subset
-      REAL(c_double), INTENT(out) :: obs_err(:)
-           !! Values of observation errors. Length must equal the value
-           !! returned by get_subset_obs_count.
-      class(error_status), intent(out), allocatable, optional::status
-           !! Error status
-
-    end subroutine I_get_subset_obs_err
 
     subroutine I_set_state_subset( &
       this, istep, imember, subset_offset, subset_size, subset_state, status)
@@ -253,56 +140,5 @@ contains
         !! Error status
 
   end subroutine write_state
-
-  function get_weight_obs_obs(this, istep, iobs1, iobs2, status) result(weight)
-
-    !! Get localization weight for a given pair of observations. Default
-    !! implementation returns 1 for any input (i.e., no localization).
-
-    ! Arguments
-    class(base_model_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::iobs1
-        !! Index of the first observation
-    integer, intent(in)::iobs2
-        !! Index of the second observation
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    real(kind=8)::weight
-        !! Localization weight
-
-    weight = 1
-
-  end function get_weight_obs_obs
-
-  function get_weight_model_obs(this, istep, imodel, iobs, status) result(weight)
-
-    !! Get localization weight for a given observation at a given index in the
-    !! model state. Default implementation returns 1 for any input (i.e., no
-    !! localization).
-
-    ! Arguments
-    class(base_model_interface)::this
-        !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
-    integer, intent(in)::imodel
-        !! Index in the model state array
-    integer, intent(in)::iobs
-        !! Index in the observations array
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    ! Returns
-    real(kind=8)::weight
-        !! Localization weight
-
-    weight = 1
-
-  end function get_weight_model_obs
 
 end module assimilation_model_interface
