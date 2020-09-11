@@ -3,6 +3,7 @@ module advect1d_observations
 
   use observations, ONLY: observation_set
   use exceptions, ONLY: error_status, throw, new_exception
+  use hdf5_exceptions, ONLY: new_hdf5_exception
   use util, ONLY: str
   use system_mpi
 
@@ -66,6 +67,14 @@ contains
 
     call h5open_f(ierr)
 
+    call h5eset_auto_f(0,ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception( ierr, &
+            'Error initializing HDF5', &
+            procedure = 'read_observations'))
+       return
+    end if
 
     ! Set the HDF5 filename
     obs_filename = 'ensembles/'//str(istep)//'/observations.h5'
@@ -79,54 +88,154 @@ contains
     end if
 
     ! Open the file
-    call h5fopen_f(obs_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
+    call h5fopen_f('ensembles/4/observations.h5', &
+         H5F_ACC_RDONLY_F, h5file_h, ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception( ierr, &
+            'HDF5 error opening observations file', &
+            filename = obs_filename, &
+            procedure = 'read_observations'))
+       return
+    end if
 
     ! Open the observations dataset
     call h5dopen_f(h5file_h, 'observations', dset_h, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error opening observations dataset', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Get the dataspace handle
     call h5dget_space_f(dset_h, dataspace, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error getting dataspace handle', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Get the dataset size
     call h5sget_simple_extent_dims_f(dataspace, dims, maxdims, ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error getting dataset size', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
 
     this%n_observations = dims(1)
 
     ! Close the dataspace
     call h5sclose_f(dataspace, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error closing dataspace', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     allocate (this%observations(this%n_observations))
 
     ! Read the data
     call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%observations, dims, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error reading observations', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Close the dataset
     call h5dclose_f(dset_h, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Open the obs_positions dataset
     call h5dopen_f(h5file_h, 'obs_positions', dset_h, ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error opening the obs_positions dataset', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
 
     allocate (this%positions(this%n_observations))
 
     ! Read the data
     call h5dread_f(dset_h, H5T_NATIVE_INTEGER, this%positions, dims, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error reading obs positions', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Close the dataset
     call h5dclose_f(dset_h, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error closing dataset', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Open the obs_errors dataset
     call h5dopen_f(h5file_h, 'obs_errors', dset_h, ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
 
     allocate (this%errors(this%n_observations))
 
     ! Read the data
     call h5dread_f(dset_h, H5T_NATIVE_DOUBLE, this%errors, dims, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error reading observation errors', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Close the dataset
     call h5dclose_f(dset_h, ierr)
 
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
+
     ! Close the file
     call h5fclose_f(h5file_h, ierr)
+
+    if(ierr < 0) then
+       call throw(status, new_hdf5_exception(ierr, &
+            'HDF5 error', &
+            filename = obs_filename, procedure = 'read_observations'))
+       return
+    end if
 
   end subroutine read_observations
 
