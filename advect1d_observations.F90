@@ -62,12 +62,21 @@ contains
     integer(HID_T)::h5file_h, dset_h, dataspace
     integer(HSIZE_T)::dims(1), maxdims(1)
     integer::ierr, rank
+    logical::file_exists
 
     call h5open_f(ierr)
 
 
     ! Set the HDF5 filename
     obs_filename = 'ensembles/'//str(istep)//'/observations.h5'
+
+    inquire(FILE=obs_filename,exist=file_exists)
+
+    if(.not.file_exists) then
+       call throw(status, new_exception( &
+            'File '//obs_filename//' does not exist','read_observations'))
+       return
+    end if
 
     ! Open the file
     call h5fopen_f(obs_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
