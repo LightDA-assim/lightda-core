@@ -454,7 +454,11 @@ class ensemble_animator(object):
             print(' '.join(cmd))
 
             p=subprocess.Popen(cmd)
-            p.wait()
+            retcode=p.wait()
+
+            if retcode!=0:
+                import sys
+                sys.exit()
 
             for i in range(self.ensemble.shape[1]):
                 with tables.open_file(
