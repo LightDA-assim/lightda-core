@@ -10,7 +10,7 @@ module advect1d_observations
 
   type, extends(observation_set) :: advected_quantity_observation_set
      integer::istep
-     integer::n_observations
+     integer::n_observations=0
      real(kind=8), allocatable::observations(:)
      real(kind=8), allocatable::errors(:)
      integer, allocatable::positions(:)
