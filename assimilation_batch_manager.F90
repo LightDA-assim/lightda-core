@@ -7,6 +7,7 @@ module assimilation_batch_manager
   use random_integer, ONLY: randint
   use assimilation_model_interface
   use distributed_array, ONLY: darray, darray_segment, new_darray
+  use exceptions, ONLY: error_status, throw, new_exception
   use util, ONLY: str
 
   implicit none
@@ -609,6 +610,7 @@ contains
         !! Dimensions of the observation array
     real(kind=8), INTENT(inout) :: HPH(dim_obs, dim_obs)
         !! Input array
+    class(error_status), allocatable::status
 
     real(kind=8)::obs_err(dim_obs)
         !! Observation errors
@@ -621,9 +623,12 @@ contains
     batch_offset = this%get_batch_offset(ibatch)
     batch_length = this%get_batch_length(ibatch)
 
+    call throw(status, new_exception('Not yet implemented','add_obs_err'))
+    return
+
     ! Get the observation errors
-    call this%model_interface%get_subset_obs_err(istep, batch_offset, &
-                                                 batch_length, obs_err)
+    !call this%get_subset_obs_err(istep, batch_offset, &
+    !                                             batch_length, obs_err)
 
     do iobs = 1, dim_obs
       HPH(iobs, iobs) = HPH(iobs, iobs) + obs_err(iobs)**2
@@ -660,6 +665,8 @@ contains
 
     integer::iobs1, iobs2, ipos ! Loop counters
 
+    class(error_status), allocatable::status
+
     ! Locate batch in the state array
     batch_offset = this%get_batch_offset(ibatch)
     batch_length = this%get_batch_length(ibatch)
@@ -669,12 +676,15 @@ contains
       stop
     end if
 
+    call throw(status, new_exception('Not yet implemented','localize'))
+    return
+
     do iobs1 = 1, dim_obs
 
       do iobs2 = 1, dim_obs
 
         ! Get localization weights
-        w = this%model_interface%get_weight_obs_obs(istep, iobs1, iobs2)
+        !w = this%model_interface%get_weight_obs_obs(istep, iobs1, iobs2)
 
         ! Multiply HPH by the localization weights
         HPH(iobs1, iobs2) = HPH(iobs1, iobs2)*w
@@ -684,8 +694,8 @@ contains
       do ipos = 1, dim_p
 
         ! Get localization weights
-        w = this%model_interface%get_weight_model_obs( &
-            istep, ipos + batch_offset, iobs1)
+        !w = this%model_interface%get_weight_model_obs( &
+        !    istep, ipos + batch_offset, iobs1)
 
         ! Multiply HP_p by the localization weights
         HP_p(iobs1, ipos) = HP_p(iobs1, ipos)*w
