@@ -260,11 +260,8 @@ contains
     call mpi_bcast(this%n_observations, 1, MPI_INTEGER, 0, this%comm, ierr)
 
     if(rank>0) then
-      deallocate (this%observations)
       allocate (this%observations(this%n_observations))
-      deallocate (this%positions)
       allocate (this%positions(this%n_observations))
-      deallocate (this%errors)
       allocate (this%errors(this%n_observations))
     end if
 
