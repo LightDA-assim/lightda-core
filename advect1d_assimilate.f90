@@ -35,7 +35,7 @@ program advect1d_assimmilate
 
   ! Parse command line arguments
   call parse_arguments( &
-    istep, n_ensemble, n_observations, batch_size, state_size)
+       istep, n_ensemble, n_observations, batch_size, state_size)
 
   observation_sets(1) = new_advected_quantity_observation_set( &
        istep, mpi_comm_world)
