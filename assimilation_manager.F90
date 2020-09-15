@@ -14,6 +14,7 @@ module mod_assimilation_manager
   use iso_c_binding
   use distributed_array, ONLY: darray, darray_segment
   use mod_assimilation_filter, ONLY: assimilation_filter
+  use exceptions, ONLY: throw, new_exception, error_status
 
   implicit none
 
@@ -193,21 +194,23 @@ contains
 
   end subroutine assimilate
 
-  SUBROUTINE add_obs_err(this, istep, ibatch, dim_obs, HPH)
+  SUBROUTINE add_obs_err(this, istep, ibatch, dim_obs, HPH, status)
     ! Add observation error covariance matrix
     USE iso_c_binding
     class(assimilation_manager)::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
+    class(error_status), intent(out), allocatable, optional :: status
   END SUBROUTINE add_obs_err
 
-  SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH)
+  SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
     ! Apply localization to HP and HPH^T
     USE iso_c_binding
     class(assimilation_manager)::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
+    class(error_status), intent(out), allocatable, optional :: status
   END SUBROUTINE localize
 
 end module mod_assimilation_manager

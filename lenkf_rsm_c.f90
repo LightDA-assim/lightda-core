@@ -1,6 +1,7 @@
 module lenkf_rsm_c
   use lenkf_rsm, ONLY: lenkf_rsm_fortran => lenkf_analysis_rsm
   use mod_base_assimilation_manager, ONLY: base_assimilation_manager
+  use exceptions, ONLY: error_status
 
   use iso_c_binding
 
@@ -18,7 +19,7 @@ module lenkf_rsm_c
 contains
 
   subroutine localize_wrapper(this, &
-                              istep, ibatch, dim_p, dim_obs, HP_p, HPH)
+                              istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
 
     abstract INTERFACE
       SUBROUTINE localize( &
@@ -35,6 +36,7 @@ contains
     class(c_function_container) :: this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p), HPH(dim_obs, dim_obs)
+    class(error_status), intent(out), allocatable, optional :: status
     procedure(localize), pointer::U_localize
 
     call c_f_procpointer(this%localize_fptr, U_localize)
@@ -42,7 +44,7 @@ contains
 
   end subroutine localize_wrapper
 
-  subroutine add_obs_err_wrapper(this, istep, ibatch, dim_obs, HPH)
+  subroutine add_obs_err_wrapper(this, istep, ibatch, dim_obs, HPH, status)
 
     abstract INTERFACE
       SUBROUTINE add_obs_err(step, ind_p, dim_obs, HPH, info_ptr) BIND(C)
@@ -57,6 +59,7 @@ contains
     class(c_function_container)::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
+    class(error_status), intent(out), allocatable, optional :: status
     procedure(add_obs_err), pointer::U_add_obs_err
 
     call c_f_procpointer(this%add_obs_err_fptr, U_add_obs_err)
