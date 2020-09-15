@@ -10,7 +10,7 @@ module mod_base_assimilation_manager
       USE iso_c_binding
       use exceptions, ONLY: error_status
       import base_assimilation_manager
-      class(base_assimilation_manager)::this
+      class(base_assimilation_manager), target::this
       INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
       REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
       class(error_status), intent(out), allocatable, optional :: status
@@ -20,7 +20,7 @@ module mod_base_assimilation_manager
       USE iso_c_binding
       use exceptions, ONLY: error_status
       import base_assimilation_manager
-      class(base_assimilation_manager)::this
+      class(base_assimilation_manager), target::this
       INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
       REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
       REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)

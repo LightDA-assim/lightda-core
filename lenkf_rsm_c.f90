@@ -33,7 +33,7 @@ contains
       END SUBROUTINE localize
     end INTERFACE
 
-    class(c_function_container) :: this
+    class(c_function_container), target :: this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p), HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
@@ -56,7 +56,7 @@ contains
       END SUBROUTINE add_obs_err
     end INTERFACE
 
-    class(c_function_container)::this
+    class(c_function_container), target::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status

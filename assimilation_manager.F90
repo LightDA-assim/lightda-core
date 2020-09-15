@@ -193,7 +193,7 @@ contains
   SUBROUTINE add_obs_err(this, istep, ibatch, dim_obs, HPH, status)
     ! Add observation error covariance matrix
     USE iso_c_binding
-    class(assimilation_manager)::this
+    class(assimilation_manager), target::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
@@ -205,7 +205,7 @@ contains
   SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
     ! Apply localization to HP and HPH^T
     USE iso_c_binding
-    class(assimilation_manager)::this
+    class(assimilation_manager), target::this
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
