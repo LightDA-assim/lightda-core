@@ -239,7 +239,7 @@ contains
 
   end subroutine read_state
 
-  function get_state_darray(this, istep, imember) result(state_darray)
+  function get_state_darray(this, istep, imember, status) result(state_darray)
 
     !! Get the requested ensemble member state as a darray
 
@@ -250,6 +250,7 @@ contains
         !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
+    class(error_status), intent(out), allocatable, optional :: status
 
     type(darray)::state_darray
         !! State array represented as a darray object

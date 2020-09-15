@@ -23,10 +23,11 @@ module assimilation_model_interface
 
   abstract interface
 
-    function I_get_state_darray(this, istep, imember) result(state_darray)
+    function I_get_state_darray(this, istep, imember, status) result(state_darray)
 
        !! Get the requested ensemble member state as a darray
 
+      use exceptions, ONLY: error_status
       use distributed_array, ONLY: darray
       import base_model_interface
 
@@ -37,6 +38,8 @@ module assimilation_model_interface
            !! Iteration number
       integer, intent(in)::imember
            !! Ensemble member index
+      class(error_status), intent(out), allocatable, optional::status
+           !! Error status
 
       ! Returns
       type(darray)::state_darray
