@@ -379,8 +379,59 @@ contains
     type(darray_segment) :: obs_errors(size(this%batches%segments))
         !! Observation errors required for assimilation of each batch
 
-    call throw(status, &
-               new_exception('Not yet implemented', 'get_batches_obs_errors'))
+    integer::ibatch, iobs_set, iobs, iobs_batch
+        ! Loop counters
+
+    class(observation_set), pointer::obs_set
+        ! Pointer to current observation set
+
+    class(darray_segment), pointer::batch
+        ! Pointer to current batch segment
+
+    integer::batch_obs_count ! Number of observations for a given batch
+    real(kind=8), allocatable::errors(:) ! Values for an observation set
+
+    integer::rank ! MPI rank
+    integer::ierr ! MPI status code
+
+    logical :: weight_mask, prediction_mask
+
+    call mpi_comm_rank(this%batches%comm, rank, ierr)
+
+    do ibatch=1,size(this%batches%segments)
+
+       batch=>this%batches%segments(ibatch)
+
+       if(batch%rank==rank) then
+
+          iobs_batch=1
+
+          batch_obs_count=this%get_batch_obs_count(ibatch)
+          allocate(obs_errors(ibatch)%data(batch_obs_count))
+
+          do iobs_set=1,size(this%observation_sets)
+
+             obs_set=>this%observation_sets(iobs_set)
+             errors = obs_set%get_errors()
+
+
+             do iobs=1,this%observation_sets(iobs_set)%get_size()
+
+                weight_mask = this%batches_weight_masks( &
+                     ibatch,iobs_set)%mask(iobs)
+
+                prediction_mask = this%batches_prediction_masks( &
+                     ibatch,iobs_set)%mask(iobs)
+
+                if(weight_mask .and. prediction_mask) then
+                   obs_errors(ibatch)%data(iobs_batch) = errors(iobs)
+                   iobs_batch = iobs_batch + 1
+                end if
+
+             end do
+          end do
+       end if
+    end do
 
   end function get_batches_obs_errors
 
