@@ -327,21 +327,21 @@ contains
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    do ibatch=1,size(this%batches%segments)
+    do iobs_set=1,size(this%observation_sets)
 
-       batch=>this%batches%segments(ibatch)
+       obs_set=>this%observation_sets(iobs_set)
+       values = obs_set%get_values()
 
-       if(batch%rank==rank) then
+       do ibatch=1,size(this%batches%segments)
 
-          iobs_batch=1
+          batch=>this%batches%segments(ibatch)
 
-          batch_obs_count=this%get_batch_obs_count(ibatch)
-          allocate(obs_values(ibatch)%data(batch_obs_count))
+          if(batch%rank==rank) then
 
-          do iobs_set=1,size(this%observation_sets)
+             iobs_batch=1
 
-             obs_set=>this%observation_sets(iobs_set)
-             values = obs_set%get_values()
+             batch_obs_count=this%get_batch_obs_count(ibatch)
+             allocate(obs_values(ibatch)%data(batch_obs_count))
 
 
              do iobs=1,this%observation_sets(iobs_set)%get_size()
@@ -358,8 +358,8 @@ contains
                 end if
 
              end do
-          end do
-       end if
+          end if
+       end do
     end do
 
   end function get_batches_obs_values
