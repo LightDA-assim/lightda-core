@@ -197,6 +197,9 @@ contains
     INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
+
+    call throw(status, new_exception('Not yet implemented','add_obs_err'))
+
   END SUBROUTINE add_obs_err
 
   SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
@@ -207,6 +210,9 @@ contains
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
+
+    call throw(status, new_exception('Not yet implemented','localize'))
+
   END SUBROUTINE localize
 
 end module mod_assimilation_manager
