@@ -144,6 +144,9 @@ contains
 
     do iobs=1,obs_set%get_size()
 
+       ! Set mask to false initially
+       mask(iobs)=.false.
+
        do imodel = batch%offset + 1, batch%offset + batch%length
 
           w=this%localizer%get_weight_model_obs( &
@@ -158,9 +161,6 @@ contains
           end if
 
        end do
-
-       ! No weights above threshold, set mask to false
-       mask(iobs)=.false.
 
     end do
 
