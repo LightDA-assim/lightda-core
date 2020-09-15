@@ -382,13 +382,14 @@ contains
 
   end function get_batches_obs_errors
 
-  function get_batches_predictions(this, status) &
+  function get_batches_predictions(this, n_ensemble, status) &
     result(predictions)
 
     !! Get predictions for each batch
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
+    integer, intent(in) :: n_ensemble
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 

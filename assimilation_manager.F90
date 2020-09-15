@@ -159,7 +159,7 @@ contains
 
     obs_errors = obs_manager%get_batches_obs_errors()
 
-    predictions = obs_manager%get_batches_predictions()
+    predictions = obs_manager%get_batches_predictions(n_ensemble)
 
     ! Assimilate local batches
     do ibatch_local = 1, n_local_batches
