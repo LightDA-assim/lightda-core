@@ -52,6 +52,8 @@ module mod_observation_manager
     procedure::get_batches_obs_values
     procedure::get_batches_obs_errors
     procedure::get_batches_predictions
+    procedure::get_batch_obs_inds
+    procedure::get_batch_obs_set_inds
     procedure, private::get_batches_weight_masks
     procedure, private::get_batches_prediction_masks
     procedure, private::get_batch_weight_mask
@@ -294,6 +296,93 @@ contains
     end do
 
   end function get_batch_obs_count
+
+  function get_batch_obs_inds(this,ibatch) result(obs_inds)
+
+    !! Get the indices in the respective observation set for each observation
+    !! to be assimilated into the batch `ibatch`.
+    !!
+    !! This function returns the indices to locate observations in the
+    !! observation sets; use get_batch_obs_set_inds to determine which
+    !! observation set each observation comes from
+
+    ! Arguments
+    class(observation_manager), intent(inout)::this
+        !! Observation manager
+    integer, intent(in) :: ibatch
+        !! Batch index
+
+    ! Result
+    integer, allocatable::obs_inds(:)
+        !! Number of observations associated with `ibatch`
+
+    integer:: iobs_set, iobs_batch, iobs_inset
+        ! Loop counters
+
+    iobs_batch=1
+
+    allocate(obs_inds(this%get_batch_obs_count(ibatch)))
+
+    do iobs_set=1, size(this%observation_sets)
+
+       do iobs_inset=1,this%observation_sets(iobs_set)%get_size()
+
+          if( &
+               this%batches_weight_masks(ibatch,iobs_set)%mask(iobs_inset) &
+               .and. &
+               this%batches_prediction_masks(ibatch,iobs_set) &
+               %mask(iobs_inset)) then
+
+             obs_inds(iobs_batch)=iobs_inset
+             iobs_batch=iobs_batch+1
+
+          end if
+
+       end do
+    end do
+
+  end function get_batch_obs_inds
+
+  function get_batch_obs_set_inds(this,ibatch) result(set_inds)
+
+    !! Get the indices of the respective observation set for each observation
+    !! to be assimilated into the batch `ibatch`
+    !!
+    !! This function returns the index of the observation set for each
+    !! observation; use the indices returned from get_batch_obs_inds to locate
+    !! the observations in their respective observation sets.
+
+    ! Arguments
+    class(observation_manager), intent(inout)::this
+        !! Observation manager
+    integer, intent(in) :: ibatch
+        !! Batch index
+
+    ! Result
+    integer, allocatable::set_inds(:)
+        !! Number of observations associated with `ibatch`
+
+    integer:: iobs_set, iobs_batch
+        ! Loop counters
+
+    integer::set_batch_overlap
+        ! Number of observations in a set that influence a given batch
+
+    iobs_batch=1
+
+    allocate(set_inds(this%get_batch_obs_count(ibatch)))
+
+    do iobs_set=1, size(this%observation_sets)
+
+       set_batch_overlap=count( &
+            this%batches_weight_masks(ibatch,iobs_set)%mask .and. &
+            this%batches_prediction_masks(ibatch,iobs_set)%mask)
+
+       set_inds(iobs_batch : iobs_batch + set_batch_overlap) = iobs_set
+       iobs_batch = iobs_batch + set_batch_overlap
+    end do
+
+  end function get_batch_obs_set_inds
 
   function get_batches_obs_values(this, status) &
     result(obs_values)
