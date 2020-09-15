@@ -369,11 +369,13 @@ contains
 
     !! Get observation errors for each batch
 
+    ! Arguments
     class(observation_manager), intent(inout)::this
         !! Observation manager
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
+    ! Result
     type(darray_segment) :: obs_errors(size(this%batches%segments))
         !! Observation errors required for assimilation of each batch
 
