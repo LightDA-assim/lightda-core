@@ -378,7 +378,7 @@ contains
             this%batches_weight_masks(ibatch,iobs_set)%mask .and. &
             this%batches_prediction_masks(ibatch,iobs_set)%mask)
 
-       set_inds(iobs_batch : iobs_batch + set_batch_overlap) = iobs_set
+       set_inds(iobs_batch : iobs_batch + set_batch_overlap-1) = iobs_set
        iobs_batch = iobs_batch + set_batch_overlap
     end do
 
