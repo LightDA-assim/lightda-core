@@ -176,8 +176,7 @@ contains
       batch_states = local_batches(:, ibatch_local, :)
 
       call this%filter%assimilate( &
-        istep, ibatch, batch_size, n_obs_batch, &
-        n_obs_batch, n_ensemble, &
+        istep, ibatch, batch_size, size(batch_observations), n_ensemble, &
         batch_states, batch_predictions, &
         batch_observations, batch_obs_err, this)
 
