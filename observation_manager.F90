@@ -308,7 +308,7 @@ contains
     type(darray_segment) :: obs_values(size(this%batches%segments))
         !! Observation values required for assimilation of each batch
 
-    integer::ibatch, iobs_set, iobs, iobs_batch, imodel
+    integer::ibatch, iobs_set, iobs, iobs_batch
         ! Loop counters
 
     class(observation_set), pointer::obs_set
