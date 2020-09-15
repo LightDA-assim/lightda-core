@@ -31,6 +31,8 @@ module observations
 
      function get_values(this,status) result(values)
 
+       !! Get the values of the observations
+
        use exceptions, ONLY: error_status
 
        import observation_set
