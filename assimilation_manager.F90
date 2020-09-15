@@ -115,8 +115,7 @@ contains
     real(kind=8), allocatable::batch_mean_state(:), batch_states(:, :)
     real(kind=8)::forget
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
-              ibatch_local, batch_offset, batch_length, &
-              batch_size, state_size, n_ensemble
+              ibatch_local, batch_size, state_size, n_ensemble
     type(darray)::batches
     type(observation_manager)::obs_manager
     MPI_COMM_TYPE::comm
@@ -166,9 +165,6 @@ contains
     do ibatch_local = 1, n_local_batches
 
       ibatch = local_batch_inds(ibatch_local)
-
-      batch_offset = this%batch_manager%get_batch_offset(ibatch)
-      batch_length = this%batch_manager%get_batch_length(ibatch)
 
       batch_observations = observations(ibatch)%data
 
