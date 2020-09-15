@@ -114,7 +114,7 @@ contains
     real(kind=8), allocatable::batch_mean_state(:), batch_states(:, :)
     real(kind=8)::forget
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
-              n_obs_batch, ibatch_local, batch_offset, batch_length, &
+              ibatch_local, batch_offset, batch_length, &
               batch_size, state_size, n_ensemble
     type(darray)::batches
     type(observation_manager)::obs_manager
