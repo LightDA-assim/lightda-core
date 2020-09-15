@@ -9,7 +9,7 @@ module mod_assimilation_filter
 
   abstract interface
     subroutine assimilate( &
-      this, istep, ibatch, dim_p, dim_obs_p, dim_obs, dim_ens, &
+      this, istep, ibatch, dim_p, dim_obs, dim_ens, &
       ens_p, predictions, observations, obs_errors, &
       mgr, status)
 
@@ -22,7 +22,6 @@ module mod_assimilation_filter
       integer, intent(in)::istep
       integer, intent(in)::ibatch
       integer, intent(in)::dim_p
-      integer, intent(in)::dim_obs_p
       integer, intent(in)::dim_obs
       integer, intent(in)::dim_ens
       real(kind=8), intent(inout)::ens_p(dim_p, dim_ens)
