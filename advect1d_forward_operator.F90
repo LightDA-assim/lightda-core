@@ -15,6 +15,8 @@ module mod_advect1d_forward_operator
 
    contains
      procedure::get_predictions_mask
+     procedure::get_predictions
+     procedure,private::get_advected_quantity_predictions
 
   end type advect1d_forward_operator
 
@@ -88,7 +90,50 @@ contains
 
   end function get_predictions_mask
 
-  subroutine get_advected_quantity_predictions(this, istep, obs_set, status)
+  function get_predictions(this, istep, obs_set, status) result(predictions)
+
+    !! Get the predictions for the observations in `obs_set`
+
+    ! Arguments
+    class(advect1d_forward_operator)::this
+        !! Forward operator
+    integer, intent(in)::istep
+        !! Assimilation step
+    class(observation_set)::obs_set
+        !! Observation set
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    ! Result
+    real(kind=8), allocatable::predictions(:,:)
+        !! Mask array
+
+    integer::iobs
+
+    if(.not.associated(this%model_interface)) then
+       call throw(status,new_exception('Model interface is undefined', &
+            'get_predictions_mask'))
+       return
+    end if
+
+    allocate(predictions(obs_set%get_size(),this%model_interface%n_ensemble))
+
+    select type(obs_set)
+    class is(advected_quantity_observation_set)
+
+       predictions=this%get_advected_quantity_predictions(istep,obs_set,status)
+
+    class default
+
+       ! Unknown observation type, set all values to 0
+       predictions = 0
+
+    end select
+
+  end function get_predictions
+
+  function get_advected_quantity_predictions(this, istep, obs_set, status) &
+    result(predictions)
 
     use distributed_array, ONLY: darray
 
@@ -108,7 +153,9 @@ contains
     real(kind=8), allocatable::member_predictions(:)
     real(kind=8), allocatable::predictions(:,:)
 
-    class(darray), allocatable::state
+    real(kind=8), pointer::member_state(:)
+
+    class(darray), allocatable, target::state
 
     call mpi_comm_rank(this%model_interface%comm, rank, ierr)
 
@@ -118,18 +165,23 @@ contains
        return
     end if
 
+    allocate(member_predictions(obs_set%get_size()))
+    allocate(predictions(obs_set%get_size(),this%model_interface%n_ensemble))
+
     do imember = 1, this%model_interface%n_ensemble
        state = this%model_interface%get_state_darray(istep,imember)
 
-      if (state%segments(1)%rank == rank) then
+       if (state%segments(1)%rank == rank) then
 
-        ! Compute predictions for this ensemble member
-        do iobs = 1, obs_set%get_size()
-           !member_predictions(iobs) = &
-           !    state%segments(1)%data(obs_set%get_position(iobs) + 1)
-        end do
+          member_state => state%segments(1)%data
 
-      end if
+          ! Compute predictions for this ensemble member
+          do iobs = 1, obs_set%get_size()
+             member_predictions(iobs) = &
+                  member_state(obs_set%get_position(istep, iobs) + 1)
+          end do
+
+       end if
 
       ! Broadcast to all processors
       call mpi_bcast(member_predictions, obs_set%get_size(), &
@@ -140,6 +192,6 @@ contains
 
     end do
 
-  end subroutine get_advected_quantity_predictions
+  end function get_advected_quantity_predictions
 
 end module mod_advect1d_forward_operator
