@@ -65,7 +65,7 @@ contains
 
     select type (obs_set2)
     class is (advected_quantity_observation_set)
-      pos1 = real(obs_set2%get_position(istep, iobs2))/this%domain_size
+      pos2 = real(obs_set2%get_position(istep, iobs2))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_obs_obs'))
