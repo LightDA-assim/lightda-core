@@ -6,6 +6,7 @@ module forward_operator
 
    contains
      procedure(get_predictions_mask), deferred::get_predictions_mask
+     procedure(get_predictions), deferred::get_predictions
 
   end type base_forward_operator
 
@@ -36,6 +37,31 @@ module forward_operator
            !! Mask array
 
      end function get_predictions_mask
+
+     function get_predictions(this, istep, obs_set, status) result(predictions)
+
+       !! Get the predictions for the observations in `obs_set`
+
+       use observations, ONLY: observation_set
+       use exceptions, ONLY: error_status
+
+       import base_forward_operator
+
+       ! Arguments
+       class(base_forward_operator)::this
+           !! Forward operator
+       integer, intent(in)::istep
+           !! Assimilation step
+       class(observation_set)::obs_set
+           !! Observation set
+       class(error_status), intent(out), allocatable, optional::status
+           !! Error status
+
+       ! Result
+       real(kind=8), allocatable::predictions(:,:)
+           !! Mask array
+
+     end function get_predictions
 
   end interface
 end module forward_operator
