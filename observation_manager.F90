@@ -374,12 +374,17 @@ contains
 
     do iobs_set=1, size(this%observation_sets)
 
+       ! Determine how many observations from the set are used in this batch
        set_batch_overlap=count( &
             this%batches_weight_masks(ibatch,iobs_set)%mask .and. &
             this%batches_prediction_masks(ibatch,iobs_set)%mask)
 
+       ! Store the set index in set_inds
        set_inds(iobs_batch : iobs_batch + set_batch_overlap-1) = iobs_set
+
+       ! Advance iobs_batch
        iobs_batch = iobs_batch + set_batch_overlap
+
     end do
 
   end function get_batch_obs_set_inds
