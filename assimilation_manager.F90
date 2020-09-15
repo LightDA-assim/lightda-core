@@ -163,12 +163,16 @@ contains
 
     ! Assimilate local batches
     do ibatch_local = 1, n_local_batches
+
       ibatch = local_batch_inds(ibatch_local)
 
       batch_offset = this%batch_manager%get_batch_offset(ibatch)
       batch_length = this%batch_manager%get_batch_length(ibatch)
 
       batch_observations = observations(ibatch)%data
+
+      if(size(batch_observations)==0) cycle
+
       batch_obs_err = obs_errors(ibatch)%data
       batch_predictions = reshape(predictions(ibatch)%data, &
                                   (/size(batch_observations), n_ensemble/))
