@@ -20,6 +20,7 @@ module advect1d_observations
     procedure::get_position
     procedure::get_size
     procedure::get_values
+    procedure::get_errors
     procedure,private::read_observations
     procedure,private::load_observations_parallel
   end type advected_quantity_observation_set
@@ -308,6 +309,22 @@ contains
     values = this%observations
 
   end function get_values
+
+  function get_errors(this,status) result(errors)
+
+    ! Arguments
+    class(advected_quantity_observation_set)::this
+        !! Observation set
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
+
+    ! Result
+    real(kind=8), allocatable::errors(:)
+        !! Observation errors
+
+    errors = this%errors
+
+  end function get_errors
 
   function get_position(this, istep, iobs, status) result(position)
 
