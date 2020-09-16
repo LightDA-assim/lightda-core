@@ -82,7 +82,7 @@ contains
     real(kind=8), intent(in)::predictions(dim_obs, dim_ens)
     real(kind=8), intent(in)::observations(dim_obs)
     real(kind=8), intent(in)::obs_errors(dim_obs)
-    real(kind=8)::innovations(dim_obs, dim_ens)
+    real(kind=8), allocatable::innovations(:,:)
 
     class(base_assimilation_manager)::mgr
     class(error_status), intent(out), allocatable, optional :: status
