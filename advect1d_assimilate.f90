@@ -37,6 +37,8 @@ program advect1d_assimmilate
   call parse_arguments( &
        istep, n_ensemble, n_observations, batch_size, state_size)
 
+  filter%forget=0.8
+
   ! Load observations
   observation_sets(1) = new_advected_quantity_observation_set( &
        istep, mpi_comm_world)
