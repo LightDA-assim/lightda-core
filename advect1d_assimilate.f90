@@ -111,18 +111,18 @@ subroutine parse_arguments( &
 
       if (batch_size < 1) then
         print *, 'Batch size cannot be less than 1'
-        stop
+        error stop
       end if
 
     case ('-h', '--help')
       call print_help()
-      stop
+      error stop
 
     case default
 
       print '(a,a,/)', 'Unrecognized command-line option: ', arg
       call print_help()
-      stop
+      error stop
 
     end select
 
