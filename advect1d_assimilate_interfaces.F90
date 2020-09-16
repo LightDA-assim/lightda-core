@@ -20,7 +20,8 @@ module advect1d_assimilate_interfaces
     real(kind=8)::cutoff, cutoff_u_a
     integer, allocatable::io_ranks(:)
     integer::state_size, local_io_size
-    logical::observations_read, predictions_computed, state_loaded
+    logical::observations_read = .false., predictions_computed = .false., &
+         state_loaded = .false.
   contains
     procedure::get_state_size
     procedure::set_state_subset
