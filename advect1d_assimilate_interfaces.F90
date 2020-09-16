@@ -16,7 +16,7 @@ module advect1d_assimilate_interfaces
      !! I/O interface for the advect1d model
 
     private
-    real(kind=8), pointer::local_io_data(:, :)
+    real(kind=8), allocatable::local_io_data(:, :)
     real(kind=8)::cutoff, cutoff_u_a
     integer, allocatable::io_ranks(:)
     integer::state_size, local_io_size
