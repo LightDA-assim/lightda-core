@@ -48,8 +48,6 @@ module assimilation_batch_manager
     procedure::get_state_size
     procedure::get_n_batches
     procedure::get_n_ensemble
-    procedure::add_obs_err
-    procedure::localize
     procedure::store_results
     procedure::get_rank_batch_count
     procedure::get_rank_batches
@@ -594,115 +592,5 @@ contains
     call this%model_interface%write_state(istep)
 
   end subroutine store_results
-
-  SUBROUTINE add_obs_err(this, istep, ibatch, dim_obs, HPH)
-
-    !! Add observation error covariance matrix to the array `HPH`
-
-    ! Arguments
-    class(assim_batch_manager)::this
-        !! Batch manager
-    integer, intent(in), value :: istep
-        !! Assimilation index
-    integer, intent(in)::ibatch
-        !! Batch index
-    integer, intent(in)::dim_obs
-        !! Dimensions of the observation array
-    real(kind=8), INTENT(inout) :: HPH(dim_obs, dim_obs)
-        !! Input array
-    class(error_status), allocatable::status
-
-    real(kind=8)::obs_err(dim_obs)
-        !! Observation errors
-
-    integer::iobs           !! Loop counter
-    integer::batch_offset   !! Location of batch in the model state array
-    integer::batch_length   !! Batch size
-
-    ! Locate batch in the state array
-    batch_offset = this%get_batch_offset(ibatch)
-    batch_length = this%get_batch_length(ibatch)
-
-    call throw(status, new_exception('Not yet implemented','add_obs_err'))
-    return
-
-    ! Get the observation errors
-    !call this%get_subset_obs_err(istep, batch_offset, &
-    !                                             batch_length, obs_err)
-
-    do iobs = 1, dim_obs
-      HPH(iobs, iobs) = HPH(iobs, iobs) + obs_err(iobs)**2
-    end do
-
-  END SUBROUTINE add_obs_err
-
-  SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH)
-    !! Apply localization to HP and HPH^T
-
-    ! Arguments
-    class(assim_batch_manager)::this
-        !! Batch manager
-    integer, intent(in)::istep
-        !! Assimilation step
-    integer, intent(in)::ibatch
-        !! Batch index
-    integer, intent(in)::dim_p
-        !! Batch size
-    integer, intent(in)::dim_obs
-        !! Number of observations
-
-    real(kind=8), INTENT(inout) :: HP_p(dim_obs, dim_p)
-        !! HP array
-    real(kind=8), INTENT(inout) :: HPH(dim_obs, dim_obs)
-        !! HPH array
-
-    integer::domain_size
-
-    integer::batch_offset     ! Location of batch in the model state array
-    integer::batch_length     ! Batch size
-
-    real(kind=8)::w           ! Localization weight
-
-    integer::iobs1, iobs2, ipos ! Loop counters
-
-    class(error_status), allocatable::status
-
-    ! Locate batch in the state array
-    batch_offset = this%get_batch_offset(ibatch)
-    batch_length = this%get_batch_length(ibatch)
-
-    if (dim_p /= batch_length) then
-      print *, 'Inconsistent batch size'
-      stop
-    end if
-
-    call throw(status, new_exception('Not yet implemented','localize'))
-    return
-
-    do iobs1 = 1, dim_obs
-
-      do iobs2 = 1, dim_obs
-
-        ! Get localization weights
-        !w = this%model_interface%get_weight_obs_obs(istep, iobs1, iobs2)
-
-        ! Multiply HPH by the localization weights
-        HPH(iobs1, iobs2) = HPH(iobs1, iobs2)*w
-
-      end do
-
-      do ipos = 1, dim_p
-
-        ! Get localization weights
-        !w = this%model_interface%get_weight_model_obs( &
-        !    istep, ipos + batch_offset, iobs1)
-
-        ! Multiply HP_p by the localization weights
-        HP_p(iobs1, ipos) = HP_p(iobs1, ipos)*w
-
-      end do
-    end do
-
-  END SUBROUTINE localize
 
 end module assimilation_batch_manager
