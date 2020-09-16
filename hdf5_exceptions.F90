@@ -10,7 +10,13 @@ module hdf5_exceptions
      character(:), allocatable::filename
    contains
      procedure::print=>hdf5_print_error
+
+     ! Some versions of gfortran fail to compile polymorphic code with
+     ! overriden finalizers, so we use a macro to control whether the finalizer
+     ! is used
+#ifdef OVERRIDABLE_FINALIZERS
      final::hdf5_exception_finalize
+#endif
   end type hdf5_exception
 
 contains

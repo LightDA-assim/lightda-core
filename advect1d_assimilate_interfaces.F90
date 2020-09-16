@@ -71,7 +71,9 @@ contains
 
     call h5open_f(ierr)
 
+#ifdef OVERRIDABLE_FINALIZERS
     call h5eset_auto_f(0,ierr)
+#endif
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
