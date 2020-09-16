@@ -90,6 +90,8 @@ contains
     real(kind=8)::state_p(dim_p)
     integer::flag
 
+    innovations=get_innovations(observations, predictions, obs_errors)
+
     call lenkf_analysis_rsm( &
       istep, ibatch, dim_p, dim_obs, dim_obs, &
       dim_ens, int(0), state_p, ens_p, predictions, innovations, &
