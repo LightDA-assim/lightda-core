@@ -14,8 +14,8 @@ module mod_lenkf_rsm_filter
   end type lenkf_rsm_filter
 
 contains
-  subroutine get_innovations( &
-    observations, predictions, obs_errors, innovations, status)
+  function get_innovations( &
+    observations, predictions, obs_errors, status) result(innovations)
 
     !! Compute innovations for a given subset of the model domain.
 
@@ -30,7 +30,7 @@ contains
         !! Observation errors for the subset
     real(kind=8), intent(in)::predictions(:, :)
         !! Predictions for the subset
-    real(kind=8), intent(out)::innovations(:, :)
+    real(kind=8), allocatable::innovations(:, :)
         !! Innovations for the subset
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
@@ -55,14 +55,7 @@ contains
       stop
     end if
 
-    if (size(innovations, 1) /= obs_count .or. &
-        size(innovations, 2) /= n_ensemble) then
-      print '(A,I0,A,I0,A,I0,A,I0,A)', &
-        'Innovations array has wrong shape. Expected (', &
-        obs_count, ',', n_ensemble, '), got (' &
-        , size(innovations, 1), ',', size(innovations, 2), ')'
-      stop
-    end if
+    allocate(innovations(obs_count,n_ensemble))
 
     do imember = 1, n_ensemble
       do iobs = 1, obs_count
@@ -72,7 +65,7 @@ contains
       end do
     end do
 
-  end subroutine get_innovations
+  end function get_innovations
 
   subroutine assimilate( &
     this, istep, ibatch, dim_p, dim_obs, dim_ens, &
