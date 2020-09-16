@@ -4,6 +4,7 @@ module mod_lenkf_rsm_filter
   use mod_assimilation_filter, ONLY: assimilation_filter
   use lenkf_rsm, ONLY: lenkf_analysis_rsm
   use mod_base_assimilation_manager, ONLY: base_assimilation_manager
+  use util, ONLY: str
 
   implicit none
 
@@ -41,18 +42,21 @@ contains
     n_ensemble = size(predictions, 2)
 
     if (size(observations) /= obs_count) then
-      print '(A,I0,A,I0)', 'Observations array has wrong length. Expected ', &
-        obs_count, ', got ', size(observations)
-      stop
+       call throw(status, new_exception( &
+            'Observations array has wrong length. Expected '// &
+            str(obs_count)//', got '//str(size(observations))//'.', &
+            'get_innovations'))
+       return
     end if
 
     if (size(predictions, 1) /= obs_count .or. &
         size(predictions, 2) /= n_ensemble) then
-      print '(A,I0,A,I0,A,I0,A,I0,A)', &
-        'Predictions array has wrong shape. Expected (' &
-        , obs_count, ',', n_ensemble, '), got (', &
-        size(predictions, 1), ',', size(predictions, 2), ')'
-      stop
+       call throw(status, new_exception( &
+            'Predictions array has wrong shape. Expected ('// &
+        str(obs_count)//','//str(n_ensemble)//'), got ('// &
+        str(size(predictions, 1))//','//str(size(predictions, 2))//').', &
+        'get_innovations'))
+      return
     end if
 
     allocate(innovations(obs_count,n_ensemble))

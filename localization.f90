@@ -2,7 +2,7 @@ module localization
 
   use observations, ONLY: observation_set
   use assimilation_model_interface, ONLY: base_model_interface
-  use exceptions, ONLY: error_status
+  use exceptions, ONLY: error_status, throw, new_exception
 
   implicit none
 
@@ -88,9 +88,11 @@ contains
     f = -0.25*(z/c)**5 + 0.5*(z/c)**4 + 5./8*(z/c)**3 - 5./3*(z/c)**2 + 1
   end function gaspari_cohn_close
 
-  function localize_gaspari_cohn(z, c) result(f)
+  function localize_gaspari_cohn(z, c, status) result(f)
     real(kind=8), intent(in)::z, c
     real(kind=8)::f
+    class(error_status), intent(out), allocatable, optional::status
+        !! Error status
 
     if (z == 0) then
       f = 1
@@ -99,8 +101,10 @@ contains
     else if (z <= 2*c) then
       f = max(gaspari_cohn_mid(z, c), 0.0)
     else if (z < 0) then
-      print *, 'Error: Negative distance passed to localize_gaspari_cohn'
-      error stop
+       call throw(status, new_exception( &
+            'Negative distance passed to localize_gaspari_cohn', &
+            'localize_gaspari_cohn'))
+       return
     else
       f = 0
     end if
