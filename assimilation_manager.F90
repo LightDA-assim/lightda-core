@@ -115,7 +115,6 @@ contains
     real(kind=8), allocatable :: batch_obs_err(:)
     real(kind=8), allocatable :: batch_predictions(:, :)
     real(kind=8), allocatable::batch_mean_state(:), batch_states(:, :)
-    real(kind=8)::forget
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
               ibatch_local, batch_size, state_size, n_ensemble
     type(darray)::batches
@@ -128,8 +127,6 @@ contains
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
-
-    forget = 0.8
 
     ! Get the number of batches and allocate batch arrays
     n_batches = this%batch_manager%get_n_batches()
