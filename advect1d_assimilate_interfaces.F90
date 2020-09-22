@@ -186,7 +186,7 @@ contains
     integer(HSIZE_T)::offset(2), count(2), stride(2), blocksize(2)
     integer::ierr
 
-    stride = (/2, 1/)
+    stride = (/1, 1/)
     offset = (/imember - 1, 0/)
     count = (/1, 1/)
     blocksize = (/1, state_size/)
