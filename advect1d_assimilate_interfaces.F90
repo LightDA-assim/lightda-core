@@ -186,6 +186,10 @@ contains
     integer(HSIZE_T)::offset(2), count(2), stride(2), blocksize(2)
     integer::ierr
 
+    character(:), allocatable::errstr_suffix
+
+    errstr_suffix = ' for member '//str(imember)
+
     stride = (/1, 1/)
     offset = (/imember - 1, 0/)
     count = (/1, 1/)
@@ -200,7 +204,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error opening ensemble state file', &
+            'HDF5 error opening ensemble state file'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -211,7 +215,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error opening dataset', &
+            'HDF5 error opening dataset'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -223,7 +227,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error configuring dataspace', &
+            'HDF5 error configuring dataspace'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -234,7 +238,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error configuring hyperslab', &
+            'HDF5 error configuring hyperslab'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -246,7 +250,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error creating memory dataspace', &
+            'HDF5 error creating memory dataspace'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -258,7 +262,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error reading member state data', &
+            'HDF5 error reading member state data'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -269,7 +273,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataspace', &
+            'HDF5 error closing dataspace'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -279,7 +283,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing memory dataspace', &
+            'HDF5 error closing memory dataspace'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -290,7 +294,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataset', &
+            'HDF5 error closing dataset'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
@@ -301,7 +305,7 @@ contains
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing file', &
+            'HDF5 error closing file'//errstr_suffix, &
             filename = preassim_filename, &
             procedure = 'read_member_state'))
        return
