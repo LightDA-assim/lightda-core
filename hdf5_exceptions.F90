@@ -6,32 +6,32 @@ module hdf5_exceptions
   implicit none
 
   type, extends(exception)::hdf5_exception
-     integer::code
-     character(:), allocatable::filename
-   contains
-     procedure::print=>hdf5_print_error
+    integer::code
+    character(:), allocatable::filename
+  contains
+    procedure::print => hdf5_print_error
 
-     ! Some versions of gfortran fail to compile polymorphic code with
-     ! overriden finalizers, so we use a macro to control whether the finalizer
-     ! is used
+    ! Some versions of gfortran fail to compile polymorphic code with
+    ! overriden finalizers, so we use a macro to control whether the finalizer
+    ! is used
 #ifdef OVERRIDABLE_FINALIZERS
-     final::hdf5_exception_finalize
+    final::hdf5_exception_finalize
 #endif
   end type hdf5_exception
 
 contains
 
   function new_hdf5_exception(code, message, filename, procedure) &
-       result(hdf_result)
+    result(hdf_result)
 
     !! Create a new HDF5 exception, or a no_error object if the error code is 0.
 
     ! Arguments
     integer, intent(in)::code
         !! HDF5 error code
-    character(*),intent(in),optional::message
+    character(*), intent(in), optional::message
         !! Custom error message
-    character(*),intent(in),optional::procedure
+    character(*), intent(in), optional::procedure
         !! Procedure where error occured
     character(*), intent(in), optional::filename
 
@@ -42,20 +42,20 @@ contains
 
     type(hdf5_exception)::exc  ! HDF5 exception object
 
-    if(code==0) then
-       ! No error
-       hdf_result=success
-       return
+    if (code == 0) then
+      ! No error
+      hdf_result = success
+      return
     end if
 
     exc%code = code
-    if(present(procedure)) exc%procedure=procedure
-    if(present(filename)) exc%filename=filename
+    if (present(procedure)) exc%procedure = procedure
+    if (present(filename)) exc%filename = filename
 
-    if(present(message)) then
-       exc%message=message
+    if (present(message)) then
+      exc%message = message
     else
-       exc%message='HDF5 exception'
+      exc%message = 'HDF5 exception'
     end if
 
 #ifndef OVERRIDABLE_FINALIZERS
@@ -64,7 +64,7 @@ contains
     end if
 #endif
 
-    hdf_result=exc
+    hdf_result = exc
 
   end function new_hdf5_exception
 
@@ -75,15 +75,15 @@ contains
     use iso_fortran_env, ONLY: error_unit
 
     ! Arguments
-    class(hdf5_exception),intent(in)::this
+    class(hdf5_exception), intent(in)::this
         !! Exception
 
     integer::ierr
         !! HDF5 error code
 
-    write(error_unit,*) this%message
+    write (error_unit, *) this%message
 
-    if(allocated(this%filename)) write(error_unit,*) 'on file '//this%filename
+    if (allocated(this%filename)) write (error_unit, *) 'on file '//this%filename
 
     call h5eprint_f(ierr)
 
@@ -97,7 +97,7 @@ contains
     use iso_fortran_env, ONLY: error_unit
 
     ! Arguments
-    type(hdf5_exception),intent(inout)::this
+    type(hdf5_exception), intent(inout)::this
         !! Exception object
 
     call this%default_handler()

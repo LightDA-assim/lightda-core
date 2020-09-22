@@ -42,24 +42,26 @@ contains
     n_ensemble = size(predictions, 2)
 
     if (size(observations) /= obs_count) then
-       call throw(status, new_exception( &
-            'Observations array has wrong length. Expected '// &
-            str(obs_count)//', got '//str(size(observations))//'.', &
-            'get_innovations'))
-       return
+      call throw(status, new_exception( &
+                 'Observations array has wrong length. Expected '// &
+                 str(obs_count)//', got '//str(size(observations))//'.', &
+                 'get_innovations'))
+      return
     end if
 
     if (size(predictions, 1) /= obs_count .or. &
         size(predictions, 2) /= n_ensemble) then
-       call throw(status, new_exception( &
-            'Predictions array has wrong shape. Expected ('// &
-        str(obs_count)//','//str(n_ensemble)//'), got ('// &
-        str(size(predictions, 1))//','//str(size(predictions, 2))//').', &
-        'get_innovations'))
+      call throw(status, new_exception( &
+                 'Predictions array has wrong shape. Expected ('// &
+                 str(obs_count)//','//str(n_ensemble)//'),&
+                 & got ('// &
+                 str(size(predictions, 1))//',' &
+                 //str(size(predictions, 2))//').', &
+                 'get_innovations'))
       return
     end if
 
-    allocate(innovations(obs_count,n_ensemble))
+    allocate (innovations(obs_count, n_ensemble))
 
     do imember = 1, n_ensemble
       do iobs = 1, obs_count
@@ -86,7 +88,7 @@ contains
     real(kind=8), intent(in)::predictions(dim_obs, dim_ens)
     real(kind=8), intent(in)::observations(dim_obs)
     real(kind=8), intent(in)::obs_errors(dim_obs)
-    real(kind=8), allocatable::innovations(:,:)
+    real(kind=8), allocatable::innovations(:, :)
 
     class(base_assimilation_manager)::mgr
     class(error_status), intent(out), allocatable, optional :: status
@@ -94,7 +96,7 @@ contains
     real(kind=8)::state_p(dim_p)
     integer::flag
 
-    innovations=get_innovations(observations, predictions, obs_errors)
+    innovations = get_innovations(observations, predictions, obs_errors)
 
     call lenkf_analysis_rsm( &
       istep, ibatch, dim_p, dim_obs, dim_obs, &

@@ -23,7 +23,8 @@ module assimilation_model_interface
 
   abstract interface
 
-    function I_get_state_darray(this, istep, imember, status) result(state_darray)
+    function I_get_state_darray(this, istep, imember, status) &
+      result(state_darray)
 
        !! Get the requested ensemble member state as a darray
 

@@ -9,9 +9,10 @@ program advect1d_assimmilate
   use mod_assimilation_manager, ONLY: assimilation_manager, &
                                       new_assimilation_manager
   use mod_lenkf_rsm_filter, ONLY: lenkf_rsm_filter
-  use mod_advect1d_forward_operator, ONLY: advect1d_forward_operator, new_advect1d_forward_operator
+  use mod_advect1d_forward_operator, ONLY: advect1d_forward_operator, &
+                                           new_advect1d_forward_operator
   use advect1d_observations, ONLY: &
-       advected_quantity_observation_set, new_advected_quantity_observation_set
+    advected_quantity_observation_set, new_advected_quantity_observation_set
   use mod_advect1d_localization, ONLY: advect1d_localizer
 
   implicit none
@@ -35,20 +36,20 @@ program advect1d_assimmilate
 
   ! Parse command line arguments
   call parse_arguments( &
-       istep, n_ensemble, n_observations, batch_size, state_size)
+    istep, n_ensemble, n_observations, batch_size, state_size)
 
-  filter%forget=0.8
+  filter%forget = 0.8
 
   localizer%cutoff = 0.1
   localizer%cutoff_u_a = 0.2
 
   ! Load observations
   observation_sets(1) = new_advected_quantity_observation_set( &
-       istep, mpi_comm_world)
+                        istep, mpi_comm_world)
 
   ! Initialize i/o interface for accessing data for assimilation
   model_interface = new_advect1d_interface( &
-       n_ensemble, state_size, mpi_comm_world)
+                    n_ensemble, state_size, mpi_comm_world)
 
   ! Initialize forward operator
   forward_operator = new_advect1d_forward_operator(model_interface)

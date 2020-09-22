@@ -12,7 +12,7 @@ module mod_observation_manager
   implicit none
 
   type::segment_mask
-     logical, allocatable::mask(:)
+    logical, allocatable::mask(:)
   end type segment_mask
 
   type::observation_manager
@@ -39,10 +39,10 @@ module mod_observation_manager
     class(darray), pointer :: batches
         !! Batches
 
-    type(segment_mask), allocatable :: batches_weight_masks(:,:)
+    type(segment_mask), allocatable :: batches_weight_masks(:, :)
         !! Mask arrays of observations with nonzero weights for each batch
 
-    type(segment_mask), allocatable :: batches_prediction_masks(:,:)
+    type(segment_mask), allocatable :: batches_prediction_masks(:, :)
         !! Mask arrays of observations that can be predicted for each batch
 
     real(kind=8) :: min_weight = 1e-10
@@ -64,8 +64,8 @@ module mod_observation_manager
 contains
 
   function new_observation_manager( &
-       istep, model_interface, batches, forward_operator, observation_sets, &
-       localizer, status)
+    istep, model_interface, batches, forward_operator, observation_sets, &
+    localizer, status)
 
     integer::istep
         !! Assimilation step
@@ -107,15 +107,15 @@ contains
     end if
 
     new_observation_manager%batches_weight_masks = &
-         new_observation_manager%get_batches_weight_masks(status)
+      new_observation_manager%get_batches_weight_masks(status)
 
     new_observation_manager%batches_prediction_masks = &
-         new_observation_manager%get_batches_prediction_masks(status)
+      new_observation_manager%get_batches_prediction_masks(status)
 
   end function new_observation_manager
 
   function get_batch_weight_mask(this, batch, obs_set, status) &
-       result(mask)
+    result(mask)
 
     !! Get a mask array indicating whether each point in `obs_set` has a
     !! positive localization weight for at least one point in the portion of
@@ -133,43 +133,43 @@ contains
         !! Error status
 
     ! Result
-    logical,allocatable::mask(:)
+    logical, allocatable::mask(:)
         !! Array indicating whether each observation has a weight greater than
         !! this%min_weight for at least one point in `batch`
 
     integer :: iobs, imodel ! Loop counters
 
     real(kind=8)::w
-        ! Localization weight
+    ! Localization weight
 
-    allocate(mask(obs_set%get_size()))
+    allocate (mask(obs_set%get_size()))
 
-    do iobs=1,obs_set%get_size()
+    do iobs = 1, obs_set%get_size()
 
-       ! Set mask to false initially
-       mask(iobs)=.false.
+      ! Set mask to false initially
+      mask(iobs) = .false.
 
-       do imodel = batch%offset + 1, batch%offset + batch%length
+      do imodel = batch%offset + 1, batch%offset + batch%length
 
-          w=this%localizer%get_weight_model_obs( &
-               this%istep, obs_set, iobs, this%model_interface, imodel, status)
+        w = this%localizer%get_weight_model_obs( &
+            this%istep, obs_set, iobs, this%model_interface, imodel, status)
 
-          if(w>this%min_weight) then
+        if (w > this%min_weight) then
 
-             mask(iobs)=.true.
+          mask(iobs) = .true.
 
-             cycle
+          cycle
 
-          end if
+        end if
 
-       end do
+      end do
 
     end do
 
   end function get_batch_weight_mask
 
   function get_batches_weight_masks(this, status) &
-       result(batches_weight_masks)
+    result(batches_weight_masks)
 
     !! Get the weight masks for this%batches
 
@@ -179,47 +179,47 @@ contains
         !! Error status
 
     ! Result
-    type(segment_mask), allocatable :: batches_weight_masks(:,:)
+    type(segment_mask), allocatable :: batches_weight_masks(:, :)
         !! Mask arrays of observations with nonzero weights for each batch
 
     integer::ibatch, iobs_set, iobs, iobs_batch, imodel
-        ! Loop counters
+    ! Loop counters
 
     class(observation_set), pointer::obs_set
-        ! Pointer to current observation set
+    ! Pointer to current observation set
 
     class(darray_segment), pointer::batch
-        ! Pointer to current batch segment
+    ! Pointer to current batch segment
 
     integer::rank ! MPI rank
     integer::ierr ! MPI status code
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    allocate(batches_weight_masks( &
-         size(this%batches%segments), size(this%observation_sets)))
+    allocate (batches_weight_masks( &
+              size(this%batches%segments), size(this%observation_sets)))
 
-    do ibatch=1,size(this%batches%segments)
+    do ibatch = 1, size(this%batches%segments)
 
-       batch=>this%batches%segments(ibatch)
+      batch => this%batches%segments(ibatch)
 
-       if(batch%rank==rank) then
+      if (batch%rank == rank) then
 
-          do iobs_set=1,size(this%observation_sets)
+        do iobs_set = 1, size(this%observation_sets)
 
-             obs_set=>this%observation_sets(iobs_set)
+          obs_set => this%observation_sets(iobs_set)
 
-             batches_weight_masks(ibatch, iobs_set)%mask = &
-                  this%get_batch_weight_mask(batch, obs_set)
+          batches_weight_masks(ibatch, iobs_set)%mask = &
+            this%get_batch_weight_mask(batch, obs_set)
 
-          end do
-       end if
+        end do
+      end if
     end do
 
   end function get_batches_weight_masks
 
   function get_batches_prediction_masks(this, status) &
-       result(batches_prediction_masks)
+    result(batches_prediction_masks)
 
     !! Get the weight masks for this%batches
 
@@ -229,42 +229,42 @@ contains
         !! Error status
 
     ! Result
-    type(segment_mask), allocatable :: batches_prediction_masks(:,:)
+    type(segment_mask), allocatable :: batches_prediction_masks(:, :)
         !! Mask arrays of observations with nonzero weights for each batch
 
     integer::ibatch, iobs_set, iobs, iobs_batch, imodel
-        ! Loop counters
+    ! Loop counters
 
     class(observation_set), pointer::obs_set
-        ! Pointer to current observation set
+    ! Pointer to current observation set
 
     class(darray_segment), pointer::batch
-        ! Pointer to current batch segment
+    ! Pointer to current batch segment
 
     integer::rank ! MPI rank
     integer::ierr ! MPI status code
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    allocate(batches_prediction_masks( &
-         size(this%batches%segments), size(this%observation_sets)))
+    allocate (batches_prediction_masks( &
+              size(this%batches%segments), size(this%observation_sets)))
 
-    do ibatch=1,size(this%batches%segments)
+    do ibatch = 1, size(this%batches%segments)
 
-       batch=>this%batches%segments(ibatch)
+      batch => this%batches%segments(ibatch)
 
-       if(batch%rank==rank) then
+      if (batch%rank == rank) then
 
-          do iobs_set=1,size(this%observation_sets)
+        do iobs_set = 1, size(this%observation_sets)
 
-             obs_set=>this%observation_sets(iobs_set)
+          obs_set => this%observation_sets(iobs_set)
 
-             batches_prediction_masks(ibatch, iobs_set)%mask = &
-                  this%forward_operator%get_predictions_mask( &
-                  this%istep, obs_set)
+          batches_prediction_masks(ibatch, iobs_set)%mask = &
+            this%forward_operator%get_predictions_mask( &
+            this%istep, obs_set)
 
-          end do
-       end if
+        end do
+      end if
     end do
 
   end function get_batches_prediction_masks
@@ -285,19 +285,19 @@ contains
         !! Number of observations associated with `ibatch`
 
     integer:: iobs_set
-        ! Loop counters
+    ! Loop counters
 
-    obs_count=0
+    obs_count = 0
 
-    do iobs_set=1, size(this%observation_sets)
-       obs_count=obs_count + count( &
-            this%batches_weight_masks(ibatch,iobs_set)%mask .and. &
-            this%batches_prediction_masks(ibatch,iobs_set)%mask)
+    do iobs_set = 1, size(this%observation_sets)
+      obs_count = obs_count + count( &
+                  this%batches_weight_masks(ibatch, iobs_set)%mask .and. &
+                  this%batches_prediction_masks(ibatch, iobs_set)%mask)
     end do
 
   end function get_batch_obs_count
 
-  function get_batch_obs_inds(this,ibatch) result(obs_inds)
+  function get_batch_obs_inds(this, ibatch) result(obs_inds)
 
     !! Get the indices in the respective observation set for each observation
     !! to be assimilated into the batch `ibatch`.
@@ -317,33 +317,33 @@ contains
         !! Number of observations associated with `ibatch`
 
     integer:: iobs_set, iobs_batch, iobs_inset
-        ! Loop counters
+    ! Loop counters
 
-    iobs_batch=1
+    iobs_batch = 1
 
-    allocate(obs_inds(this%get_batch_obs_count(ibatch)))
+    allocate (obs_inds(this%get_batch_obs_count(ibatch)))
 
-    do iobs_set=1, size(this%observation_sets)
+    do iobs_set = 1, size(this%observation_sets)
 
-       do iobs_inset=1,this%observation_sets(iobs_set)%get_size()
+      do iobs_inset = 1, this%observation_sets(iobs_set)%get_size()
 
-          if( &
-               this%batches_weight_masks(ibatch,iobs_set)%mask(iobs_inset) &
-               .and. &
-               this%batches_prediction_masks(ibatch,iobs_set) &
-               %mask(iobs_inset)) then
+        if ( &
+          this%batches_weight_masks(ibatch, iobs_set)%mask(iobs_inset) &
+          .and. &
+          this%batches_prediction_masks(ibatch, iobs_set) &
+          %mask(iobs_inset)) then
 
-             obs_inds(iobs_batch)=iobs_inset
-             iobs_batch=iobs_batch+1
+          obs_inds(iobs_batch) = iobs_inset
+          iobs_batch = iobs_batch + 1
 
-          end if
+        end if
 
-       end do
+      end do
     end do
 
   end function get_batch_obs_inds
 
-  function get_batch_obs_set_inds(this,ibatch) result(set_inds)
+  function get_batch_obs_set_inds(this, ibatch) result(set_inds)
 
     !! Get the indices of the respective observation set for each observation
     !! to be assimilated into the batch `ibatch`
@@ -363,27 +363,28 @@ contains
         !! Number of observations associated with `ibatch`
 
     integer:: iobs_set, iobs_batch
-        ! Loop counters
+    ! Loop counters
 
     integer::set_batch_overlap
-        ! Number of observations in a set that influence a given batch
+    ! Number of observations in a set that influence a given batch
 
-    iobs_batch=1
+    iobs_batch = 1
 
-    allocate(set_inds(this%get_batch_obs_count(ibatch)))
+    allocate (set_inds(this%get_batch_obs_count(ibatch)))
 
-    do iobs_set=1, size(this%observation_sets)
+    do iobs_set = 1, size(this%observation_sets)
 
-       ! Determine how many observations from the set are used in this batch
-       set_batch_overlap=count( &
-            this%batches_weight_masks(ibatch,iobs_set)%mask .and. &
-            this%batches_prediction_masks(ibatch,iobs_set)%mask)
+      ! Determine how many observations from the set are used in this batch
+      set_batch_overlap = &
+        count( &
+        this%batches_weight_masks(ibatch, iobs_set)%mask .and. &
+        this%batches_prediction_masks(ibatch, iobs_set)%mask)
 
-       ! Store the set index in set_inds
-       set_inds(iobs_batch : iobs_batch + set_batch_overlap-1) = iobs_set
+      ! Store the set index in set_inds
+      set_inds(iobs_batch:iobs_batch + set_batch_overlap - 1) = iobs_set
 
-       ! Advance iobs_batch
-       iobs_batch = iobs_batch + set_batch_overlap
+      ! Advance iobs_batch
+      iobs_batch = iobs_batch + set_batch_overlap
 
     end do
 
@@ -403,13 +404,13 @@ contains
         !! Observation values required for assimilation of each batch
 
     integer::ibatch, iobs_set, iobs, iobs_batch
-        ! Loop counters
+    ! Loop counters
 
     class(observation_set), pointer::obs_set
-        ! Pointer to current observation set
+    ! Pointer to current observation set
 
     class(darray_segment), pointer::batch
-        ! Pointer to current batch segment
+    ! Pointer to current batch segment
 
     integer::batch_obs_count ! Number of observations for a given batch
     real(kind=8), allocatable::values(:) ! Values for an observation set
@@ -421,39 +422,38 @@ contains
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    do iobs_set=1,size(this%observation_sets)
+    do iobs_set = 1, size(this%observation_sets)
 
-       obs_set=>this%observation_sets(iobs_set)
-       values = obs_set%get_values()
+      obs_set => this%observation_sets(iobs_set)
+      values = obs_set%get_values()
 
-       do ibatch=1,size(this%batches%segments)
+      do ibatch = 1, size(this%batches%segments)
 
-          batch=>this%batches%segments(ibatch)
+        batch => this%batches%segments(ibatch)
 
-          if(batch%rank==rank) then
+        if (batch%rank == rank) then
 
-             iobs_batch=1
+          iobs_batch = 1
 
-             batch_obs_count=this%get_batch_obs_count(ibatch)
-             allocate(obs_values(ibatch)%data(batch_obs_count))
+          batch_obs_count = this%get_batch_obs_count(ibatch)
+          allocate (obs_values(ibatch)%data(batch_obs_count))
 
+          do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-             do iobs=1,this%observation_sets(iobs_set)%get_size()
+            weight_mask = this%batches_weight_masks( &
+                          ibatch, iobs_set)%mask(iobs)
 
-                weight_mask = this%batches_weight_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            prediction_mask = this%batches_prediction_masks( &
+                              ibatch, iobs_set)%mask(iobs)
 
-                prediction_mask = this%batches_prediction_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            if (weight_mask .and. prediction_mask) then
+              obs_values(ibatch)%data(iobs_batch) = values(iobs)
+              iobs_batch = iobs_batch + 1
+            end if
 
-                if(weight_mask .and. prediction_mask) then
-                   obs_values(ibatch)%data(iobs_batch) = values(iobs)
-                   iobs_batch = iobs_batch + 1
-                end if
-
-             end do
-          end if
-       end do
+          end do
+        end if
+      end do
     end do
 
   end function get_batches_obs_values
@@ -474,13 +474,13 @@ contains
         !! Observation errors required for assimilation of each batch
 
     integer::ibatch, iobs_set, iobs, iobs_batch
-        ! Loop counters
+    ! Loop counters
 
     class(observation_set), pointer::obs_set
-        ! Pointer to current observation set
+    ! Pointer to current observation set
 
     class(darray_segment), pointer::batch
-        ! Pointer to current batch segment
+    ! Pointer to current batch segment
 
     integer::batch_obs_count ! Number of observations for a given batch
     real(kind=8), allocatable::errors(:) ! Values for an observation set
@@ -492,39 +492,38 @@ contains
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    do ibatch=1,size(this%batches%segments)
+    do ibatch = 1, size(this%batches%segments)
 
-       batch=>this%batches%segments(ibatch)
+      batch => this%batches%segments(ibatch)
 
-       if(batch%rank==rank) then
+      if (batch%rank == rank) then
 
-          iobs_batch=1
+        iobs_batch = 1
 
-          batch_obs_count=this%get_batch_obs_count(ibatch)
-          allocate(obs_errors(ibatch)%data(batch_obs_count))
+        batch_obs_count = this%get_batch_obs_count(ibatch)
+        allocate (obs_errors(ibatch)%data(batch_obs_count))
 
-          do iobs_set=1,size(this%observation_sets)
+        do iobs_set = 1, size(this%observation_sets)
 
-             obs_set=>this%observation_sets(iobs_set)
-             errors = obs_set%get_errors()
+          obs_set => this%observation_sets(iobs_set)
+          errors = obs_set%get_errors()
 
+          do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-             do iobs=1,this%observation_sets(iobs_set)%get_size()
+            weight_mask = this%batches_weight_masks( &
+                          ibatch, iobs_set)%mask(iobs)
 
-                weight_mask = this%batches_weight_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            prediction_mask = this%batches_prediction_masks( &
+                              ibatch, iobs_set)%mask(iobs)
 
-                prediction_mask = this%batches_prediction_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            if (weight_mask .and. prediction_mask) then
+              obs_errors(ibatch)%data(iobs_batch) = errors(iobs)
+              iobs_batch = iobs_batch + 1
+            end if
 
-                if(weight_mask .and. prediction_mask) then
-                   obs_errors(ibatch)%data(iobs_batch) = errors(iobs)
-                   iobs_batch = iobs_batch + 1
-                end if
-
-             end do
           end do
-       end if
+        end do
+      end if
     end do
 
   end function get_batches_obs_errors
@@ -544,21 +543,21 @@ contains
         !! Observation errors required for assimilation of each batch
 
     integer::ibatch, iobs_set, iobs, iobs_batch
-        ! Loop counters
+    ! Loop counters
 
     class(observation_set), pointer::obs_set
-        ! Pointer to current observation set
+    ! Pointer to current observation set
 
     class(darray_segment), pointer::batch
-        ! Pointer to current batch segment
+    ! Pointer to current batch segment
 
     integer::batch_obs_count ! Number of observations for a given batch
 
-    real(kind=8), allocatable::set_predictions(:,:)
-        ! Predicted values for an observation set
+    real(kind=8), allocatable::set_predictions(:, :)
+    ! Predicted values for an observation set
 
-    real(kind=8), allocatable::batch_predictions(:,:)
-        ! Predicted values for a batch
+    real(kind=8), allocatable::batch_predictions(:, :)
+    ! Predicted values for a batch
 
     integer::rank ! MPI rank
     integer::ierr ! MPI status code
@@ -567,46 +566,46 @@ contains
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
-    do iobs_set=1,size(this%observation_sets)
+    do iobs_set = 1, size(this%observation_sets)
 
-       obs_set=>this%observation_sets(iobs_set)
-       set_predictions = this%forward_operator%get_predictions( &
-            this%istep, obs_set)
+      obs_set => this%observation_sets(iobs_set)
+      set_predictions = this%forward_operator%get_predictions( &
+                        this%istep, obs_set)
 
-       do ibatch=1,size(this%batches%segments)
+      do ibatch = 1, size(this%batches%segments)
 
-          batch=>this%batches%segments(ibatch)
+        batch => this%batches%segments(ibatch)
 
-          if(batch%rank==rank) then
+        if (batch%rank == rank) then
 
-             iobs_batch=1
+          iobs_batch = 1
 
-             batch_obs_count=this%get_batch_obs_count(ibatch)
+          batch_obs_count = this%get_batch_obs_count(ibatch)
 
-             allocate(batch_predictions(batch_obs_count,n_ensemble))
+          allocate (batch_predictions(batch_obs_count, n_ensemble))
 
-             do iobs=1,this%observation_sets(iobs_set)%get_size()
+          do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-                weight_mask = this%batches_weight_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            weight_mask = this%batches_weight_masks( &
+                          ibatch, iobs_set)%mask(iobs)
 
-                prediction_mask = this%batches_prediction_masks( &
-                     ibatch,iobs_set)%mask(iobs)
+            prediction_mask = this%batches_prediction_masks( &
+                              ibatch, iobs_set)%mask(iobs)
 
-                if(weight_mask .and. prediction_mask) then
-                   batch_predictions(iobs_batch,:) = set_predictions(iobs,:)
-                   iobs_batch = iobs_batch + 1
-                end if
+            if (weight_mask .and. prediction_mask) then
+              batch_predictions(iobs_batch, :) = set_predictions(iobs, :)
+              iobs_batch = iobs_batch + 1
+            end if
 
-             end do
+          end do
 
-             predictions(ibatch)%data = pack(batch_predictions,.true.)
+          predictions(ibatch)%data = pack(batch_predictions, .true.)
 
-             deallocate(batch_predictions)
+          deallocate (batch_predictions)
 
-          end if
+        end if
 
-       end do
+      end do
     end do
 
   end function get_batches_predictions

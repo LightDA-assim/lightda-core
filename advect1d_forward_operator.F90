@@ -11,12 +11,12 @@ module mod_advect1d_forward_operator
 
   type, extends(base_forward_operator) :: advect1d_forward_operator
 
-     class(advect1d_interface), pointer::model_interface => null()
+    class(advect1d_interface), pointer::model_interface => null()
 
-   contains
-     procedure::get_predictions_mask
-     procedure::get_predictions
-     procedure,private::get_advected_quantity_predictions
+  contains
+    procedure::get_predictions_mask
+    procedure::get_predictions
+    procedure, private::get_advected_quantity_predictions
 
   end type advect1d_forward_operator
 
@@ -55,36 +55,36 @@ contains
 
     integer::iobs
 
-    allocate(mask(obs_set%get_size()))
+    allocate (mask(obs_set%get_size()))
 
-    if(.not.associated(this%model_interface)) then
-       call throw(status,new_exception('Model interface is undefined', &
-            'get_predictions_mask'))
-       return
+    if (.not. associated(this%model_interface)) then
+      call throw(status, new_exception('Model interface is undefined', &
+                                       'get_predictions_mask'))
+      return
     end if
 
-    select type(obs_set)
-    class is(advected_quantity_observation_set)
+    select type (obs_set)
+    class is (advected_quantity_observation_set)
 
-       do iobs=1,obs_set%get_size()
+      do iobs = 1, obs_set%get_size()
 
-          ! Check whether observation position is within the model domain
-          ! and set mask accordingly
-          if ((obs_set%positions(iobs) < 0) .or. &
-               (obs_set%positions(iobs) > &
-               this%model_interface%get_state_size(istep)/2)) &
-               then
-             mask(iobs) = .false.
-          else
-             mask(iobs) = .true.
-          end if
+        ! Check whether observation position is within the model domain
+        ! and set mask accordingly
+        if ((obs_set%positions(iobs) < 0) .or. &
+            (obs_set%positions(iobs) > &
+             this%model_interface%get_state_size(istep)/2)) &
+          then
+          mask(iobs) = .false.
+        else
+          mask(iobs) = .true.
+        end if
 
-       end do
+      end do
 
     class default
 
-       ! Unknown observation type, set mask to false
-       mask = .false.
+      ! Unknown observation type, set mask to false
+      mask = .false.
 
     end select
 
@@ -105,28 +105,29 @@ contains
         !! Error status
 
     ! Result
-    real(kind=8), allocatable::predictions(:,:)
+    real(kind=8), allocatable::predictions(:, :)
         !! Mask array
 
     integer::iobs
 
-    if(.not.associated(this%model_interface)) then
-       call throw(status,new_exception('Model interface is undefined', &
-            'get_predictions_mask'))
-       return
+    if (.not. associated(this%model_interface)) then
+      call throw(status, new_exception('Model interface is undefined', &
+                                       'get_predictions_mask'))
+      return
     end if
 
-    allocate(predictions(obs_set%get_size(),this%model_interface%n_ensemble))
+    allocate (predictions(obs_set%get_size(), this%model_interface%n_ensemble))
 
-    select type(obs_set)
-    class is(advected_quantity_observation_set)
+    select type (obs_set)
+    class is (advected_quantity_observation_set)
 
-       predictions=this%get_advected_quantity_predictions(istep,obs_set,status)
+      predictions = this%get_advected_quantity_predictions( &
+                    istep, obs_set, status)
 
     class default
 
-       ! Unknown observation type, set all values to 0
-       predictions = 0
+      ! Unknown observation type, set all values to 0
+      predictions = 0
 
     end select
 
@@ -151,7 +152,7 @@ contains
 
     integer::imember, rank, ierr, iobs
     real(kind=8), allocatable::member_predictions(:)
-    real(kind=8), allocatable::predictions(:,:)
+    real(kind=8), allocatable::predictions(:, :)
 
     real(kind=8), pointer::member_state(:)
 
@@ -159,29 +160,29 @@ contains
 
     call mpi_comm_rank(this%model_interface%comm, rank, ierr)
 
-    if(.not.associated(this%model_interface)) then
-       call throw(status,new_exception('Model interface is undefined', &
-            'get_predictions_mask'))
-       return
+    if (.not. associated(this%model_interface)) then
+      call throw(status, new_exception('Model interface is undefined', &
+                                       'get_predictions_mask'))
+      return
     end if
 
-    allocate(member_predictions(obs_set%get_size()))
-    allocate(predictions(obs_set%get_size(),this%model_interface%n_ensemble))
+    allocate (member_predictions(obs_set%get_size()))
+    allocate (predictions(obs_set%get_size(), this%model_interface%n_ensemble))
 
     do imember = 1, this%model_interface%n_ensemble
-       state = this%model_interface%get_state_darray(istep,imember)
+      state = this%model_interface%get_state_darray(istep, imember)
 
-       if (state%segments(1)%rank == rank) then
+      if (state%segments(1)%rank == rank) then
 
-          member_state => state%segments(1)%data
+        member_state => state%segments(1)%data
 
-          ! Compute predictions for this ensemble member
-          do iobs = 1, obs_set%get_size()
-             member_predictions(iobs) = &
-                  member_state(obs_set%get_position(istep, iobs) + 1)
-          end do
+        ! Compute predictions for this ensemble member
+        do iobs = 1, obs_set%get_size()
+          member_predictions(iobs) = &
+            member_state(obs_set%get_position(istep, iobs) + 1)
+        end do
 
-       end if
+      end if
 
       ! Broadcast to all processors
       call mpi_bcast(member_predictions, obs_set%get_size(), &

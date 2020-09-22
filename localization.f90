@@ -101,10 +101,10 @@ contains
     else if (z <= 2*c) then
       f = max(gaspari_cohn_mid(z, c), 0.0)
     else if (z < 0) then
-       call throw(status, new_exception( &
-            'Negative distance passed to localize_gaspari_cohn', &
-            'localize_gaspari_cohn'))
-       return
+      call throw(status, new_exception( &
+                 'Negative distance passed to localize_gaspari_cohn', &
+                 'localize_gaspari_cohn'))
+      return
     else
       f = 0
     end if

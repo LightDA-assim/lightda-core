@@ -151,7 +151,8 @@ contains
 
     this%obs_manager = &
       new_observation_manager( &
-      istep, this%model_interface, batches, this%forward_operator, this%observation_sets, this%localizer)
+      istep, this%model_interface, batches, this%forward_operator, &
+      this%observation_sets, this%localizer)
 
     this%observations = this%obs_manager%get_batches_obs_values()
 
@@ -166,7 +167,7 @@ contains
 
       batch_observations = this%observations(ibatch)%data
 
-      if(size(batch_observations)==0) cycle
+      if (size(batch_observations) == 0) cycle
 
       batch_obs_err = this%obs_errors(ibatch)%data
       batch_predictions = reshape(this%predictions(ibatch)%data, &
@@ -197,18 +198,19 @@ contains
     class(error_status), intent(out), allocatable, optional :: status
 
     real(kind=8), pointer::batch_obs_err(:)
-        ! Pointer to observation errors for this batch
+    ! Pointer to observation errors for this batch
 
     integer::iobs ! Loop counter
 
     batch_obs_err => this%obs_errors(ibatch)%data
 
-    if(size(batch_obs_err)/=dim_obs) then
-       call throw(status,new_exception( &
-            'Wrong number of observations for batch '//str(ibatch)// &
-            '. Expected '//str(size(batch_obs_err))//', got '//str(dim_obs), &
-            'add_obs_err'))
-       return
+    if (size(batch_obs_err) /= dim_obs) then
+      call throw(status, new_exception( &
+                 'Wrong number of observations for batch '//str(ibatch)// &
+                 '. Expected '//str(size(batch_obs_err))// &
+                 ', got '//str(dim_obs), &
+                 'add_obs_err'))
+      return
     end if
 
     do iobs = 1, dim_obs
@@ -231,17 +233,16 @@ contains
 
     integer, allocatable::batch_obs_inds(:)
        !! Index of each observation in its observation set
-    
 
     integer::batch_offset, batch_length
-        ! Location of batch in the model state array
+    ! Location of batch in the model state array
 
     class(observation_set), pointer :: obs_set1, obs_set2
-        ! Observation set pointers
+    ! Observation set pointers
 
     integer::iobs_batch1, iobs_batch2, iobs_set1, iobs_set2, iobs_inset1, &
-         iobs_inset2, ipos
-        ! Loop counters
+              iobs_inset2, ipos
+    ! Loop counters
 
     real(kind=8)::w  ! Localization weight
 
@@ -250,72 +251,74 @@ contains
     batch_length = this%batch_manager%get_batch_length(ibatch)
 
     ! Get an index into this%observation_sets for each observation
-    batch_obs_set_inds=this%obs_manager%get_batch_obs_set_inds(ibatch)
+    batch_obs_set_inds = this%obs_manager%get_batch_obs_set_inds(ibatch)
 
     ! Get indices of the observations in their respective observation sets
     batch_obs_inds = this%obs_manager%get_batch_obs_inds(ibatch)
 
-    if(size(batch_obs_set_inds)/=dim_obs) then
-       call throw(status, new_exception( &
-            'Inconsistent observation count. Expected dim_obs='// &
-            str(size(batch_obs_set_inds))//', got dim_obs='// &
-            str(dim_obs)//'.',&
-            'localize'))
-       return
-    end if
-            
-    if(size(batch_obs_inds)/=dim_obs) then
-       call throw(status, new_exception( &
-            'Inconsistent observation count. Expected dim_obs='// &
-            str(size(batch_obs_inds))//', got dim_obs='//str(dim_obs)//'.',&
-            'localize'))
-       return
+    if (size(batch_obs_set_inds) /= dim_obs) then
+      call throw(status, new_exception( &
+                 'Inconsistent observation count. Expected dim_obs='// &
+                 str(size(batch_obs_set_inds))//', got dim_obs='// &
+                 str(dim_obs)//'.', &
+                 'localize'))
+      return
     end if
 
-    if(dim_p/=batch_length) then
-       call throw(status, new_exception( &
-            'Inconsistent batch size for batch '//str(ibatch)// &
-            '. Expected '//str(dim_p)//', got '//str(batch_length)//'.', &
-            'localize'))
-       return
+    if (size(batch_obs_inds) /= dim_obs) then
+      call throw(status, new_exception( &
+                 'Inconsistent observation count. Expected dim_obs='// &
+                 str(size(batch_obs_inds))// &
+                 ', got dim_obs='//str(dim_obs)//'.', &
+                 'localize'))
+      return
     end if
 
-    do iobs_batch1=1,dim_obs
+    if (dim_p /= batch_length) then
+      call throw(status, new_exception( &
+                 'Inconsistent batch size for batch '//str(ibatch)// &
+                 '. Expected '//str(dim_p)// &
+                 ', got '//str(batch_length)//'.', &
+                 'localize'))
+      return
+    end if
 
-      iobs_set1=batch_obs_set_inds(iobs_batch1)
-      iobs_inset1=batch_obs_inds(iobs_batch1)
+    do iobs_batch1 = 1, dim_obs
 
-      obs_set1=>this%observation_sets(iobs_set1)
+      iobs_set1 = batch_obs_set_inds(iobs_batch1)
+      iobs_inset1 = batch_obs_inds(iobs_batch1)
 
-      do iobs_batch2=1,dim_obs
+      obs_set1 => this%observation_sets(iobs_set1)
 
-        iobs_set2=batch_obs_set_inds(iobs_batch2)
-        iobs_inset2=batch_obs_inds(iobs_batch2)
+      do iobs_batch2 = 1, dim_obs
 
-        obs_set2=>this%observation_sets(iobs_set2)
+        iobs_set2 = batch_obs_set_inds(iobs_batch2)
+        iobs_inset2 = batch_obs_inds(iobs_batch2)
+
+        obs_set2 => this%observation_sets(iobs_set2)
 
         ! Get localization weights
-        w=this%localizer%get_weight_obs_obs( &
-             istep, obs_set1, iobs_inset1, obs_set2, iobs_inset2)
+        w = this%localizer%get_weight_obs_obs( &
+            istep, obs_set1, iobs_inset1, obs_set2, iobs_inset2)
 
         ! Multiply HPH by the localization weights
         HPH(iobs_batch1, iobs_batch2) = HPH(iobs_batch1, iobs_batch2)*w
 
       end do
 
-      do ipos=1,dim_p
+      do ipos = 1, dim_p
 
         ! Get localization weights
         w = this%localizer%get_weight_model_obs( &
-             istep, obs_set1, iobs_inset1, this%model_interface, &
-             ipos + batch_offset)
+            istep, obs_set1, iobs_inset1, this%model_interface, &
+            ipos + batch_offset)
 
         ! Multiply HP_p by the localization weights
-        HP_p(iobs_batch1,ipos) = HP_p(iobs_batch1,ipos) * w
+        HP_p(iobs_batch1, ipos) = HP_p(iobs_batch1, ipos)*w
 
       end do
 
-   end do
+    end do
 
   END SUBROUTINE localize
 

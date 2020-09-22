@@ -21,7 +21,7 @@ module advect1d_assimilate_interfaces
     integer, allocatable::io_ranks(:)
     integer::state_size, local_io_size
     logical::observations_read = .false., predictions_computed = .false., &
-         state_loaded = .false.
+              state_loaded = .false.
   contains
     procedure::get_state_size
     procedure::set_state_subset
@@ -72,16 +72,15 @@ contains
     call h5open_f(ierr)
 
 #ifdef OVERRIDABLE_FINALIZERS
-    call h5eset_auto_f(0,ierr)
+    call h5eset_auto_f(0, ierr)
 #endif
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'Error initializing HDF5', &
-            procedure = 'new_advect1d_interface'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'Error initializing HDF5', &
+                                            procedure='new_advect1d_interface'))
+      return
     end if
-
 
   end function new_advect1d_interface
 
@@ -202,113 +201,123 @@ contains
     ! Open the file
     call h5fopen_f(preassim_filename, h5F_ACC_RDONLY_F, h5file_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error opening ensemble state file'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error opening ensemble state file'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Open the dataset
     call h5dopen_f(h5file_h, 'ensemble_state', dset_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error opening dataset'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error opening dataset'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Define a dataspace within the dataset so we only read the
     ! specified ensemble member
     call h5dget_space_f(dset_h, dataspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error configuring dataspace'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error configuring dataspace'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
                                offset, count, ierr, stride, blocksize)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error configuring hyperslab'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error configuring hyperslab'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Memory dataspace (needed since the local array shape differs
     ! from the dataspace in the file)
     call h5screate_simple_f(2, blocksize, memspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error creating memory dataspace'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error creating memory dataspace'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Read the data
     call h5dread_f(dset_h, H5T_IEEE_F64LE, member_state, blocksize, ierr, &
                    file_space_id=dataspace, mem_space_id=memspace)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error reading member state data'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error reading member state data'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Close the dataspaces
     call h5sclose_f(dataspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataspace'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error closing dataspace'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     call h5sclose_f(memspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing memory dataspace'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error closing memory dataspace'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Close the dataset
     call h5dclose_f(dset_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataset'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error closing dataset'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
     ! Close the file
     call h5fclose_f(h5file_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing file'//errstr_suffix, &
-            filename = preassim_filename, &
-            procedure = 'read_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception( &
+                 ierr, &
+                 'HDF5 error closing file'//errstr_suffix, &
+                 filename=preassim_filename, &
+                 procedure='read_member_state'))
+      return
     end if
 
   end subroutine read_member_state
@@ -365,8 +374,8 @@ contains
     integer::rank !! MPI rank
     integer::ierr !! MPI status code
 
-    if(.not.this%state_loaded) then
-       call this%read_state(istep, status)
+    if (.not. this%state_loaded) then
+      call this%read_state(istep, status)
     end if
 
     call mpi_comm_rank(this%comm, rank, ierr)
@@ -528,35 +537,35 @@ contains
     ! Create the file
     call h5fcreate_f(postassim_filename, H5F_ACC_TRUNC_F, h5file_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error creating output file', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error creating output file', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
     ! Define a dataspace
     call h5screate_simple_f(1, (/int(state_size, 8)/), dataspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error creating dataspace', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error creating dataspace', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
     ! Create the dataset
     call h5dcreate_f(h5file_h, 'ensemble_state', H5T_IEEE_F64LE, &
                      dataspace, dset_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error creating dataset', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error creating dataset', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
     ! Write the data
@@ -564,45 +573,45 @@ contains
       dset_h, H5T_IEEE_F64LE, member_state, data_block, ierr, &
       file_space_id=dataspace)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error writing data', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error writing data', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
     ! Close the dataspace
     call h5sclose_f(dataspace, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataspace', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error closing dataspace', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
-   ! Close the dataset
+    ! Close the dataset
     call h5dclose_f(dset_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing dataset', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error closing dataset', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
     ! Close the file
     call h5fclose_f(h5file_h, ierr)
 
-    if(ierr < 0) then
-       call throw(status, new_hdf5_exception( ierr, &
-            'HDF5 error closing file', &
-            filename = postassim_filename, &
-            procedure = 'write_member_state'))
-       return
+    if (ierr < 0) then
+      call throw(status, new_hdf5_exception(ierr, &
+                                            'HDF5 error closing file', &
+                                            filename=postassim_filename, &
+                                            procedure='write_member_state'))
+      return
     end if
 
   end subroutine write_ensemble_member
