@@ -58,6 +58,12 @@ contains
        exc%message='HDF5 exception'
     end if
 
+#ifndef OVERRIDABLE_FINALIZERS
+    if (present(filename)) then
+      exc%message = exc%message//' on file '//filename
+    end if
+#endif
+
     hdf_result=exc
 
   end function new_hdf5_exception
