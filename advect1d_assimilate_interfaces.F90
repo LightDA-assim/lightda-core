@@ -532,7 +532,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error creating output file', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -543,7 +543,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error creating dataspace', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -555,7 +555,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error creating dataset', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -568,7 +568,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error writing data', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -579,7 +579,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error closing dataspace', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -590,7 +590,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error closing dataset', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
@@ -601,7 +601,7 @@ contains
        call throw(status, new_hdf5_exception( ierr, &
             'HDF5 error closing file', &
             filename = postassim_filename, &
-            procedure = 'read_member_state'))
+            procedure = 'write_member_state'))
        return
     end if
 
