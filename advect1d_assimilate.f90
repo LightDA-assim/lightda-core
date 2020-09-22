@@ -39,6 +39,9 @@ program advect1d_assimmilate
 
   filter%forget=0.8
 
+  localizer%cutoff = 0.1
+  localizer%cutoff_u_a = 0.2
+
   ! Load observations
   observation_sets(1) = new_advected_quantity_observation_set( &
        istep, mpi_comm_world)
