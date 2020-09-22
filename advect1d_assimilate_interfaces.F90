@@ -183,13 +183,13 @@ contains
 
     character(len=50)::preassim_filename
     integer(HID_T)::h5file_h, dset_h, dataspace, memspace
-    integer(HSIZE_T)::offset(2), count(2), stride(2), block(2)
+    integer(HSIZE_T)::offset(2), count(2), stride(2), blocksize(2)
     integer::ierr
 
     stride = (/2, 1/)
     offset = (/imember - 1, 0/)
     count = (/1, 1/)
-    block = (/1, state_size/)
+    blocksize = (/1, state_size/)
 
     ! Set the HDF5 filename
     write (preassim_filename, "(A,I0,A)") &
@@ -230,7 +230,7 @@ contains
     end if
 
     call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
-                               offset, count, ierr, stride, block)
+                               offset, count, ierr, stride, blocksize)
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
@@ -242,7 +242,7 @@ contains
 
     ! Memory dataspace (needed since the local array shape differs
     ! from the dataspace in the file)
-    call h5screate_simple_f(2, block, memspace, ierr)
+    call h5screate_simple_f(2, blocksize, memspace, ierr)
 
     if(ierr < 0) then
        call throw(status, new_hdf5_exception( ierr, &
@@ -253,7 +253,7 @@ contains
     end if
 
     ! Read the data
-    call h5dread_f(dset_h, H5T_IEEE_F64LE, member_state, block, ierr, &
+    call h5dread_f(dset_h, H5T_IEEE_F64LE, member_state, blocksize, ierr, &
                    file_space_id=dataspace, mem_space_id=memspace)
 
     if(ierr < 0) then
