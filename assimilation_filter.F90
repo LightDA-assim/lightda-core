@@ -10,9 +10,9 @@ module mod_assimilation_filter
 contains
 
   subroutine assimilate( &
-       this, istep, ibatch, dim_p, dim_obs, dim_ens, &
-       ens_p, predictions, observations, obs_errors, &
-       mgr, status)
+    this, istep, ibatch, dim_p, dim_obs, dim_ens, &
+    ens_p, predictions, observations, obs_errors, &
+    mgr, status)
 
     !! Base assimilation filter. Leaves ensemble state unchanged. Used in tests.
 

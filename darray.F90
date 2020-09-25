@@ -64,7 +64,7 @@ contains
 
     length = 0
     do i = 1, size(this%segments)
-       length = length + this%segments(i)%length
+      length = length + this%segments(i)%length
     end do
 
   end function get_length
