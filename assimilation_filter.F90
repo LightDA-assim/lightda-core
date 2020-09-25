@@ -2,38 +2,37 @@ module mod_assimilation_filter
 
   implicit none
 
-  type, abstract::assimilation_filter
+  type::assimilation_filter
   contains
-    procedure(assimilate), deferred::assimilate
+    procedure::assimilate
   end type assimilation_filter
 
-  abstract interface
-    subroutine assimilate( &
-      this, istep, ibatch, dim_p, dim_obs, dim_ens, &
-      ens_p, predictions, observations, obs_errors, &
-      mgr, status)
+contains
 
-      use exceptions, ONLY: error_status
-      use mod_base_assimilation_manager, ONLY: base_assimilation_manager
+  subroutine assimilate( &
+       this, istep, ibatch, dim_p, dim_obs, dim_ens, &
+       ens_p, predictions, observations, obs_errors, &
+       mgr, status)
 
-      import assimilation_filter
+    !! Base assimilation filter. Leaves ensemble state unchanged. Used in tests.
 
-      class(assimilation_filter) :: this
-      integer, intent(in)::istep
-      integer, intent(in)::ibatch
-      integer, intent(in)::dim_p
-      integer, intent(in)::dim_obs
-      integer, intent(in)::dim_ens
-      real(kind=8), intent(inout)::ens_p(dim_p, dim_ens)
-      real(kind=8), intent(in)::predictions(dim_obs, dim_ens)
-      real(kind=8), intent(in)::observations(dim_obs)
-      real(kind=8), intent(in)::obs_errors(dim_obs)
+    use exceptions, ONLY: error_status
+    use mod_base_assimilation_manager, ONLY: base_assimilation_manager
 
-      class(base_assimilation_manager)::mgr
-      class(error_status), intent(out), allocatable, optional::status
+    class(assimilation_filter) :: this
+    integer, intent(in)::istep
+    integer, intent(in)::ibatch
+    integer, intent(in)::dim_p
+    integer, intent(in)::dim_obs
+    integer, intent(in)::dim_ens
+    real(kind=8), intent(inout)::ens_p(dim_p, dim_ens)
+    real(kind=8), intent(in)::predictions(dim_obs, dim_ens)
+    real(kind=8), intent(in)::observations(dim_obs)
+    real(kind=8), intent(in)::obs_errors(dim_obs)
 
-    end subroutine assimilate
+    class(base_assimilation_manager)::mgr
+    class(error_status), intent(out), allocatable, optional::status
 
-  end interface
+  end subroutine assimilate
 
 end module mod_assimilation_filter
