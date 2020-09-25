@@ -46,9 +46,28 @@ module distributed_array
     procedure::get_segment_index_for_offset
     procedure::transfer_to_segment
     procedure::transfer_to_darray => transfer_data
+    procedure::get_length
   end type darray
 
 contains
+
+  function get_length(this) result(length)
+
+    ! Arguments
+    class(darray) :: this
+        !! Darray
+
+    ! Result
+    integer::length
+
+    integer::i
+
+    length = 0
+    do i = 1, size(this%segments)
+       length = length + this%segments(i)%length
+    end do
+
+  end function get_length
 
   function get_local_data(this) result(local_data)
 
