@@ -454,10 +454,13 @@ contains
 
     type(darray)::state_darray   ! Model state darray from the model interface
     type(darray)::batches_darray ! darray with segments aligning to batch ranks
+    integer::segment_size
 
     call mpi_comm_rank(this%comm, rank, ierr)
 
     call this%model_interface%read_state(istep)
+
+    local_batches=0
 
     ! Get the assimilation batches darray
     batches_darray = this%get_batches_darray()
@@ -477,8 +480,10 @@ contains
       do ibatch = 1, this%n_batches
         if (this%batch_ranks(ibatch) == rank) then
 
+          segment_size=batches_darray%segments(ibatch)%length
+
           ! Copy batch data to the local_batches array
-          local_batches(:, ibatch_local, imember) = &
+          local_batches(1:segment_size, ibatch_local, imember) = &
             batches_darray%segments(ibatch)%data
 
           ! Increment the local batch counter
