@@ -310,6 +310,8 @@ contains
     integer::rank !! MPI rank
     integer::ierr !! MPI status code
 
+    if (.not. this%state_loaded) call this%read_state(istep)
+
     call mpi_comm_rank(this%comm, rank, ierr)
 
     ! Populate the segment indicating that it covers the entire model state
