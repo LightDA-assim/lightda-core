@@ -21,13 +21,7 @@ module dummy_model_interfaces
   contains
     procedure::get_state_size
     procedure::set_state_subset
-    procedure::get_subset_obs_count
-    procedure::get_subset_predictions
-    procedure::get_subset_observations
-    procedure::get_subset_obs_err
-    procedure, private::compute_predictions
     procedure::read_state
-    procedure, private::load_observations
     procedure::get_ensemble_state
     procedure::get_state_darray
   end type dummy_model_interface
@@ -107,123 +101,6 @@ contains
 
   end function get_rank_io_size
 
-  function get_subset_obs_count( &
-    this, istep, subset_offset, subset_size, status) result(obs_count)
-
-    implicit none
-
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, subset_offset, subset_size
-    integer::obs_count
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    obs_count = this%n_observations
-
-  end function get_subset_obs_count
-
-  subroutine get_subset_predictions( &
-    this, istep, subset_offset, subset_size, predictions, status)
-
-    use iso_c_binding
-
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, subset_offset, subset_size
-    real(kind=8), intent(out)::predictions(:, :)
-    integer::i, imember, ierr
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    character(:), allocatable::errstr
-
-    if (size(predictions, 1) /= this%n_observations .or. &
-        size(predictions, 2) /= this%n_ensemble) then
-      write (errstr, '(A,I0,A,I0,A,I0,A,I0,A)') &
-        'Wrong shape passed to predictions argument of &
-        &get_subset_predictions. Expected (', &
-        this%n_observations, ',', this%n_ensemble, &
-        '), got (', size(predictions, 1), ',', size(predictions, 2), ').'
-      call throw(status, new_exception(errstr, 'get_subset_predictions'))
-      return
-    end if
-
-    predictions = this%predictions
-
-  end subroutine get_subset_predictions
-
-  subroutine get_subset_observations( &
-    this, istep, subset_offset, subset_size, observations, status)
-
-    use iso_c_binding
-
-    implicit none
-
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, subset_offset, subset_size
-    real(kind=8), intent(out)::observations(:)
-    integer::ierr
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    character(:), allocatable::errstr
-
-    if (size(observations) /= this%n_observations) then
-      write (errstr, '(A,I0,A,I0,A,I0)') &
-        'Wrong size array passed to observations argument of &
-        &get_batch_observations. Expected size=', &
-        this%n_observations, ', got size=', size(observations)
-      call throw(status, new_exception(errstr, 'get_subset_observations'))
-      return
-    end if
-
-    observations = this%observations
-
-  end subroutine get_subset_observations
-
-  SUBROUTINE get_subset_obs_err( &
-    this, istep, subset_offset, subset_size, obs_err, status)
-    USE iso_c_binding
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep, subset_offset, subset_size
-    REAL(c_double), INTENT(out) :: obs_err(:)
-    class(error_status), intent(out), allocatable, optional::status
-        !! Error status
-
-    obs_err = this%obs_errors
-
-  END SUBROUTINE get_subset_obs_err
-
-  subroutine load_observations(this, istep)
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep
-    integer::ierr, rank, iobs
-    real(kind=8)::r
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (this%observations_read) return
-
-    call mpi_bcast(this%n_observations, 1, MPI_INTEGER, 0, this%comm, ierr)
-
-    do iobs = 1, this%n_observations
-      call random_number(r)
-      this%obs_positions(iobs) = 1
-      this%obs_positions(iobs) = floor(1 + r*this%n_observations)
-    end do
-
-    call random_number(this%observations)
-
-    call mpi_bcast(this%observations, this%n_observations, MPI_INTEGER, 0, &
-                   this%comm, ierr)
-    call mpi_bcast(this%obs_positions, this%n_observations, MPI_INTEGER, 0, &
-                   this%comm, ierr)
-    call mpi_bcast(this%obs_errors, this%n_observations, MPI_INTEGER, 0, &
-                   this%comm, ierr)
-
-    this%observations_read = .true.
-
-  end subroutine load_observations
-
   subroutine read_state(this, istep, status)
     class(dummy_model_interface)::this
     integer, intent(in)::istep
@@ -247,46 +124,9 @@ contains
       this%local_io_data, this%state_size*this%n_ensemble, &
       MPI_DOUBLE_PRECISION, 0, this%comm, ierr)
 
-    call this%load_observations(istep)
-
     this%state_loaded = .true.
 
   end subroutine read_state
-
-  subroutine compute_predictions(this, istep)
-    class(dummy_model_interface)::this
-    integer, intent(in)::istep
-    integer::imember, local_io_counter, rank, ierr, iobs
-    real(kind=8)::member_predictions(this%n_observations)
-
-    call mpi_comm_rank(this%comm, rank, ierr)
-
-    if (.not. this%state_loaded) call this%read_state(istep)
-
-    if (.not. this%observations_read) call this%load_observations(istep)
-
-    local_io_counter = 1
-
-    do imember = 1, this%n_ensemble
-      if (this%io_ranks(imember) == rank) then
-
-        ! Compute predictions for this ensemble member
-        do iobs = 1, this%n_observations
-          member_predictions(iobs) = this%local_io_data( &
-                                     this%obs_positions(iobs) + 1, imember)
-        end do
-
-      end if
-
-      ! Broadcast to all processors
-      call mpi_bcast(member_predictions, this%n_observations, &
-                     MPI_DOUBLE_PRECISION, this%io_ranks(imember), &
-                     this%comm, ierr)
-
-      this%predictions(:, imember) = member_predictions
-
-    end do
-  end subroutine compute_predictions
 
   function get_state_darray(this, istep, imember, status) result(state_darray)
 
