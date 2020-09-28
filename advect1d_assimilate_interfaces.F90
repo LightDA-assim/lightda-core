@@ -22,6 +22,7 @@ module advect1d_assimilate_interfaces
     integer::state_size, local_io_size
     logical::observations_read = .false., predictions_computed = .false., &
               state_loaded = .false.
+    integer::istep
   contains
     procedure::get_state_size
     procedure::set_state_subset
@@ -33,10 +34,10 @@ module advect1d_assimilate_interfaces
 contains
 
   function new_advect1d_interface( &
-    n_ensemble, state_size, comm, status) result(this)
+    istep, n_ensemble, state_size, comm, status) result(this)
     !! Create a new advect1d_interface instance
 
-    integer(c_int), intent(in)::n_ensemble, state_size
+    integer(c_int), intent(in)::istep, n_ensemble, state_size
     MPI_COMM_TYPE, intent(in)::comm
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
@@ -44,6 +45,7 @@ contains
     type(advect1d_interface)::this
     integer::ierr, rank, comm_size
 
+    this%istep = istep
     this%n_ensemble = n_ensemble
     this%state_size = state_size
     this%comm = comm
@@ -322,15 +324,13 @@ contains
 
   end subroutine read_member_state
 
-  subroutine read_state(this, istep, status)
+  subroutine read_state(this, status)
 
     !! Read the model state and observations from disk, compute predictions
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
@@ -342,7 +342,7 @@ contains
 
     do imember = 1, this%n_ensemble
       if (this%io_ranks(imember) == rank) then
-        call read_member_state(istep, imember, &
+        call read_member_state(this%istep, imember, &
                                this%local_io_data(:, local_io_counter), &
                                this%state_size)
         local_io_counter = local_io_counter + 1
@@ -353,15 +353,13 @@ contains
 
   end subroutine read_state
 
-  function get_state_darray(this, istep, imember, status) result(state_darray)
+  function get_state_darray(this, imember, status) result(state_darray)
 
     !! Get the requested ensemble member state as a darray
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     class(error_status), intent(out), allocatable, optional :: status
@@ -375,7 +373,7 @@ contains
     integer::ierr !! MPI status code
 
     if (.not. this%state_loaded) then
-      call this%read_state(istep, status)
+      call this%read_state(status)
     end if
 
     call mpi_comm_rank(this%comm, rank, ierr)
@@ -400,15 +398,13 @@ contains
   end function get_state_darray
 
   subroutine set_state_subset( &
-    this, istep, imember, subset_offset, subset_size, subset_state, status)
+    this, imember, subset_offset, subset_size, subset_state, status)
 
     !! Update the state for a portion of the model domain.
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     integer, intent(in)::subset_offset
@@ -443,15 +439,13 @@ contains
 
   end subroutine set_state_subset
 
-  function get_state_size(this, istep, status) result(size)
+  function get_state_size(this, status) result(size)
 
     !! Get the size of the model state array
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
@@ -461,15 +455,13 @@ contains
 
   end function get_state_size
 
-  subroutine write_state(this, istep, status)
+  subroutine write_state(this, status)
 
     !! Write the new state to disk
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
@@ -484,7 +476,7 @@ contains
       if (this%io_ranks(imember) == rank) then
 
         call write_ensemble_member( &
-          this, istep, imember, this%n_ensemble, &
+          this, imember, this%n_ensemble, &
           this%comm, this%local_io_data(:, imember_local), &
           this%state_size)
 
@@ -497,15 +489,13 @@ contains
   end subroutine write_state
 
   subroutine write_ensemble_member( &
-    this, istep, imember, n_ensemble, comm, member_state, state_size, status)
+    this, imember, n_ensemble, comm, member_state, state_size, status)
 
     !! Write the new state to disk for one ensemble member
 
     ! Arguments
     class(advect1d_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     integer, intent(in)::n_ensemble
@@ -532,7 +522,7 @@ contains
 
     ! Set the HDF5 filename
     write (postassim_filename, "(A,I0,A,I0,A)") &
-      'ensembles/', istep, '/postassim_', imember - 1, '.h5'
+      'ensembles/', this%istep, '/postassim_', imember - 1, '.h5'
 
     ! Create the file
     call h5fcreate_f(postassim_filename, H5F_ACC_TRUNC_F, h5file_h, ierr)

@@ -49,7 +49,7 @@ program advect1d_assimmilate
 
   ! Initialize i/o interface for accessing data for assimilation
   model_interface = new_advect1d_interface( &
-                    n_ensemble, state_size, mpi_comm_world)
+                    istep, n_ensemble, state_size, mpi_comm_world)
 
   ! Initialize forward operator
   forward_operator = new_advect1d_forward_operator(model_interface)
@@ -59,7 +59,7 @@ program advect1d_assimmilate
               observation_sets, batch_size, localizer, filter, mpi_comm_world)
 
   ! Run the assimilation
-  call assim_mgr%assimilate(istep)
+  call assim_mgr%assimilate()
 
   call mpi_finalize(ierr)
 

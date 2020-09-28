@@ -187,7 +187,7 @@ program test_advect1d_model_interface
   call mpi_barrier(mpi_comm_world, ierr)
 
   model_interface = new_advect1d_interface( &
-                    n_ensemble, state_size, mpi_comm_world)
+                    istep, n_ensemble, state_size, mpi_comm_world)
 
   call run_all(model_interface)
   call run_all_advect1d(model_interface)

@@ -343,15 +343,13 @@ contains
 
   end function get_errors
 
-  function get_position(this, istep, iobs, status) result(position)
+  function get_position(this, iobs, status) result(position)
 
     !! Get the position of the observation at index `iobs`.
 
     ! Arguments
     class(advected_quantity_observation_set)::this
         !! Observation set
-    integer::istep
-        !! Assimilation step
     integer::iobs
         !! Index into the observation set
     class(error_status), intent(out), allocatable, optional::status

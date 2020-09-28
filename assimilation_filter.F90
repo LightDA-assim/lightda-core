@@ -10,7 +10,7 @@ module mod_assimilation_filter
 contains
 
   subroutine assimilate( &
-    this, istep, ibatch, dim_p, dim_obs, dim_ens, &
+    this, ibatch, dim_p, dim_obs, dim_ens, &
     ens_p, predictions, observations, obs_errors, &
     mgr, status)
 
@@ -20,7 +20,6 @@ contains
     use mod_base_assimilation_manager, ONLY: base_assimilation_manager
 
     class(assimilation_filter) :: this
-    integer, intent(in)::istep
     integer, intent(in)::ibatch
     integer, intent(in)::dim_p
     integer, intent(in)::dim_obs

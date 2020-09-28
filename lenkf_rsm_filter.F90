@@ -74,12 +74,11 @@ contains
   end function get_innovations
 
   subroutine assimilate( &
-    this, istep, ibatch, dim_p, dim_obs, dim_ens, &
+    this, ibatch, dim_p, dim_obs, dim_ens, &
     ens_p, predictions, observations, obs_errors, &
     mgr, status)
 
     class(lenkf_rsm_filter) :: this
-    integer, intent(in)::istep
     integer, intent(in)::ibatch
     integer, intent(in)::dim_p
     integer, intent(in)::dim_obs
@@ -99,7 +98,7 @@ contains
     innovations = get_innovations(observations, predictions, obs_errors)
 
     call lenkf_analysis_rsm( &
-      istep, ibatch, dim_p, dim_obs, dim_obs, &
+      ibatch, dim_p, dim_obs, dim_obs, &
       dim_ens, int(0), state_p, ens_p, predictions, innovations, &
       this%forget, flag, mgr)
 

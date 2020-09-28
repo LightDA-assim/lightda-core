@@ -34,7 +34,7 @@ contains
 
   end function new_advect1d_forward_operator
 
-  function get_predictions_mask(this, istep, obs_set, status) result(mask)
+  function get_predictions_mask(this, obs_set, status) result(mask)
 
     !! Returns a mask array indicating which observations in `obs_set`
     !! can be predicted by the model
@@ -42,8 +42,6 @@ contains
     ! Arguments
     class(advect1d_forward_operator)::this
         !! Forward operator
-    integer, intent(in)::istep
-        !! Assimilation step
     class(observation_set)::obs_set
         !! Observation set
     class(error_status), intent(out), allocatable, optional::status
@@ -72,7 +70,7 @@ contains
         ! and set mask accordingly
         if ((obs_set%positions(iobs) < 0) .or. &
             (obs_set%positions(iobs) > &
-             this%model_interface%get_state_size(istep)/2)) &
+             this%model_interface%get_state_size()/2)) &
           then
           mask(iobs) = .false.
         else
@@ -90,15 +88,13 @@ contains
 
   end function get_predictions_mask
 
-  function get_predictions(this, istep, obs_set, status) result(predictions)
+  function get_predictions(this, obs_set, status) result(predictions)
 
     !! Get the predictions for the observations in `obs_set`
 
     ! Arguments
     class(advect1d_forward_operator)::this
         !! Forward operator
-    integer, intent(in)::istep
-        !! Assimilation step
     class(observation_set)::obs_set
         !! Observation set
     class(error_status), intent(out), allocatable, optional::status
@@ -122,7 +118,7 @@ contains
     class is (advected_quantity_observation_set)
 
       predictions = this%get_advected_quantity_predictions( &
-                    istep, obs_set, status)
+                    obs_set, status)
 
     class default
 
@@ -133,7 +129,7 @@ contains
 
   end function get_predictions
 
-  function get_advected_quantity_predictions(this, istep, obs_set, status) &
+  function get_advected_quantity_predictions(this, obs_set, status) &
     result(predictions)
 
     use distributed_array, ONLY: darray
@@ -144,8 +140,6 @@ contains
     ! Arguments
     class(advect1d_forward_operator)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     type(advected_quantity_observation_set), intent(in) :: obs_set
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
@@ -170,7 +164,7 @@ contains
     allocate (predictions(obs_set%get_size(), this%model_interface%n_ensemble))
 
     do imember = 1, this%model_interface%n_ensemble
-      state = this%model_interface%get_state_darray(istep, imember)
+      state = this%model_interface%get_state_darray(imember)
 
       if (state%segments(1)%rank == rank) then
 
@@ -179,7 +173,7 @@ contains
         ! Compute predictions for this ensemble member
         do iobs = 1, obs_set%get_size()
           member_predictions(iobs) = &
-            member_state(obs_set%get_position(istep, iobs) + 1)
+            member_state(obs_set%get_position(iobs) + 1)
         end do
 
       end if

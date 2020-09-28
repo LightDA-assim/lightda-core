@@ -21,7 +21,7 @@ module mod_advect1d_localization
 
 contains
 
-  function get_weight_obs_obs(this, istep, obs_set1, iobs1, obs_set2, iobs2, &
+  function get_weight_obs_obs(this, obs_set1, iobs1, obs_set2, iobs2, &
                               status) result(weight)
 
     !! Get localization weight for a given pair of observations. Default
@@ -30,8 +30,6 @@ contains
     ! Arguments
     class(advect1d_localizer)::this
         !! Localizer
-    integer, intent(in)::istep
-        !! Iteration number
     class(observation_set), pointer::obs_set1
         !! Observation set 1
     integer, intent(in)::iobs1
@@ -56,7 +54,7 @@ contains
 
     select type (obs_set1)
     class is (advected_quantity_observation_set)
-      pos1 = real(obs_set1%get_position(istep, iobs1))/this%domain_size
+      pos1 = real(obs_set1%get_position(iobs1))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_obs_obs'))
@@ -65,7 +63,7 @@ contains
 
     select type (obs_set2)
     class is (advected_quantity_observation_set)
-      pos2 = real(obs_set2%get_position(istep, iobs2))/this%domain_size
+      pos2 = real(obs_set2%get_position(iobs2))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_obs_obs'))
@@ -88,7 +86,7 @@ contains
 
   end function get_weight_obs_obs
 
-  function get_weight_model_obs(this, istep, obs_set, iobs, model_interface, &
+  function get_weight_model_obs(this, obs_set, iobs, model_interface, &
                                 imodel, status) result(weight)
 
     !! Get localization weight for a given observation at a given index in the
@@ -98,8 +96,6 @@ contains
     ! Arguments
     class(advect1d_localizer)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(base_model_interface)::model_interface
         !! Model interface
     integer, intent(in)::imodel
@@ -122,7 +118,7 @@ contains
 
     select type (obs_set)
     class is (advected_quantity_observation_set)
-      pos_obs = real(obs_set%get_position(istep, iobs))/this%domain_size
+      pos_obs = real(obs_set%get_position(iobs))/this%domain_size
     class default
       call throw(status, new_exception('Unknown observation type', &
                                        'get_weight_model_obs'))
@@ -131,7 +127,7 @@ contains
 
     select type (model_interface)
     class is (advect1d_interface)
-      domain_size = model_interface%get_state_size(istep)/2
+      domain_size = model_interface%get_state_size()/2
 
       pos_model = real(mod(imodel - 1, domain_size))/domain_size
     class default

@@ -14,7 +14,7 @@ module localization
 
 contains
 
-  function get_weight_obs_obs(this, istep, obs_set1, iobs1, obs_set2, iobs2, &
+  function get_weight_obs_obs(this, obs_set1, iobs1, obs_set2, iobs2, &
                               status) result(weight)
 
     !! Get localization weight for a given pair of observations. Default
@@ -23,8 +23,6 @@ contains
     ! Arguments
     class(base_localizer)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(observation_set), pointer::obs_set1
         !! Observation set 1
     integer, intent(in)::iobs1
@@ -44,7 +42,7 @@ contains
 
   end function get_weight_obs_obs
 
-  function get_weight_model_obs(this, istep, obs_set, iobs, model_interface, &
+  function get_weight_model_obs(this, obs_set, iobs, model_interface, &
                                 imodel, status) result(weight)
 
     !! Get localization weight for a given observation at a given index in the
@@ -54,8 +52,6 @@ contains
     ! Arguments
     class(base_localizer)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(base_model_interface)::model_interface
         !! Model interface
     integer, intent(in)::imodel

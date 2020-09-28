@@ -59,7 +59,7 @@ contains
 
     do imember = 1, n_ensemble
       state_before_filtering(imember) = model_interface%get_state_darray( &
-                                        istep, imember)
+                                        imember)
     end do
 
     ! Initialize forward operator
@@ -70,11 +70,11 @@ contains
                 observation_sets, batch_size, localizer, filter, mpi_comm_world)
 
     ! Run the assimilation
-    call assim_mgr%assimilate(istep)
+    call assim_mgr%assimilate()
 
     do imember = 1, n_ensemble
       state_after_filtering(imember) = model_interface%get_state_darray( &
-                                       istep, imember)
+                                       imember)
     end do
 
     do imember = 1, n_ensemble

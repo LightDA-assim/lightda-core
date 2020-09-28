@@ -433,7 +433,7 @@ contains
 
   end function get_batches_darray
 
-  subroutine load_ensemble_state(this, istep, local_batches)
+  subroutine load_ensemble_state(this, local_batches)
 
     !! Get the ensemble state from the model interface, divide into
     !! assimilation batches, and transmit the batch data to each processor
@@ -441,8 +441,6 @@ contains
     ! Arguments
     class(assim_batch_manager)::this
         !! Batch manager
-    integer, intent(in)::istep
-        !! Assimilation step
     real(kind=8), intent(out), target::local_batches( &
                                         this%batch_size, this%n_local_batches, &
                                         this%n_ensemble)
@@ -458,7 +456,7 @@ contains
 
     call mpi_comm_rank(this%comm, rank, ierr)
 
-    call this%model_interface%read_state(istep)
+    call this%model_interface%read_state()
 
     local_batches = 0
 
@@ -468,7 +466,7 @@ contains
     do imember = 1, this%n_ensemble
 
       ! Get the model state darray from the model interface
-      state_darray = this%model_interface%get_state_darray(istep, imember)
+      state_darray = this%model_interface%get_state_darray(imember)
 
       ! Transfer the data to the batches array (this sends all the data to the
       ! correct processor ranks for processing)
@@ -496,15 +494,13 @@ contains
 
   end subroutine load_ensemble_state
 
-  subroutine receive_results(this, istep, local_batches)
+  subroutine receive_results(this, local_batches)
 
     !! Receive assimilation results and transmit them to the model interface
 
     ! Arguments
     class(assim_batch_manager)::this
         !! Batch manager
-    integer, intent(in)::istep
-        !! Assimilation step
     real(kind=8), intent(in)::local_batches( &
                                this%batch_size, this%n_local_batches, &
                                this%n_ensemble)
@@ -546,7 +542,7 @@ contains
       end do
 
       ! Get the model state darray from the model interface
-      state_darray = this%model_interface%get_state_darray(istep, imember)
+      state_darray = this%model_interface%get_state_darray(imember)
 
       ! Transfer the data to state_darray
       call batches_darray%transfer_to_darray(state_darray)
@@ -559,7 +555,7 @@ contains
 
           ! Store the data in the model interface
           call this%model_interface%set_state_subset( &
-            istep, imember, state_segment%offset, &
+            imember, state_segment%offset, &
             state_segment%length, state_segment%data)
 
         end if
@@ -572,15 +568,13 @@ contains
 
   end subroutine receive_results
 
-  subroutine store_results(this, istep, local_batches)
+  subroutine store_results(this, local_batches)
 
     !! Store the assimilation results
 
     ! Arguments
     class(assim_batch_manager)::this
         !! Batch manager
-    integer, intent(in)::istep
-        !! Assimilation step
     real(kind=8), intent(in)::local_batches( &
                                this%batch_size, this%n_local_batches, &
                                this%n_ensemble)
@@ -590,11 +584,11 @@ contains
 
     do while (any(this%batch_results_received .eqv. .false.))
       ! Receive any pending results
-      call this%receive_results(istep, local_batches)
+      call this%receive_results(local_batches)
     end do
 
     ! Tell the model interface that we've finished receiving results
-    call this%model_interface%write_state(istep)
+    call this%model_interface%write_state()
 
   end subroutine store_results
 

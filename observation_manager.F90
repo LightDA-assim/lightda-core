@@ -21,9 +21,6 @@ module mod_observation_manager
      !! and assimilator. Obtains observation and prediction values for each
      !! batch.
 
-    integer :: istep
-        !! Assimilation step
-
     class(base_model_interface), pointer, public :: model_interface
         !! Interface to the model
 
@@ -64,11 +61,8 @@ module mod_observation_manager
 contains
 
   function new_observation_manager( &
-    istep, model_interface, batches, forward_operator, observation_sets, &
+    model_interface, batches, forward_operator, observation_sets, &
     localizer, status)
-
-    integer::istep
-        !! Assimilation step
 
     class(base_model_interface), intent(in), target::model_interface
         !! Model interface
@@ -94,7 +88,6 @@ contains
 
     type(base_localizer), target::default_localizer
 
-    new_observation_manager%istep = istep
     new_observation_manager%model_interface => model_interface
     new_observation_manager%batches => batches
     new_observation_manager%forward_operator => forward_operator
@@ -152,7 +145,7 @@ contains
       do imodel = batch%offset + 1, batch%offset + batch%length
 
         w = this%localizer%get_weight_model_obs( &
-            this%istep, obs_set, iobs, this%model_interface, imodel, status)
+            obs_set, iobs, this%model_interface, imodel, status)
 
         if (w > this%min_weight) then
 
@@ -260,8 +253,7 @@ contains
           obs_set => this%observation_sets(iobs_set)
 
           batches_prediction_masks(ibatch, iobs_set)%mask = &
-            this%forward_operator%get_predictions_mask( &
-            this%istep, obs_set)
+            this%forward_operator%get_predictions_mask(obs_set)
 
         end do
       end if
@@ -569,8 +561,7 @@ contains
     do iobs_set = 1, size(this%observation_sets)
 
       obs_set => this%observation_sets(iobs_set)
-      set_predictions = this%forward_operator%get_predictions( &
-                        this%istep, obs_set)
+      set_predictions = this%forward_operator%get_predictions(obs_set)
 
       do ibatch = 1, size(this%batches%segments)
 

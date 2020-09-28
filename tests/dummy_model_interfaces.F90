@@ -64,9 +64,8 @@ contains
 
   end function new_dummy_model
 
-  function get_state_size(this, istep, status) result(size)
+  function get_state_size(this, status) result(size)
     class(dummy_model_interface)::this
-    integer, intent(in)::istep
     integer::size
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
@@ -101,9 +100,8 @@ contains
 
   end function get_rank_io_size
 
-  subroutine read_state(this, istep, status)
+  subroutine read_state(this, status)
     class(dummy_model_interface)::this
-    integer, intent(in)::istep
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
@@ -128,15 +126,13 @@ contains
 
   end subroutine read_state
 
-  function get_state_darray(this, istep, imember, status) result(state_darray)
+  function get_state_darray(this, imember, status) result(state_darray)
 
     !! Get the requested ensemble member state as a darray
 
     ! Arguments
     class(dummy_model_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     class(error_status), intent(out), allocatable, optional::status
@@ -150,7 +146,7 @@ contains
     integer::rank !! MPI rank
     integer::ierr !! MPI status code
 
-    if (.not. this%state_loaded) call this%read_state(istep)
+    if (.not. this%state_loaded) call this%read_state()
 
     call mpi_comm_rank(this%comm, rank, ierr)
 
@@ -171,10 +167,10 @@ contains
   end function get_state_darray
 
   subroutine set_state_subset( &
-    this, istep, imember, subset_offset, subset_size, subset_state, status)
+    this, imember, subset_offset, subset_size, subset_state, status)
 
     class(dummy_model_interface)::this
-    integer, intent(in)::istep, imember, subset_offset, subset_size
+    integer, intent(in)::imember, subset_offset, subset_size
     real(kind=8), intent(in)::subset_state(subset_size)
     class(error_status), intent(out), allocatable, optional::status
         !! Error status

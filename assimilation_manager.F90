@@ -91,7 +91,7 @@ contains
     new_assimilation_manager%batch_manager = &
       new_batch_manager( &
       model_interface, n_ensemble, &
-      model_interface%get_state_size(istep), &
+      model_interface%get_state_size(), &
       actual_max_batch_size, model_interface%comm)
 
     if (present(localizer)) then
@@ -103,12 +103,10 @@ contains
   end function new_assimilation_manager
 
   subroutine assimilate( &
-    this, istep)
+    this)
 
     class(assimilation_manager), intent(inout)::this
         !! Assimilation manager
-    integer, intent(in) :: istep
-        !! Iteration number
     real(kind=8), allocatable::local_batches(:, :, :)
     integer, allocatable::local_batch_inds(:)
     real(kind=8), allocatable :: batch_observations(:)
@@ -147,11 +145,11 @@ contains
     batches = this%batch_manager%get_batches_darray()
 
     ! Load the ensemble state
-    call this%batch_manager%load_ensemble_state(istep, local_batches)
+    call this%batch_manager%load_ensemble_state(local_batches)
 
     this%obs_manager = &
       new_observation_manager( &
-      istep, this%model_interface, batches, this%forward_operator, &
+      this%model_interface, batches, this%forward_operator, &
       this%observation_sets, this%localizer)
 
     this%observations = this%obs_manager%get_batches_obs_values()
@@ -176,7 +174,7 @@ contains
       batch_states = local_batches(:, ibatch_local, :)
 
       call this%filter%assimilate( &
-        istep, ibatch, batch_size, size(batch_observations), n_ensemble, &
+        ibatch, batch_size, size(batch_observations), n_ensemble, &
         batch_states, batch_predictions, &
         batch_observations, batch_obs_err, this)
 
@@ -185,15 +183,15 @@ contains
     end do
 
     ! Write the ensemble state
-    call this%batch_manager%store_results(istep, local_batches)
+    call this%batch_manager%store_results(local_batches)
 
   end subroutine assimilate
 
-  SUBROUTINE add_obs_err(this, istep, ibatch, dim_obs, HPH, status)
+  SUBROUTINE add_obs_err(this, ibatch, dim_obs, HPH, status)
     ! Add observation error covariance matrix
     USE iso_c_binding
     class(assimilation_manager), target::this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
+    INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
 
@@ -219,11 +217,11 @@ contains
 
   END SUBROUTINE add_obs_err
 
-  SUBROUTINE localize(this, istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
+  SUBROUTINE localize(this, ibatch, dim_p, dim_obs, HP_p, HPH, status)
     ! Apply localization to HP and HPH^T
     USE iso_c_binding
     class(assimilation_manager), target::this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
+    INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
@@ -299,7 +297,7 @@ contains
 
         ! Get localization weights
         w = this%localizer%get_weight_obs_obs( &
-            istep, obs_set1, iobs_inset1, obs_set2, iobs_inset2)
+            obs_set1, iobs_inset1, obs_set2, iobs_inset2)
 
         ! Multiply HPH by the localization weights
         HPH(iobs_batch1, iobs_batch2) = HPH(iobs_batch1, iobs_batch2)*w
@@ -310,7 +308,7 @@ contains
 
         ! Get localization weights
         w = this%localizer%get_weight_model_obs( &
-            istep, obs_set1, iobs_inset1, this%model_interface, &
+            obs_set1, iobs_inset1, this%model_interface, &
             ipos + batch_offset)
 
         ! Multiply HP_p by the localization weights

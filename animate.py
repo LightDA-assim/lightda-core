@@ -268,11 +268,11 @@ def update_inflation_factor_localized(ensemble,forward_operator,observations,obs
 
 class ensemble_animator(object):
 
-    def add_obs_err(self,step,ind_p,HPH):
+    def add_obs_err(self,ind_p,HPH):
         for i in range(self.n_obs):
             HPH[i,i]+=self.obs_errors[i]**2
 
-    def localize(self,step,ind_p,HP_p,HPH):
+    def localize(self,ind_p,HP_p,HPH):
         HP_p[:,:]=HP_p*self.localization_obs_model[:,self.batch_boundaries[ind_p]:self.batch_boundaries[ind_p+1]]
         HPH[:,:]=HPH*self.localization_obs_obs
 

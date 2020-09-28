@@ -12,7 +12,7 @@ module forward_operator
 
   abstract interface
 
-    function get_predictions_mask(this, istep, obs_set, status) result(mask)
+    function get_predictions_mask(this, obs_set, status) result(mask)
 
        !! Returns a mask array indicating which observations in `obs_set`
        !! can be predicted by the model
@@ -25,8 +25,6 @@ module forward_operator
       ! Arguments
       class(base_forward_operator)::this
            !! Forward operator
-      integer, intent(in)::istep
-           !! Assimilation step
       class(observation_set)::obs_set
            !! Observation set
       class(error_status), intent(out), allocatable, optional::status
@@ -38,7 +36,7 @@ module forward_operator
 
     end function get_predictions_mask
 
-    function get_predictions(this, istep, obs_set, status) result(predictions)
+    function get_predictions(this, obs_set, status) result(predictions)
 
        !! Get the predictions for the observations in `obs_set`
 
@@ -50,8 +48,6 @@ module forward_operator
       ! Arguments
       class(base_forward_operator)::this
            !! Forward operator
-      integer, intent(in)::istep
-           !! Assimilation step
       class(observation_set)::obs_set
            !! Observation set
       class(error_status), intent(out), allocatable, optional::status

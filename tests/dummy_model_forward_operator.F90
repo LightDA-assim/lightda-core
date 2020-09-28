@@ -34,7 +34,7 @@ contains
 
   end function new_dummy_model_forward_operator
 
-  function get_predictions_mask(this, istep, obs_set, status) result(mask)
+  function get_predictions_mask(this, obs_set, status) result(mask)
 
     !! Returns a mask array indicating which observations in `obs_set`
     !! can be predicted by the model
@@ -42,8 +42,6 @@ contains
     ! Arguments
     class(dummy_model_forward_operator)::this
         !! Forward operator
-    integer, intent(in)::istep
-        !! Assimilation step
     class(observation_set)::obs_set
         !! Observation set
     class(error_status), intent(out), allocatable, optional::status
@@ -75,15 +73,13 @@ contains
 
   end function get_predictions_mask
 
-  function get_predictions(this, istep, obs_set, status) result(predictions)
+  function get_predictions(this, obs_set, status) result(predictions)
 
     !! Get the predictions for the observations in `obs_set`
 
     ! Arguments
     class(dummy_model_forward_operator)::this
         !! Forward operator
-    integer, intent(in)::istep
-        !! Assimilation step
     class(observation_set)::obs_set
         !! Observation set
     class(error_status), intent(out), allocatable, optional::status
@@ -107,7 +103,7 @@ contains
     class is (random_observation_set)
 
       predictions = this%get_random_observation_predictions( &
-                    istep, obs_set, status)
+                    obs_set, status)
 
     class default
 
@@ -118,7 +114,7 @@ contains
 
   end function get_predictions
 
-  function get_random_observation_predictions(this, istep, obs_set, status) &
+  function get_random_observation_predictions(this, obs_set, status) &
     result(predictions)
 
     use distributed_array, ONLY: darray
@@ -129,8 +125,6 @@ contains
     ! Arguments
     class(dummy_model_forward_operator)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     type(random_observation_set), intent(in) :: obs_set
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
@@ -156,10 +150,10 @@ contains
     allocate (member_predictions(obs_set%get_size()))
     allocate (predictions(obs_set%get_size(), this%model_interface%n_ensemble))
 
-    state_size = this%model_interface%get_state_size(istep)
+    state_size = this%model_interface%get_state_size()
 
     do imember = 1, this%model_interface%n_ensemble
-      state = this%model_interface%get_state_darray(istep, imember)
+      state = this%model_interface%get_state_darray(imember)
 
       if (state%segments(1)%rank == rank) then
 

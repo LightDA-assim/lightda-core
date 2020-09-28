@@ -23,7 +23,7 @@ module assimilation_model_interface
 
   abstract interface
 
-    function I_get_state_darray(this, istep, imember, status) &
+    function I_get_state_darray(this, imember, status) &
       result(state_darray)
 
        !! Get the requested ensemble member state as a darray
@@ -35,8 +35,6 @@ module assimilation_model_interface
       ! Arguments
       class(base_model_interface)::this
            !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
       integer, intent(in)::imember
            !! Ensemble member index
       class(error_status), intent(out), allocatable, optional::status
@@ -48,7 +46,7 @@ module assimilation_model_interface
 
     end function I_get_state_darray
 
-    function I_get_state_size(this, istep, status) result(size)
+    function I_get_state_size(this, status) result(size)
 
        !! Returns the number elements in the model state array
 
@@ -60,8 +58,6 @@ module assimilation_model_interface
       ! Arguments
       class(base_model_interface)::this
            !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
       class(error_status), intent(out), allocatable, optional::status
            !! Error status
 
@@ -72,7 +68,7 @@ module assimilation_model_interface
     end function I_get_state_size
 
     subroutine I_set_state_subset( &
-      this, istep, imember, subset_offset, subset_size, subset_state, status)
+      this, imember, subset_offset, subset_size, subset_state, status)
 
        !! Returns model state values for a given subset of the model state
        !! Note that ability to write data may depend on the rank of the calling
@@ -90,8 +86,6 @@ module assimilation_model_interface
       ! Arguments
       class(base_model_interface)::this
            !! Model interface
-      integer, intent(in)::istep
-           !! Iteration number
       integer, intent(in)::imember
            !! Ensemble member index
       integer, intent(in)::subset_offset
@@ -108,38 +102,36 @@ module assimilation_model_interface
 
 contains
 
-  subroutine read_state(this, istep, status)
+  subroutine read_state(this, status)
 
-    !! Load the model state from disk for a given iteration `istep`. This
-    !! subroutine is to be called before any calls to get_state_subset for the
-    !! specified iteration `istep`. The default implementation is a no-op,
+    !! Load the model state from disk for a given iteration. This
+    !! subroutine is to be called before any calls to get_state_subset.
+    !!
+    !! The default implementation is a no-op,
     !! enabling a model interface to load the model state incrementally as
     !! ensemble state is requested.
 
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 
   end subroutine read_state
 
-  subroutine write_state(this, istep, status)
+  subroutine write_state(this, status)
 
-    !! Record the model state after assimilation of `istep`. This
+    !! Record the model state after assimilation. This
     !! subroutine is to be called after all calls to set_state_subset have
-    !! completed for the specified iteration `istep`. The default
-    !! implementation is a no-op, enabling a model interface to load the model
-    !! state incrementally as ensemble state is received from the assimilation
-    !! workers.
+    !! completed.
+    !!
+    !! The default implementation is a no-op, enabling a model interface to
+    !! write the state data eagerly as ensemble state is received from the
+    !! assimilation workers.
 
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     class(error_status), intent(out), allocatable, optional::status
         !! Error status
 

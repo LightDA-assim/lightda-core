@@ -11,12 +11,12 @@ contains
     type(darray), target::state_darray   ! Model state darray from the model interface
     type(darray_segment), pointer::state_segment
 
-    integer, parameter::istep = 1
+    integer, parameter::imember = 1
 
     integer::isegment
 
     ! Get the model state darray from the model interface
-    state_darray = iface%get_state_darray(istep, 1)
+    state_darray = iface%get_state_darray(1)
 
     do isegment = 1, size(state_darray%segments)
 
@@ -34,7 +34,7 @@ contains
 
       if (isegment == size(state_darray%segments) .and. &
           state_segment%offset + state_segment%length /= &
-          iface%get_state_size(istep)) then
+          iface%get_state_size()) then
         print *, 'State array segments coverage does not correspond to length &
              &returned by iface%get_state_size()'
         error stop
@@ -49,16 +49,15 @@ contains
     real(kind=8), allocatable::buf(:)
     integer::length, ierr, i, isegment
     integer, parameter::shift = 1
-    integer::rank, istep
+    integer, parameter::imember = 1
+    integer::rank
     type(darray), target::state_darray   ! Model state darray from the model interface
     type(darray_segment), pointer::state_segment
-
-    istep = 1
 
     call mpi_comm_rank(mpi_comm_world, rank, ierr)
 
     ! Get the model state darray from the model interface
-    state_darray = iface%get_state_darray(istep, 1)
+    state_darray = iface%get_state_darray(1)
 
     do isegment = 1, size(state_darray%segments)
 
@@ -75,13 +74,13 @@ contains
       end do
 
       ! Write model state subset
-      call iface%set_state_subset(istep, 1, state_segment%offset, &
+      call iface%set_state_subset(imember, state_segment%offset, &
                                   state_segment%length, buf)
 
     end do
 
     ! Get the model state darray again
-    state_darray = iface%get_state_darray(istep, 1)
+    state_darray = iface%get_state_darray(imember)
 
     do isegment = 1, size(state_darray%segments)
 

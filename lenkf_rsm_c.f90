@@ -19,14 +19,14 @@ module lenkf_rsm_c
 contains
 
   subroutine localize_wrapper(this, &
-                              istep, ibatch, dim_p, dim_obs, HP_p, HPH, status)
+                              ibatch, dim_p, dim_obs, HP_p, HPH, status)
 
     abstract INTERFACE
       SUBROUTINE localize( &
-        istep, ind_p, dim_p, dim_obs, HP_p, HPH, info_ptr) BIND(C)
+        ind_p, dim_p, dim_obs, HP_p, HPH, info_ptr) BIND(C)
         ! Apply localization to HP and HPH^T
         USE iso_c_binding
-        INTEGER(c_int32_t), INTENT(in), value :: istep, ind_p, dim_p, dim_obs
+        INTEGER(c_int32_t), INTENT(in), value :: ind_p, dim_p, dim_obs
         REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
         REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
         type(c_ptr), value::info_ptr
@@ -34,40 +34,40 @@ contains
     end INTERFACE
 
     class(c_function_container), target :: this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_p, dim_obs
+    INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p), HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
     procedure(localize), pointer::U_localize
 
     call c_f_procpointer(this%localize_fptr, U_localize)
-    call U_localize(istep, ibatch, dim_p, dim_obs, HP_p, HPH, this%info_ptr)
+    call U_localize(ibatch, dim_p, dim_obs, HP_p, HPH, this%info_ptr)
 
   end subroutine localize_wrapper
 
-  subroutine add_obs_err_wrapper(this, istep, ibatch, dim_obs, HPH, status)
+  subroutine add_obs_err_wrapper(this, ibatch, dim_obs, HPH, status)
 
     abstract INTERFACE
-      SUBROUTINE add_obs_err(step, ind_p, dim_obs, HPH, info_ptr) BIND(C)
+      SUBROUTINE add_obs_err(ind_p, dim_obs, HPH, info_ptr) BIND(C)
         ! Add observation error covariance matrix
         USE iso_c_binding
-        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+        INTEGER(c_int32_t), INTENT(in), value :: ind_p, dim_obs
         REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
         type(c_ptr), value::info_ptr
       END SUBROUTINE add_obs_err
     end INTERFACE
 
     class(c_function_container), target::this
-    INTEGER(c_int32_t), INTENT(in), value :: istep, ibatch, dim_obs
+    INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
     class(error_status), intent(out), allocatable, optional :: status
     procedure(add_obs_err), pointer::U_add_obs_err
 
     call c_f_procpointer(this%add_obs_err_fptr, U_add_obs_err)
-    call U_add_obs_err(istep, ibatch, dim_obs, HPH, this%info_ptr)
+    call U_add_obs_err(ibatch, dim_obs, HPH, this%info_ptr)
   end subroutine add_obs_err_wrapper
 
   subroutine lenkf_analysis_rsm_c( &
-    step, ind_p, dim_p, dim_obs_p, dim_obs, &
+    ind_p, dim_p, dim_obs_p, dim_obs, &
     dim_ens, rank_ana, state_p, ens_p, predictions, innovations, &
     U_add_obs_err, U_localize, forget, flag, info_ptr) bind(c)
 
@@ -75,20 +75,19 @@ contains
       SUBROUTINE add_obs_err(step, ind_p, dim_obs, HPH) BIND(C)
         ! Add observation error covariance matrix
         USE iso_c_binding
-        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_obs
+        INTEGER(c_int32_t), INTENT(in), value :: ind_p, dim_obs
         REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
       END SUBROUTINE add_obs_err
       SUBROUTINE localize(step, ind_p, dim_p, dim_obs, HP_p, HPH) BIND(C)
         ! Apply localization to HP and HPH^T
         USE iso_c_binding
-        INTEGER(c_int32_t), INTENT(in), value :: step, ind_p, dim_p, dim_obs
+        INTEGER(c_int32_t), INTENT(in), value :: ind_p, dim_p, dim_obs
         REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
         REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
       END SUBROUTINE localize
     end INTERFACE
 
     ! !ARGUMENTS:
-    INTEGER(c_int32_t), INTENT(in), value :: step      ! Iteration number
     INTEGER(c_int32_t), INTENT(in), value :: ind_p      ! Integer index of PE
     INTEGER(c_int32_t), INTENT(in), value  :: dim_p     ! PE-local dimension of model state
     INTEGER(c_int32_t), INTENT(in), value :: dim_obs_p  ! PE-local dimension of observation vector
@@ -112,7 +111,7 @@ contains
     c_functions_container%localize_fptr = U_localize
     c_functions_container%add_obs_err_fptr = U_add_obs_err
 
-    call lenkf_rsm_fortran(step, ind_p, dim_p, dim_obs_p, dim_obs, dim_ens, &
+    call lenkf_rsm_fortran(ind_p, dim_p, dim_obs_p, dim_obs, dim_ens, &
                            rank_ana, state_p, ens_p, predictions, innovations, &
                            forget, flag, c_functions_container)
 
