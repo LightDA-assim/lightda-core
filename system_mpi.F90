@@ -3,13 +3,15 @@
 module system_mpi
 #ifdef HAVE_MPI_F08_MODULE
   use mpi_f08
+  implicit none
 #elif HAVE_MPI_F90_MODULE
   use mpi
+  implicit none
 #else
+  implicit none
   include 'mpif.h'
 #endif
 
-  implicit none
 
 contains
 
