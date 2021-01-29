@@ -64,14 +64,18 @@ contains
       error stop
     end if
 
-    if (associated(test_list%first) .and. associated(test_list%first%prev)) then
-      print *, 'Error: first%prev is not null'
-      error stop
+    if (associated(test_list%first)) then
+       if(associated(test_list%first%prev)) then
+          print *, 'Error: first%prev is not null'
+          error stop
+       end if
     end if
 
-    if (associated(test_list%last) .and. associated(test_list%last%next)) then
-      print *, 'Error: last%next is not null'
-      error stop
+    if (associated(test_list%last)) then
+       if(associated(test_list%last%next)) then
+          print *, 'Error: last%next is not null'
+          error stop
+       end if
     end if
 
     ! Iterate over list and check contents
@@ -86,11 +90,12 @@ contains
         print *, 'Error: Wrong data in node', i
         error stop
       end if
-      if (i > 1 .and. &
-          .not. associated(current_node%prev%data, &
+      if (i > 1) then
+         if(.not. associated(current_node%prev%data, &
                            data(read_inds(i - 1)))) then
-        print *, 'Error: Wrong prev for node ', i
-        error stop
+            print *, 'Error: Wrong prev for node ', i
+            error stop
+         end if
       end if
       if (i > 1) then
         if (.not. associated(current_node%prev, last_node)) then
@@ -104,9 +109,9 @@ contains
     end do
 
     if (associated(test_list%last) .and. &
-        .not. associated(last_node, test_list%last)) then
-      print *, 'Error: Wrong last node'
-      error stop
+         .not. associated(last_node, test_list%last)) then
+       print *, 'Error: Wrong last node'
+       error stop
     end if
 
   end subroutine check_list
@@ -175,10 +180,10 @@ contains
     ! Note that this is ordinarily not needed since remove_all will be called
     ! automatically when a list goes of scope, but here we call it explicitly
     ! so we can test afterward that the list was emptied.
-    !call test_list%remove_all()
+    call test_list%remove_all()
 
     ! Verify that the list is now empty
-    !call check_list(test_list,data,(/ integer:: /))
+    call check_list(test_list,data,(/ integer:: /))
 
   end subroutine test_linked_list
 
