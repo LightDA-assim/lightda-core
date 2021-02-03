@@ -19,12 +19,14 @@ else()
 endif()
 
 find_package(system_mpi REQUIRED)
+find_package(fortran_exceptions REQUIRED)
 
 find_package(LAPACK REQUIRED)
 
-set(UTIL_SOURCES util.F90 tree.f90 list.f90 exceptions.F90 hdf5_exceptions.F90 darray.F90)
+set(UTIL_SOURCES util.F90 tree.f90 list.f90 hdf5_exceptions.F90 darray.F90)
 add_library(util SHARED ${UTIL_SOURCES})
 target_include_directories(util PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(util PUBLIC fortran_exceptions)
 target_link_libraries(util PUBLIC system_mpi)
 configure_hdf5_target(util)
 configure_mpi_target(util)
