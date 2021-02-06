@@ -7,6 +7,7 @@ project(lenkf-rsm)
 ExternalProject_Add(
   system_mpi
   GIT_REPOSITORY /Users/jhaiduce/Development/repositories/system_mpi.git
+  GIT_TAG main
   CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/system_mpi)
 
