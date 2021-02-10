@@ -1,6 +1,6 @@
 ---
-project: lenkf-rsm
-summary: lenkf-rsm
+project: LightDA
+summary: Lightweight extensible data assimilation framework
 author: John Haiducek
 src_dir: ${PROJ_DIR}
 output_dir: ${DOC_DIR}

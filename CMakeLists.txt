@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(lenkf-rsm)
+project(lightda)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules/")
 
-include(lenkf_functions)
+include(lightda_functions)
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER 9)
@@ -76,11 +76,11 @@ if ( NOT SKIP_DOC_GEN )
 
     set(DOC_DIR "${PROJECT_BINARY_DIR}/doc")
     set(PROJ_DIR "${PROJECT_SOURCE_DIR}")
-    set(FORD_PROJECT_FILE "${CMAKE_CURRENT_BINARY_DIR}/lenkf-rsm.md")
+    set(FORD_PROJECT_FILE "${CMAKE_CURRENT_BINARY_DIR}/lightda.md")
     set(MACRO_FLAG "")
     string(REPLACE ";" "\ninclude:" FORD_PROJECT_INCLUDES "${MPI_Fortran_INCLUDE_DIRS};${PROJ_DIR}")
 
-    configure_file(lenkf-rsm.md.in lenkf-rsm.md)
+    configure_file(lightda.md.in lightda.md)
 
     # Pick the preprocessor to use based on the Fortran compiler
     if ( "${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel" )
@@ -115,7 +115,7 @@ if ( NOT SKIP_DOC_GEN )
     endif ()
     message ( STATUS "Done dynamically computing FORD outputs." )
 
-    foreach ( DOC_SRC_FILE ${PROJECT_BINARY_DIR}/lenkf-rsm.md ${SYSTEM_MPI_SOURCES} ${UTIL_SOURCES} ${ASSIM_SOURCES} ${ASSIM_PARALLEL_SOURCES} ${ADVECT1D_ASSIMILATE_INTERFACES_SOURCES} ${ADVECT1D_ASSIMILATE_SOURCES} ${ADVECT1D_SOURCES} ${PAGES_FILES} )
+    foreach ( DOC_SRC_FILE ${PROJECT_BINARY_DIR}/lightda.md ${SYSTEM_MPI_SOURCES} ${UTIL_SOURCES} ${ASSIM_SOURCES} ${ASSIM_PARALLEL_SOURCES} ${ADVECT1D_ASSIMILATE_INTERFACES_SOURCES} ${ADVECT1D_ASSIMILATE_SOURCES} ${ADVECT1D_SOURCES} ${PAGES_FILES} )
       list ( APPEND FORD_DEPENDS "${DOC_SRC_FILE}" )
     endforeach ()
 
