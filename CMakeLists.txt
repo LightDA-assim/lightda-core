@@ -34,7 +34,7 @@ configure_mpi_target(util)
 set(RANDOM_SOURCES random.f90 random_integer.f90)
 add_library(random SHARED ${RANDOM_SOURCES})
 
-set(ASSIM_SOURCES lenkf_rsm.f90 lenkf_rsm_c.f90 dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90 lenkf_rsm_filter.F90)
+set(ASSIM_SOURCES dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90)
 add_library(assim SHARED ${ASSIM_SOURCES})
 target_link_libraries(assim PRIVATE random util)
 target_link_libraries(assim PRIVATE ${LAPACK_LIBRARIES})
@@ -52,12 +52,6 @@ target_link_libraries(advect1d_assimilate_interfaces PRIVATE assim assim_paralle
 configure_hdf5_target(advect1d_assimilate_interfaces)
 target_include_directories(advect1d_assimilate_interfaces PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-set(ADVECT1D_ASSIMILATE_SOURCES advect1d_assimilate.f90)
-add_executable(advect1d_assimilate ${ADVECT1D_ASSIMILATE_SOURCES})
-target_link_libraries(advect1d_assimilate PRIVATE assim assim_parallel system_mpi advect1d_assimilate_interfaces)
-configure_mpi_target(advect1d_assimilate)
-set_source_files_properties(advect1d_assimilate_interfaces.F90 PROPERTIES COMPILE_FLAGS -cpp)
-
 set(ADVECT1D_SOURCES advect1d.f90)
 add_library(advect1d SHARED ${ADVECT1D_SOURCES})
 
@@ -68,7 +62,6 @@ configure_file(animate_mpi.py animate_mpi.py COPYONLY)
 configure_file(advect1d.py advect1d.py COPYONLY)
 configure_file(enkf.py enkf.py COPYONLY)
 configure_file(libsuffix.py libsuffix.py COPYONLY)
-configure_file(lenkf_rsm_py.py lenkf_rsm_py.py COPYONLY)
 
 # -------------------
 # Build documentation
