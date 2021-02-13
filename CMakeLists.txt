@@ -21,41 +21,7 @@ endif()
 find_package(system_mpi REQUIRED)
 find_package(fortran_exceptions REQUIRED)
 
-find_package(LAPACK REQUIRED)
-
-set(UTIL_SOURCES util.F90 tree.f90 list.f90 hdf5_exceptions.F90 darray.F90)
-add_library(util SHARED ${UTIL_SOURCES})
-target_include_directories(util PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(util PUBLIC fortran_exceptions)
-target_link_libraries(util PUBLIC system_mpi)
-configure_hdf5_target(util)
-configure_mpi_target(util)
-
-set(RANDOM_SOURCES random.f90 random_integer.f90)
-add_library(random SHARED ${RANDOM_SOURCES})
-
-set(ASSIM_SOURCES dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90)
-add_library(assim SHARED ${ASSIM_SOURCES})
-target_link_libraries(assim PRIVATE random util)
-target_link_libraries(assim PRIVATE ${LAPACK_LIBRARIES})
-target_include_directories(assim PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-set(ASSIM_PARALLEL_SOURCES assimilation_batch_manager.F90 assimilation_model_interface.F90 observations.F90 localization.f90 observation_manager.F90 forward_operator.F90 assimilation_manager.F90)
-add_library(assim_parallel SHARED ${ASSIM_PARALLEL_SOURCES})
-target_link_libraries(assim_parallel PUBLIC random assim system_mpi util)
-configure_mpi_target(assim_parallel)
-target_include_directories(assim_parallel PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-set(ADVECT1D_ASSIMILATE_INTERFACES_SOURCES advect1d_observations.F90 advect1d_assimilate_interfaces.F90 advect1d_forward_operator.F90 advect1d_localizer.F90)
-add_library(advect1d_assimilate_interfaces ${ADVECT1D_ASSIMILATE_INTERFACES_SOURCES})
-target_link_libraries(advect1d_assimilate_interfaces PRIVATE assim assim_parallel system_mpi)
-configure_hdf5_target(advect1d_assimilate_interfaces)
-target_include_directories(advect1d_assimilate_interfaces PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-set(ADVECT1D_SOURCES advect1d.f90)
-add_library(advect1d SHARED ${ADVECT1D_SOURCES})
-
-find_package(F2PY REQUIRED)
+add_subdirectory(src)
 
 configure_file(animate.py animate.py COPYONLY)
 configure_file(animate_mpi.py animate_mpi.py COPYONLY)
@@ -80,7 +46,7 @@ if ( NOT SKIP_DOC_GEN )
     set(FORD_PROJECT_FILE "${CMAKE_CURRENT_BINARY_DIR}/lightda.md")
     set(FORD_PROJECT_EXCLUDES "${MPI_Fortran_INCLUDE_DIRS};${PROJECT_BINARY_DIR};${PROJ_DIR}/build;${PROJ_DIR}/tests")
     set(MACRO_FLAG "")
-    string(REPLACE ";" "\ninclude:" FORD_PROJECT_INCLUDES "${MPI_Fortran_INCLUDE_DIRS};${PROJ_DIR}")
+    string(REPLACE ";" "\ninclude:" FORD_PROJECT_INCLUDES "${MPI_Fortran_INCLUDE_DIRS};${PROJ_DIR}/src")
     string(REPLACE ";" "\nexclude_dir:" FORD_PROJECT_EXCLUDES "${FORD_PROJECT_EXCLUDES}")
 
     configure_file(lightda.md.in lightda.md)
@@ -154,11 +120,6 @@ if(NOT FPRETTIFY_EXECUTABLE)
   message(STATUS "fprettify not found.")
 else()
   set(DO_FPRETTIFY "${FPRETTIFY_EXECUTABLE}" "--diff" "-i" "2" "-l" "81")
-
-  set(ALL_SOURCES ${SYSTEM_MPI_SOURCES};${UTIL_SOURCES};${ASSIM_SOURCES};
-    ${RANDOM_SOURCES};${ASSIM_PARALLEL_SOURCES};
-    ${ADVECT1D_ASSIMILATE_INTERFACES_SOURCES};${ADVECT1D_ASSIMILATE_SOURCES};
-    ${ADVECT1D_SOURCES})
 
   list(TRANSFORM ALL_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
