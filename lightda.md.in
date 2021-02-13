@@ -4,7 +4,8 @@ summary: Lightweight extensible data assimilation framework
 author: John Haiducek
 src_dir: ${PROJ_DIR}
 output_dir: ${DOC_DIR}
-exclude_dir: ${FORD_PROJECT_EXCLUDES}
+exclude_dir: ${FORD_PROJECT_EXCLUDE_DIRS}
+exclude: ${FORD_PROJECT_EXCLUDE_FILES}
 preprocessor: {!.PREPROCESSOR!}
 include: ${FORD_PROJECT_INCLUDES}
 extra_mods: exceptions:file://${fortran_exceptions_DOCDIR}/index.html
