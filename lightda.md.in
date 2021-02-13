@@ -7,4 +7,6 @@ output_dir: ${DOC_DIR}
 exclude_dir: ${FORD_PROJECT_EXCLUDES}
 preprocessor: {!.PREPROCESSOR!}
 include: ${FORD_PROJECT_INCLUDES}
+extra_mods: exceptions:file://${fortran_exceptions_DOCDIR}/index.html
+extra_mods: system_mpi:file://${system_mpi_DOCDIR}/index.html
 ---
