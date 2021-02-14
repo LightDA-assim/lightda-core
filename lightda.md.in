@@ -1,6 +1,6 @@
 ---
 project: LightDA
-summary: Lightweight extensible data assimilation framework
+summary: Lightweight extensible data assimilation library
 author: John Haiducek
 src_dir: ${PROJ_DIR}
 output_dir: ${DOC_DIR}
@@ -11,3 +11,75 @@ include: ${FORD_PROJECT_INCLUDES}
 extra_mods: exceptions:file://${fortran_exceptions_DOCDIR}/index.html
 extra_mods: system_mpi:file://${system_mpi_DOCDIR}/index.html
 ---
+
+LightDA is a lightweight, extensible data assimiltion library. It is designed with the following goals in mind:
+
+- The data assimilation process be model-agnostic, and adding a new model should be as simple as possible
+- Assimilation can be done in parallel if needed
+- Parallel models are supported without making any assumptions about how the model's parallelism is implemented
+
+## Compiling
+
+The simplest way to build LightDA is using the superbuild, which downloads and compiles all of LightDA's dependencies before compiling LightDA itself. It is invoked using CMake as follows:
+
+```bash
+mkdir build
+cd build
+cmake ../superbuild
+make
+```
+
+## Extending
+
+### Adding a new model
+
+New models are added by extending the [[base_model_interface]] type. At minimum, a new model interface must implement the [[I_get_state_size]], [[I_set_state_subset]], and [[I_get_state_darray]] type-bound procedures.
+
+The model interface provides for reading and writing the model state. To use a model in an assimilation, a forward operator must be implemented to provide predictions for the model given a set of observataion parameters.
+
+### Adding a new observation type
+
+New observation types are added by extending the [[observation_set]] type. At minimum, an observation type must implement the [[get_size]], [[get_values]], and [[get_errors]] type-bound procedures.
+
+To be useable in an assimilatation, the observation type will also need to provide additional interfaces to enable a forward operator to compute predictions given an observation and a model state. However, such parameters are not passed to the assimilation algorithm and therefore are not part of the interface definition. They should instead be added in the implementation of each observation type. For instance, an observation made at a specific latitude and longitude might be defined as follows:
+
+```fortran
+type, extends(observation_set) :: point_observation
+  integer :: size               !! Number of observations
+  real(kind=8) :: latitude(:)   !! Latitude of observations
+  real(kind=8) :: longitude(:)  !! Latitude of observations
+contains
+  procedure::get_positions
+  procedure::get_size
+  procedure::get_values
+  procedure::get_errors
+end type
+```
+
+### Adding a forward operator
+
+New forward operators are added by extending the [[base_forward_operator]] type. At minimum, a forward operator must implement the [[get_predictions_mask]] and [[get_predictions]] type-bound procedures.
+
+Note that [[base_forward_operator]] does not carry a reference to the model interface. An implementation will likely require such a reference, in order to have access to the model state. For instance, a new forward operator might be defined as follows:
+
+```fortran
+type, extends(base_forward_operator) :: my_forward_operator
+
+  class(my_model_interface), pointer::model_interface => null()
+
+contains
+  procedure::get_predictions_mask
+  procedure::get_predictions
+end type
+```
+
+Both of the procedures [[get_predictions_mask]] and [[get_predictions]] accept an argument of the abstract type obs_set. It is possible that they could be passed observations of multiple types, or even observations of type that is not implemented by the forward operator. Therefore implementations of these procedures should check the type of the observation set passed to them using a `select type` construct. For instance, a forward operator that makes predictions for the `point_observation` type defined above might use something like:
+
+```fortran
+select type(obs_set)
+class is(point_observation)
+  ! Handle the observations
+class default
+  ! Unknown observation type, implement some reasonable default behavior
+end select
+```
