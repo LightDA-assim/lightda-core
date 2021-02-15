@@ -31,11 +31,162 @@ make
 
 ## Extending
 
+LightDA makes extensive use of Fortran 2003 [abstract types](https://gist.github.com/n-s-k/de4af7ce6cc8f2c85e4b33cedb51fd88#file-oop_f2003_part_2-md) and [type-bound procedures](https://gist.github.com/n-s-k/de4af7ce6cc8f2c85e4b33cedb51fd88#file-oop_f2003_part_2-md) to define interfaces for models, observation types, forward operators, and assimilation algorithms. For those new to object-oriented programming in Fortran, Mark Leair's [tutorial on the subject](https://gist.github.com/n-s-k/522f2669979ed6d0582b8e80cf6c95fd) may prove helpful.
+
+The abstract types and type-bound procedures defined in LightDA provide a standard interface between the assimilation system and models, enabling new models to be added without requiring changes to LightDA itself.
+
+LightDA uses the `exceptions` module of the [fortran_exceptions](file://${fortran_exceptions_DOCDIR}/index.html) library for error handling. Most procedures defined in LightDA accept an optional `status` argument of type `error_status`. This optional argument provides a means to send error information back to the calling procedure, where the error can be handled if possible. If the `status` argument is not given in the call, any error will result in program termination. Details on how to use this facility are provided in the [fortran_exceptions documentation](file://${fortran_exceptions_DOCDIR}/index.html).
+
 ### Adding a new model
 
 New models are added by extending the [[base_model_interface]] type. At minimum, a new model interface must implement the [[I_get_state_size]], [[I_set_state_subset]], and [[I_get_state_darray]] type-bound procedures.
 
-The model interface provides for reading and writing the model state. To use a model in an assimilation, a forward operator must be implemented to provide predictions for the model given a set of observataion parameters.
+The model interface provides facilities for reading and writing the model state. To use a model in an assimilation, a forward operator must be implemented to provide predictions for the model given a set of observataion parameters. These are described in later sections.
+
+By way of example, an interface for a model called my_model might be defined as follows:
+
+```fortran
+type, exteneds(base_model_interface) :: my_model_interface
+  private
+  real(kind=8), allocatable :: state(:,:)
+    !! 2-D array containing the state of all ensemble members
+contains
+  procedure::get_state_size
+  procedure::get_state_darray
+  procedure::set_state_subset
+end type my_model_interface
+```
+
+Outside the module where the type is defined, the private attribute `state` is accessible only through the type-bound procedures get_state_size and get_state_subset. The recommended way to set private attributes is by creating a constructor:
+
+```fortran
+function new_my_model_interface(state,status) result(this)
+  real(kind=8) :: state(:,:)
+      !! Ensemble state, 2-D array where the first dimension is position
+      !! within an ensemble member and the second dimension is the ensemble
+      !! member index
+  class(error_status), intent(out), allocatable, optional::status
+      !! Error status
+  type(my_model_interface)::this
+
+  this%state=state
+
+end function
+```
+
+The type-bound function `get_state_size` returns the number of elements in the model state array. It could be defined as follows:
+
+```fortran
+function get_state_size(this, status) result(size)
+
+  use exceptions, ONLY: error_status
+
+  !! Get the size of the model state array
+
+  ! Arguments
+  class(my_model_interface)::this
+      !! Model interface
+  class(error_status), intent(out), allocatable, optional::status
+      !! Error status
+
+  ! Result
+  integer::size
+      !! Size of model domain
+
+  size = size(this%state,1)
+
+end function get_state_size
+```
+
+Like all type-bound procedures, `get_state_size` takes as its first argument an instance of the bound type (in this case `my_model_interface`). It returns the value of the private attribute `this%state_size`.
+
+The `get_state_darray` procedure returns the model state as a `darray`, a distributed array type used in LightDA. A `darray` contains an array of type `real(kind=8)` that can optionally be distributed across multiple processors. In the simplest case, we might assume that all the data is read by the rank zero process. For the type `my_model_interface` defined above, get_state_darray might be something like the following:
+
+```fortran
+function get_state_darray(this, imember, status) result(state_darray)
+
+  !! Get the requested ensemble member state as a darray
+
+  use exceptions, ONLY: throw, new_exception, error_status
+  use util, ONLY: str
+  use system_mpi
+
+  ! Arguments
+  class(advect1d_interface)::this
+      !! Model interface
+  integer, intent(in)::imember
+      !! Ensemble member index
+  class(error_status), intent(out), allocatable, optional :: status
+
+  type(darray)::state_darray
+      !! State array represented as a darray object
+
+  type(darray_segment)::segments(1) ! Array of segments comprising the darray
+
+  integer::rank !! MPI rank
+  integer::ierr !! MPI status code
+
+  call mpi_comm_rank(this%comm, rank, ierr)
+
+  if(imember < 1 .or. imember > size(this%state,2)) then
+
+    !! imember out of range, throw an exception and exit
+    call throw(status, new_exception( &
+      'Invalid member index'//str(imember)), 'get_state_darray')
+    return
+
+  end if
+
+  ! Populate the segment indicating that it covers the entire model state
+  ! and is stored on the rank 0 process
+  segments(1)%rank = 0
+  segments(1)%comm = MPI_COMM_WORLD
+  segments(1)%offset = 0
+  segments(1)%length = size(this%state,1)
+
+  if (this%io_ranks(imember) == 0) then
+    ! Copy the member state data to the darray segment
+    segments(1)%data = &
+      this%state(:,imember)
+  end if
+
+  state_darray = new_darray(segments, this%comm)
+
+end function get_state_darray
+```
+
+After assimilation, LightDA sends the model state back to the model interface using the `set_state_subset` subroutine on the model. For `my_model_interface` it might be implemented as follows:
+
+```fortran
+subroutine set_state_subset( &
+  this, imember, subset_offset, subset_size, subset_state, status)
+
+  !! Update the state for a portion of the model domain.
+
+  ! Arguments
+  class(my_model_interface)::this
+      !! Model interface
+  integer, intent(in)::imember
+      !! Ensemble member index
+  integer, intent(in)::subset_offset
+      !! Offset of subset from start of state array
+  integer, intent(in)::subset_size
+      !! Size of subset
+  real(kind=8), intent(in)::subset_state(subset_size)
+      !! Values to set
+  class(error_status), intent(out), allocatable, optional::status
+      !! Error status
+
+  integer::rank, ierr
+
+  call mpi_comm_rank(this%comm, rank, ierr)
+
+  if(rank==0) then
+    this%state(subset_offset+1:subset_offset+subset_size,imember) = subset_state
+  end if
+
+end subroutine set_state_subset
+```
 
 ### Adding a new observation type
 
@@ -49,11 +200,28 @@ type, extends(observation_set) :: point_observation
   real(kind=8) :: latitude(:)   !! Latitude of observations
   real(kind=8) :: longitude(:)  !! Latitude of observations
 contains
-  procedure::get_positions
+  ! The following procedures are required to implement the observation_set
+  ! interface
   procedure::get_size
   procedure::get_values
   procedure::get_errors
+
+  ! This procedure is specific to
+  procedure::get_positions
 end type
+```
+
+Note that the `get_size`, `get_values`, and `get_errors` procedures are from the interface definition of [[observation_set]], so they must conform to that interface. The `get_positions` procedure is not defined in the base [[observation_set]] type and will not be called by LightDA itself, so it can be designed with any call signature desired so long as its first argument has a type of `observation_set`. It might be implemented something like the following:
+
+```fortran
+function get_positions(this,status) result(positions)
+  real(kind=8), allocatable: positions(:,:)
+
+  allocate(positions(this%size,2))
+
+  positions(:,1) = this%latitude
+  positions(:,2) = this%longitude
+end function get_positions
 ```
 
 ### Adding a forward operator
