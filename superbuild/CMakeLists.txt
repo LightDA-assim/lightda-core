@@ -4,16 +4,26 @@ include(ExternalProject)
 
 project(lenkf-rsm)
 
+set(
+  system_mpi_GIT_URL
+  "git@gitlab.hpc.mil:john.haiducek.ctr/system_mpi.git" CACHE STRING
+  "URL of system_mpi git repository")
+
+set(
+  fortran_exceptions_GIT_URL
+  "git@gitlab.hpc.mil:john.haiducek.ctr/fortran_exceptions.git" CACHE STRING
+  "URL of fortran_exceptions git repository")
+
 ExternalProject_Add(
   system_mpi
-  GIT_REPOSITORY git@gitlab.hpc.mil:john.haiducek.ctr/system_mpi.git
+  GIT_REPOSITORY ${system_mpi_GIT_URL}
   GIT_TAG main
   CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/system_mpi)
 
 ExternalProject_Add(
   fortran_exceptions
-  GIT_REPOSITORY git@gitlab.hpc.mil:john.haiducek.ctr/fortran_exceptions.git
+  GIT_REPOSITORY ${fortran_exceptions_GIT_URL}
   GIT_TAG main
   CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/fortran_exceptions)
