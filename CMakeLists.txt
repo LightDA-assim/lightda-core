@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 
 project(lightda)
 
+enable_language(Fortran)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules/")
+
+set(Fortran_MODULE_DIRECTORY include/fortran_modules/${CMAKE_Fortran_COMPILER_ID}/${CMAKE_Fortran_COMPILER_VERSION})
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${Fortran_MODULE_DIRECTORY})
 
 include(lightda_functions)
 
@@ -23,11 +28,46 @@ find_package(fortran_exceptions REQUIRED)
 
 add_subdirectory(src)
 
+get_target_property(lightda_INTERFACE_INCLUDE_DIRECTORIES lightda INTERFACE_INCLUDE_DIRECTORIES)
+
+message("lightda_INTERFACE_INCLUDE_DIRECTORIES=${lightda_INTERFACE_INCLUDE_DIRECTORIES}")
+
+get_target_property(lightda_INCLUDE_DIRECTORIES lightda INCLUDE_DIRECTORIES)
+
+message("lightda_INCLUDE_DIRECTORIES=${lightda_INCLUDE_DIRECTORIES}")
+
 configure_file(animate.py animate.py COPYONLY)
 configure_file(animate_mpi.py animate_mpi.py COPYONLY)
 configure_file(advect1d.py advect1d.py COPYONLY)
 configure_file(enkf.py enkf.py COPYONLY)
 configure_file(libsuffix.py libsuffix.py COPYONLY)
+
+include(CMakePackageConfigHelpers)
+
+# Add all targets to the build-tree export set
+export(TARGETS lightda lightda_util lightda_random
+  FILE "${PROJECT_BINARY_DIR}/lightdaTargets.cmake")
+
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE lightda)
+
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/lightdaConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/lightda
+  )
+
+install(FILES
+          "${CMAKE_CURRENT_BINARY_DIR}/lightdaConfig.cmake"
+        DESTINATION lib/cmake/lightda
+)
+
+install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY} DESTINATION ${Fortran_MODULE_DIRECTORY}/..)
+
+install(EXPORT lightda
+  FILE lightdaTargets.cmake
+  DESTINATION lib/cmake/lightda
+)
 
 # -------------------
 # Build documentation
