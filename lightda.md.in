@@ -126,7 +126,7 @@ function get_state_darray(this, imember, status) result(state_darray)
   integer::rank !! MPI rank
   integer::ierr !! MPI status code
 
-  call mpi_comm_rank(this%comm, rank, ierr)
+  call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
 
   if(imember < 1 .or. imember > size(this%state,2)) then
 
