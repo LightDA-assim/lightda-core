@@ -28,14 +28,6 @@ find_package(fortran_exceptions REQUIRED)
 
 add_subdirectory(src)
 
-get_target_property(lightda_INTERFACE_INCLUDE_DIRECTORIES lightda INTERFACE_INCLUDE_DIRECTORIES)
-
-message("lightda_INTERFACE_INCLUDE_DIRECTORIES=${lightda_INTERFACE_INCLUDE_DIRECTORIES}")
-
-get_target_property(lightda_INCLUDE_DIRECTORIES lightda INCLUDE_DIRECTORIES)
-
-message("lightda_INCLUDE_DIRECTORIES=${lightda_INCLUDE_DIRECTORIES}")
-
 configure_file(animate.py animate.py COPYONLY)
 configure_file(animate_mpi.py animate_mpi.py COPYONLY)
 configure_file(advect1d.py advect1d.py COPYONLY)
