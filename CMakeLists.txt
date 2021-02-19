@@ -26,12 +26,6 @@ find_package(fortran_exceptions REQUIRED)
 
 add_subdirectory(src)
 
-configure_file(animate.py animate.py COPYONLY)
-configure_file(animate_mpi.py animate_mpi.py COPYONLY)
-configure_file(advect1d.py advect1d.py COPYONLY)
-configure_file(enkf.py enkf.py COPYONLY)
-configure_file(libsuffix.py libsuffix.py COPYONLY)
-
 include(CMakePackageConfigHelpers)
 
 # Add all targets to the build-tree export set
