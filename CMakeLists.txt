@@ -9,8 +9,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules/
 set(Fortran_MODULE_DIRECTORY include/fortran_modules/${CMAKE_Fortran_COMPILER_ID}/${CMAKE_Fortran_COMPILER_VERSION})
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${Fortran_MODULE_DIRECTORY})
 
-include(lightda_functions)
-
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER 9)
     # Compiler doesn't support overriding finalizers
