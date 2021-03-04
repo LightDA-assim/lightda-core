@@ -51,3 +51,15 @@ target_link_libraries(darray_test PUBLIC darray_tests)
 configure_mpi_target(darray_test)
 
 add_test(test_darray ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ./darray_test)
+
+add_custom_target(all_tests ALL
+  DEPENDS darray_test util_tests assimilation_manager_tests batch_manager_tests
+  dummy_model_interface_tests dummy_assimilator_tests)
+
+add_custom_command(
+     TARGET all_tests
+     COMMENT "Run tests"
+     POST_BUILD
+     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+     COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --output-on-failures
+)
