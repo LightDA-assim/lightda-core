@@ -3,7 +3,6 @@ module random_observations
 
   use observations, ONLY: observation_set
   use exceptions, ONLY: error_status, throw, new_exception
-  use hdf5_exceptions, ONLY: new_hdf5_exception
   use util, ONLY: str
   use system_mpi
 
