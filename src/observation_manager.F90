@@ -5,7 +5,7 @@ module mod_observation_manager
   use assimilation_model_interface, ONLY: base_model_interface
   use forward_operator, ONLY: base_forward_operator
   use distributed_array, ONLY: darray, darray_segment
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
 
   use system_mpi
 
@@ -79,7 +79,7 @@ contains
     class(base_localizer), intent(in), target, optional :: localizer
         !! Localizer
 
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -122,7 +122,7 @@ contains
         !! Observation set
     class(darray_segment)::batch
         !! Batch segment
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -168,7 +168,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -218,7 +218,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -389,7 +389,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     type(darray_segment) :: obs_values(size(this%batches%segments))
@@ -458,7 +458,7 @@ contains
     ! Arguments
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -528,7 +528,7 @@ contains
     class(observation_manager), intent(inout)::this
         !! Observation manager
     integer, intent(in) :: n_ensemble
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     type(darray_segment) :: predictions(size(this%batches%segments)*n_ensemble)

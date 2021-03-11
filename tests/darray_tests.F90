@@ -3,7 +3,7 @@
 module darray_tests
   use system_mpi
   use distributed_array, ONLY: darray, darray_segment, new_darray, transfer_data
-  use exceptions, ONLY: throw, error_status, new_exception
+  use exceptions, ONLY: throw, error_container, new_exception
   use util, ONLY: str
 
   implicit none
@@ -64,7 +64,7 @@ contains
         !! Array to distribute
     type(darray), intent(in), target::check_darray
         !! Built darray
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     integer::rank                ! MPI processor rank
@@ -109,7 +109,7 @@ contains
     !! layouts
 
     ! Arguments
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     integer, parameter::n = 98     ! Number of array elements

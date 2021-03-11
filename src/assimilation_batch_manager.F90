@@ -7,7 +7,7 @@ module assimilation_batch_manager
   use random_integer, ONLY: randint
   use assimilation_model_interface
   use distributed_array, ONLY: darray, darray_segment, new_darray
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
   use util, ONLY: str
 
   implicit none
@@ -347,7 +347,7 @@ contains
         !! MPI processor rank
     integer, intent(out)::batches(:)
         !! Array of batch indices assigned to `rank`
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result

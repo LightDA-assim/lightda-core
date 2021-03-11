@@ -18,7 +18,7 @@ module forward_operator
        !! can be predicted by the model
 
       use observations, ONLY: observation_set
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
 
       import base_forward_operator
 
@@ -27,7 +27,7 @@ module forward_operator
            !! Forward operator
       class(observation_set)::obs_set
            !! Observation set
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -41,7 +41,7 @@ module forward_operator
        !! Get the predictions for the observations in `obs_set`
 
       use observations, ONLY: observation_set
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
 
       import base_forward_operator
 
@@ -50,7 +50,7 @@ module forward_operator
            !! Forward operator
       class(observation_set)::obs_set
            !! Observation set
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Result

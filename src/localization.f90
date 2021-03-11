@@ -2,7 +2,7 @@ module localization
 
   use observations, ONLY: observation_set
   use assimilation_model_interface, ONLY: base_model_interface
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
 
   implicit none
 
@@ -31,7 +31,7 @@ contains
         !! Observation set 2
     integer, intent(in)::iobs2
         !! Index of an observation in observation set 2
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Returns
@@ -60,7 +60,7 @@ contains
         !! Observation set
     integer, intent(in)::iobs
         !! Index in the observation set
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Returns
@@ -87,7 +87,7 @@ contains
   function localize_gaspari_cohn(z, c, status) result(f)
     real(kind=8), intent(in)::z, c
     real(kind=8)::f
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     if (z == 0) then

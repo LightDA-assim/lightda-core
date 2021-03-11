@@ -16,7 +16,7 @@ contains
 
     !! Base assimilation filter. Leaves ensemble state unchanged. Used in tests.
 
-    use exceptions, ONLY: error_status
+    use exceptions, ONLY: error_container
     use mod_base_assimilation_manager, ONLY: base_assimilation_manager
 
     class(assimilation_filter) :: this
@@ -30,7 +30,7 @@ contains
     real(kind=8), intent(in)::obs_errors(dim_obs)
 
     class(base_assimilation_manager)::mgr
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), allocatable, optional::status
 
   end subroutine assimilate
 

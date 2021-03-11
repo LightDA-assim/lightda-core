@@ -2,7 +2,7 @@
 
 module util
   use system_mpi
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
 
   implicit none
 
@@ -29,7 +29,7 @@ contains
   function str(x, fmt, status)
     class(*), intent(in)::x
     character(*), optional, intent(in)::fmt
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
     character(30)::str_tmp
     character(:), allocatable::str

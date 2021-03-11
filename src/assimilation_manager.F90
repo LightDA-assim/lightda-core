@@ -14,7 +14,7 @@ module mod_assimilation_manager
   use iso_c_binding
   use distributed_array, ONLY: darray, darray_segment
   use mod_assimilation_filter, ONLY: assimilation_filter
-  use exceptions, ONLY: throw, new_exception, error_status
+  use exceptions, ONLY: throw, new_exception, error_container
   use util, ONLY: str
 
   implicit none
@@ -193,7 +193,7 @@ contains
     class(assimilation_manager), target::this
     INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
-    class(error_status), intent(out), allocatable, optional :: status
+    class(error_container), intent(out), optional :: status
 
     real(kind=8), pointer::batch_obs_err(:)
     ! Pointer to observation errors for this batch
@@ -224,7 +224,7 @@ contains
     INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
-    class(error_status), intent(out), allocatable, optional :: status
+    class(error_container), intent(out), optional :: status
 
     integer, allocatable::batch_obs_set_inds(:)
        !! Indices of the originating observation set for each observation

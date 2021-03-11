@@ -13,7 +13,7 @@ module assimilation_manager_tests
     dummy_model_forward_operator, new_dummy_model_forward_operator
   use system_mpi
   use distributed_array, ONLY: darray, darray_segment
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
   use util, ONLY: str
 
   implicit none
@@ -22,7 +22,7 @@ contains
 
   subroutine test_assimilate_dummy(status)
 
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     type(dummy_model_interface), target::model_interface

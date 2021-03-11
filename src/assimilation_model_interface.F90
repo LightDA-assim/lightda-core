@@ -2,7 +2,7 @@
 
 module assimilation_model_interface
 
-  use exceptions, ONLY: throw, new_exception, error_status
+  use exceptions, ONLY: throw, new_exception, error_container
   use system_mpi
 
   implicit none
@@ -28,7 +28,7 @@ module assimilation_model_interface
 
        !! Get the requested ensemble member state as a darray
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
       use distributed_array, ONLY: darray
       import base_model_interface
 
@@ -37,7 +37,7 @@ module assimilation_model_interface
            !! Model interface
       integer, intent(in)::imember
            !! Ensemble member index
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Returns
@@ -50,7 +50,7 @@ module assimilation_model_interface
 
        !! Returns the number elements in the model state array
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
       import base_model_interface
 
       implicit none
@@ -58,7 +58,7 @@ module assimilation_model_interface
       ! Arguments
       class(base_model_interface)::this
            !! Model interface
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Returns
@@ -78,7 +78,7 @@ module assimilation_model_interface
        !! calling processor rank as determined by the output from get_io_ranks.
        !! Failure to satisfy this requirement may result in an error.
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
       import base_model_interface
 
       implicit none
@@ -94,7 +94,7 @@ module assimilation_model_interface
            !! Size of subset
       real(kind=8), intent(in)::subset_state(subset_size)
            !! Values of the model state in the requested subset
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
     end subroutine I_set_state_subset
 
@@ -114,7 +114,7 @@ contains
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
   end subroutine read_state
@@ -132,7 +132,7 @@ contains
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
   end subroutine write_state

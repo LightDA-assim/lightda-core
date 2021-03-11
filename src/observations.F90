@@ -13,14 +13,14 @@ module observations
 
     function get_size(this, status) result(size)
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
 
       import observation_set
 
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -33,14 +33,14 @@ module observations
 
        !! Get the values of the observations
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
 
       import observation_set
 
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -53,14 +53,14 @@ module observations
 
        !! Get errors (uncertainties) associated with the observations
 
-      use exceptions, ONLY: error_status
+      use exceptions, ONLY: error_container
 
       import observation_set
 
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_status), intent(out), allocatable, optional::status
+      class(error_container), intent(out), optional::status
            !! Error status
 
       ! Result

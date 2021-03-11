@@ -2,7 +2,7 @@
 module random_observations
 
   use observations, ONLY: observation_set
-  use exceptions, ONLY: error_status, throw, new_exception
+  use exceptions, ONLY: error_container, throw, new_exception
   use util, ONLY: str
   use system_mpi
 
@@ -62,7 +62,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), allocatable, optional::status
         !! Error status
 
     ! Result
@@ -78,7 +78,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -94,7 +94,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -112,7 +112,7 @@ contains
         !! Observation set
     integer, intent(in)::iobs
         !! Observation index
-    class(error_status), intent(out), allocatable, optional::status
+    class(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
