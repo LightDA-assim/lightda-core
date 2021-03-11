@@ -24,6 +24,14 @@ endif()
 find_package(system_mpi REQUIRED)
 find_package(fortran_exceptions REQUIRED)
 
+function(list_transform_prepend var prefix)
+    set(temp "")
+    foreach(f ${${var}})
+        list(APPEND temp "${prefix}${f}")
+    endforeach()
+    set(${var} "${temp}" PARENT_SCOPE)
+endfunction()
+
 add_subdirectory(src)
 
 include(CMakePackageConfigHelpers)
@@ -147,7 +155,7 @@ if(NOT FPRETTIFY_EXECUTABLE)
 else()
   set(DO_FPRETTIFY "${FPRETTIFY_EXECUTABLE}" "--diff" "-i" "2" "-l" "81")
 
-  list(TRANSFORM ALL_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+  list_transform_prepend(ALL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/)
 
   add_custom_target(
     fprettify
