@@ -42,6 +42,7 @@ contains
     integer, intent(in)::read_inds(:)
     type(list_node), pointer::last_node
     type(list_node), pointer::current_node
+    class(*), pointer::data_pointer
     integer::i
 
     if (size(read_inds) == 0 .and. associated(test_list%first)) then
@@ -86,13 +87,15 @@ contains
         print *, 'Error: Reached end of read_inds but not end of list.'
         error stop
       end if
-      if (.not. associated(current_node%data, data(read_inds(i)))) then
+      data_pointer=>data(read_inds(i))
+      if (.not. associated(current_node%data,data_pointer)) then
         print *, 'Error: Wrong data in node', i
         error stop
       end if
+      data_pointer=>data(read_inds(i - 1))
       if (i > 1) then
          if(.not. associated(current_node%prev%data, &
-                           data(read_inds(i - 1)))) then
+                           data_pointer)) then
             print *, 'Error: Wrong prev for node ', i
             error stop
          end if
