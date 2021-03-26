@@ -95,7 +95,7 @@ contains
     else if (z <= c) then
       f = gaspari_cohn_close(z, c)
     else if (z <= 2*c) then
-      f = max(gaspari_cohn_mid(z, c), 0.0)
+      f = max(gaspari_cohn_mid(z, c), 0.0_8)
     else if (z < 0) then
       call throw(status, new_exception( &
                  'Negative distance passed to localize_gaspari_cohn', &
