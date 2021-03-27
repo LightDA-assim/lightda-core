@@ -22,13 +22,16 @@ contains
 
       state_segment => state_darray%segments(isegment)
 
-      if (isegment > 1 .and. &
-          state_segment%offset /= &
-          state_darray%segments(isegment + 1)%offset + &
-          state_darray%segments(isegment + 1)%length) then
+      if (isegment > 1 .and. isegment < size(state_darray%segments)) then
 
-        print *, 'Segment offset does not align with preceding segment'
-        error stop
+        if (state_segment%offset /= &
+            state_darray%segments(isegment + 1)%offset + &
+            state_darray%segments(isegment + 1)%length) then
+
+          print *, 'Segment offset does not align with preceding segment'
+          error stop
+
+        end if
 
       end if
 

@@ -92,15 +92,18 @@ contains
         print *, 'Error: Wrong data in node', i
         error stop
       end if
-      data_pointer=>data(read_inds(i - 1))
+
       if (i > 1) then
-         if(.not. associated(current_node%prev%data, &
-                           data_pointer)) then
+
+        data_pointer => data(read_inds(i - 1))
+        if (i > 1) then
+          if (.not. associated(current_node%prev%data, &
+                               data_pointer)) then
             print *, 'Error: Wrong prev for node ', i
             error stop
-         end if
-      end if
-      if (i > 1) then
+          end if
+        end if
+
         if (.not. associated(current_node%prev, last_node)) then
           print *, 'Error: Wrong prev for node ', i
           error stop
