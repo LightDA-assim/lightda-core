@@ -66,17 +66,17 @@ contains
     end if
 
     if (associated(test_list%first)) then
-       if(associated(test_list%first%prev)) then
-          print *, 'Error: first%prev is not null'
-          error stop
-       end if
+      if (associated(test_list%first%prev)) then
+        print *, 'Error: first%prev is not null'
+        error stop
+      end if
     end if
 
     if (associated(test_list%last)) then
-       if(associated(test_list%last%next)) then
-          print *, 'Error: last%next is not null'
-          error stop
-       end if
+      if (associated(test_list%last%next)) then
+        print *, 'Error: last%next is not null'
+        error stop
+      end if
     end if
 
     ! Iterate over list and check contents
@@ -87,8 +87,8 @@ contains
         print *, 'Error: Reached end of read_inds but not end of list.'
         error stop
       end if
-      data_pointer=>data(read_inds(i))
-      if (.not. associated(current_node%data,data_pointer)) then
+      data_pointer => data(read_inds(i))
+      if (.not. associated(current_node%data, data_pointer)) then
         print *, 'Error: Wrong data in node', i
         error stop
       end if
@@ -115,9 +115,9 @@ contains
     end do
 
     if (associated(test_list%last) .and. &
-         .not. associated(last_node, test_list%last)) then
-       print *, 'Error: Wrong last node'
-       error stop
+        .not. associated(last_node, test_list%last)) then
+      print *, 'Error: Wrong last node'
+      error stop
     end if
 
   end subroutine check_list
@@ -189,7 +189,7 @@ contains
     call test_list%remove_all()
 
     ! Verify that the list is now empty
-    call check_list(test_list,data,(/ integer:: /))
+    call check_list(test_list, data, (/integer::/))
 
   end subroutine test_linked_list
 
