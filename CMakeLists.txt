@@ -26,7 +26,7 @@ else()
   add_definitions(-DOVERRIDABLE_FINALIZERS)
 endif()
 
-find_package(system_mpi REQUIRED)
+find_package(system_mpi REQUIRED NO_POLICY_SCOPE)
 find_package(fortran_exceptions REQUIRED)
 
 function(list_transform_prepend var prefix)
