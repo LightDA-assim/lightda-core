@@ -88,11 +88,11 @@ contains
     new_assimilation_manager%filter => filter
     new_assimilation_manager%forward_operator => forward_operator
     new_assimilation_manager%observation_sets => observation_sets
-    new_assimilation_manager%batch_manager = &
-      new_batch_manager( &
-      model_interface, n_ensemble, &
-      model_interface%get_state_size(), &
-      actual_max_batch_size, model_interface%comm)
+    allocate (new_assimilation_manager%batch_manager, &
+              source=new_batch_manager( &
+              model_interface, n_ensemble, &
+              model_interface%get_state_size(), &
+              actual_max_batch_size, model_interface%comm))
 
     if (present(localizer)) then
       new_assimilation_manager%localizer => localizer
