@@ -13,7 +13,6 @@ endif()
 
 add_library(test_types dummy_model_forward_operator.F90 random_observations.F90 dummy_model_interfaces.F90)
 target_link_libraries(test_types PRIVATE lightda)
-configure_mpi_target(test_types)
 
 add_executable(dummy_assimilator_tests dummy_assimilator_tests.F90)
 target_link_libraries(dummy_assimilator_tests PRIVATE lightda)

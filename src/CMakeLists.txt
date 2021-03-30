@@ -6,7 +6,6 @@ target_include_directories(lightda_util INTERFACE
   $<INSTALL_INTERFACE:${Fortran_MODULE_DIRECTORY}>)
 target_link_libraries(lightda_util PUBLIC fortran_exceptions)
 target_link_libraries(lightda_util PUBLIC system_mpi)
-configure_mpi_target(lightda_util)
 install(TARGETS lightda_util EXPORT lightda
   LIBRARY DESTINATION lib ${CMAKE_INSTALL_LIBDIR})
 
@@ -18,7 +17,6 @@ install(TARGETS lightda_random EXPORT lightda
 set(LIGHTDA_SOURCES dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90 assimilation_batch_manager.F90 assimilation_model_interface.F90 observations.F90 localization.f90 observation_manager.F90 forward_operator.F90 assimilation_manager.F90)
 add_library(lightda SHARED ${LIGHTDA_SOURCES})
 target_link_libraries(lightda PUBLIC lightda_random lightda_util)
-configure_mpi_target(lightda)
 target_include_directories(lightda INTERFACE
   $<INSTALL_INTERFACE:${Fortran_MODULE_DIRECTORY}>)
 install(TARGETS lightda EXPORT lightda
