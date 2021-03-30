@@ -26,6 +26,10 @@ else()
   add_definitions(-DOVERRIDABLE_FINALIZERS)
 endif()
 
+# Prevent older CMake versions from setting include directories with -isystem,
+# which prevents gfortran from finding Fortran module files
+set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
+
 find_package(system_mpi REQUIRED NO_POLICY_SCOPE)
 find_package(fortran_exceptions REQUIRED)
 
