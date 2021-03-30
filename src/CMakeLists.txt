@@ -1,5 +1,9 @@
 find_package(LAPACK REQUIRED)
 
+# Prevent older CMake versions from setting include directories with -isystem,
+# which prevents gfortran from finding Fortran module files
+set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
+
 set(UTIL_SOURCES util.F90 tree.f90 list.f90 darray.F90)
 add_library(lightda_util SHARED ${UTIL_SOURCES})
 target_include_directories(lightda_util INTERFACE
