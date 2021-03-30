@@ -1,6 +1,6 @@
 find_package(LAPACK REQUIRED)
 
-set(UTIL_SOURCES util.F90 tree.f90 list.f90 darray.F90)
+set(UTIL_SOURCES util.F90 darray.F90)
 add_library(lightda_util SHARED ${UTIL_SOURCES})
 target_include_directories(lightda_util INTERFACE
   $<INSTALL_INTERFACE:${Fortran_MODULE_DIRECTORY}>)
