@@ -47,8 +47,7 @@ add_library(darray_tests darray_tests.F90)
 target_link_libraries(darray_tests lightda_util)
 
 add_executable(darray_test test_darray.F90)
-target_link_libraries(darray_test PUBLIC darray_tests)
-configure_mpi_target(darray_test)
+target_link_libraries(darray_test PUBLIC darray_tests system_mpi)
 
 add_test(test_darray ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ./darray_test)
 
