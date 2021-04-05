@@ -38,15 +38,15 @@ target_link_libraries(assimilation_manager_tests PRIVATE test_types lightda)
 add_test(test_assimilation_manager ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ./assimilation_manager_tests)
 
 add_executable(util_tests util_tests.f90)
-target_link_libraries(util_tests lightda_util)
+target_link_libraries(util_tests PRIVATE lightda_util)
 
 add_test(test_util ./util_tests)
 
 add_library(darray_tests darray_tests.F90)
-target_link_libraries(darray_tests lightda_util)
+target_link_libraries(darray_tests PUBLIC lightda_util)
 
 add_executable(darray_test test_darray.F90)
-target_link_libraries(darray_test PUBLIC darray_tests system_mpi)
+target_link_libraries(darray_test PRIVATE darray_tests)
 
 add_test(test_darray ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ./darray_test)
 
