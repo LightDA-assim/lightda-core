@@ -37,7 +37,7 @@ module assimilation_model_interface
            !! Model interface
       integer, intent(in)::imember
            !! Ensemble member index
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Returns
@@ -58,7 +58,7 @@ module assimilation_model_interface
       ! Arguments
       class(base_model_interface)::this
            !! Model interface
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Returns
@@ -94,7 +94,7 @@ module assimilation_model_interface
            !! Size of subset
       real(kind=8), intent(in)::subset_state(subset_size)
            !! Values of the model state in the requested subset
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
     end subroutine I_set_state_subset
 
@@ -114,7 +114,7 @@ contains
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
   end subroutine read_state
@@ -132,7 +132,7 @@ contains
     ! Arguments
     class(base_model_interface)::this
         !! Model interface
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
   end subroutine write_state

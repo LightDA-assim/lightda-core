@@ -31,7 +31,7 @@ contains
         !! Observation set 2
     integer, intent(in)::iobs2
         !! Index of an observation in observation set 2
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Returns
@@ -60,7 +60,7 @@ contains
         !! Observation set
     integer, intent(in)::iobs
         !! Index in the observation set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Returns
@@ -87,7 +87,7 @@ contains
   function localize_gaspari_cohn(z, c, status) result(f)
     real(kind=8), intent(in)::z, c
     real(kind=8)::f
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     if (z == 0) then

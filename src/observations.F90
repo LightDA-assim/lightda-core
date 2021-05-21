@@ -20,7 +20,7 @@ module observations
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -40,7 +40,7 @@ module observations
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -60,7 +60,7 @@ module observations
       ! Arguments
       class(observation_set)::this
            !! Observation set
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Result

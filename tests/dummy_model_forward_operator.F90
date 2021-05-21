@@ -44,7 +44,7 @@ contains
         !! Forward operator
     class(observation_set)::obs_set
         !! Observation set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -82,7 +82,7 @@ contains
         !! Forward operator
     class(observation_set)::obs_set
         !! Observation set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -126,7 +126,7 @@ contains
     class(dummy_model_forward_operator)::this
         !! Model interface
     type(random_observation_set), intent(in) :: obs_set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::imember, rank, ierr, iobs

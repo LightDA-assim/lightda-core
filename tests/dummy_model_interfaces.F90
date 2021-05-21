@@ -67,7 +67,7 @@ contains
   function get_state_size(this, status) result(size)
     class(dummy_model_interface)::this
     integer::size
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     size = this%state_size
@@ -102,7 +102,7 @@ contains
 
   subroutine read_state(this, status)
     class(dummy_model_interface)::this
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::imember, rank, ierr, i
@@ -135,7 +135,7 @@ contains
         !! Model interface
     integer, intent(in)::imember
         !! Ensemble member index
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     type(darray)::state_darray
@@ -172,7 +172,7 @@ contains
     class(dummy_model_interface)::this
     integer, intent(in)::imember, subset_offset, subset_size
     real(kind=8), intent(in)::subset_state(subset_size)
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::rank, ierr

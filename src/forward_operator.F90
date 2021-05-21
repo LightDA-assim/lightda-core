@@ -27,7 +27,7 @@ module forward_operator
            !! Forward operator
       class(observation_set)::obs_set
            !! Observation set
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Result
@@ -50,7 +50,7 @@ module forward_operator
            !! Forward operator
       class(observation_set)::obs_set
            !! Observation set
-      class(error_container), intent(out), optional::status
+      type(error_container), intent(out), optional::status
            !! Error status
 
       ! Result

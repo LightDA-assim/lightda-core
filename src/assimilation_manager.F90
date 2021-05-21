@@ -193,7 +193,7 @@ contains
     class(assimilation_manager), target::this
     INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_obs
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
-    class(error_container), intent(out), optional :: status
+    type(error_container), intent(out), optional :: status
 
     real(kind=8), pointer::batch_obs_err(:)
     ! Pointer to observation errors for this batch
@@ -224,7 +224,7 @@ contains
     INTEGER(c_int32_t), INTENT(in), value :: ibatch, dim_p, dim_obs
     REAL(c_double), INTENT(inout) :: HP_p(dim_obs, dim_p)
     REAL(c_double), INTENT(inout) :: HPH(dim_obs, dim_obs)
-    class(error_container), intent(out), optional :: status
+    type(error_container), intent(out), optional :: status
 
     integer, allocatable::batch_obs_set_inds(:)
        !! Indices of the originating observation set for each observation

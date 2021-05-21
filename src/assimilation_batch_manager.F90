@@ -347,7 +347,7 @@ contains
         !! MPI processor rank
     integer, intent(out)::batches(:)
         !! Array of batch indices assigned to `rank`
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result

@@ -22,7 +22,7 @@ contains
 
   subroutine test_assimilate_dummy(status)
 
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     type(dummy_model_interface), target::model_interface

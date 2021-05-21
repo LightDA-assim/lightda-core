@@ -62,7 +62,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_container), intent(out), allocatable, optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -78,7 +78,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -94,7 +94,7 @@ contains
     ! Arguments
     class(random_observation_set)::this
         !! Observation set
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -112,7 +112,7 @@ contains
         !! Observation set
     integer, intent(in)::iobs
         !! Observation index
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result

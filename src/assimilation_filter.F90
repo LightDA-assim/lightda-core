@@ -30,7 +30,7 @@ contains
     real(kind=8), intent(in)::obs_errors(dim_obs)
 
     class(base_assimilation_manager)::mgr
-    class(error_container), intent(out), allocatable, optional::status
+    type(error_container), intent(out), optional::status
 
   end subroutine assimilate
 

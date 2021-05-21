@@ -64,7 +64,7 @@ contains
         !! Array to distribute
     type(darray), intent(in), target::check_darray
         !! Built darray
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::rank                ! MPI processor rank
@@ -109,7 +109,7 @@ contains
     !! layouts
 
     ! Arguments
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer, parameter::n = 98     ! Number of array elements

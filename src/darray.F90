@@ -127,7 +127,7 @@ contains
         !! Source array
     class(darray_segment_set), target, intent(inout)::dest
         !! Destination segments
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::rank !! MPI rank
@@ -178,7 +178,7 @@ contains
     ! Arguments
     class(darray), target::this
         !! Distributed array segment
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
     class(darray_segment), intent(inout), pointer::dest_segment
         !! Pointer to destination segment
@@ -275,7 +275,7 @@ contains
         !! Array of darray segments
     MPI_COMM_TYPE, intent(in)::comm
         !! MPI communicator
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     type(darray)::new_darray
@@ -366,7 +366,7 @@ contains
         !! Offset relative to the start of the global distributed array
     real(kind=8), intent(in)::data(:)
         !! Data to write
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::rank !! MPI rank
@@ -414,7 +414,7 @@ contains
         !! Offset relative to the start of the global distributed array
     integer, intent(in)::length
         !! Number of elements to read
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     real(kind=8)::data(length)
@@ -463,7 +463,7 @@ contains
         !! Offset relative to the start of the global distributed array
     integer, intent(in)::length
         !! Length of range
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     class(darray_segment), pointer::segments(:)
@@ -486,7 +486,7 @@ contains
         !! Distributed array segment
     integer, intent(in)::offset
         !! Offset relative to the start of the global distributed array
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     integer::iseg !! Segment index

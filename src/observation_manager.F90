@@ -79,7 +79,7 @@ contains
     class(base_localizer), intent(in), target, optional :: localizer
         !! Localizer
 
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -122,7 +122,7 @@ contains
         !! Observation set
     class(darray_segment)::batch
         !! Batch segment
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -168,7 +168,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -218,7 +218,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -389,7 +389,7 @@ contains
 
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     type(darray_segment) :: obs_values(size(this%batches%segments))
@@ -458,7 +458,7 @@ contains
     ! Arguments
     class(observation_manager), intent(inout)::this
         !! Observation manager
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     ! Result
@@ -528,7 +528,7 @@ contains
     class(observation_manager), intent(inout)::this
         !! Observation manager
     integer, intent(in) :: n_ensemble
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
 
     type(darray_segment) :: predictions(size(this%batches%segments)*n_ensemble)

@@ -29,7 +29,7 @@ contains
   function str(x, fmt, status)
     class(*), intent(in)::x
     character(*), optional, intent(in)::fmt
-    class(error_container), intent(out), optional::status
+    type(error_container), intent(out), optional::status
         !! Error status
     character(30)::str_tmp
     character(:), allocatable::str
