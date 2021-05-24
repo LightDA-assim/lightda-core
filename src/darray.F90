@@ -332,16 +332,18 @@ contains
 
       end if
 
-      if (segments(i)%rank == rank .and. &
-          segments(i)%length /= size(segments(i)%data)) then
+      if (segments(i)%rank == rank) then
+        if (segments(i)%length /= size(segments(i)%data)) then
 
-        errstr = 'segments('//str(i)//')%length is '//str(segments(i)%length)// &
-                 ' but segments('//str(i)//')%data has a size of '// &
-                 str(size(segments(i)%data))//'.'
+          errstr = 'segments('//str(i)//')%length is ' &
+                   //str(segments(i)%length)// &
+                   ' but segments('//str(i)//')%data has a size of '// &
+                   str(size(segments(i)%data))//'.'
 
-        call throw(status, new_exception(errstr, 'new_darray'))
+          call throw(status, new_exception(errstr, 'new_darray'))
 
-        return
+          return
+        end if
 
       end if
 
