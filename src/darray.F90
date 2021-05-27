@@ -271,7 +271,7 @@ contains
     !! Create a new darray
 
     ! Arguments
-    class(darray_segment), intent(in)::segments(:)
+    type(darray_segment), intent(in)::segments(:)
         !! Array of darray segments
     MPI_COMM_TYPE, intent(in)::comm
         !! MPI communicator
@@ -289,8 +289,6 @@ contains
     integer::ierr !! MPI error code
 
     call mpi_comm_rank(comm, rank, ierr)
-
-    allocate (new_darray%segments(size(segments)))
 
     ! Loop over segments and do sanity checks
     do i = 1, size(segments)
@@ -349,16 +347,9 @@ contains
 
       end if
 
-      new_darray%segments(i)%rank = segments(i)%rank
-      new_darray%segments(i)%offset = segments(i)%offset
-      new_darray%segments(i)%length = segments(i)%length
-      new_darray%segments(i)%comm = segments(i)%comm
-
-      if (segments(i)%rank == rank) &
-        new_darray%segments(i)%data = segments(i)%data
-
     end do
 
+    new_darray%segments = segments
     new_darray%comm = comm
 
   end function new_darray
