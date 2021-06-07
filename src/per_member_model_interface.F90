@@ -1,6 +1,6 @@
 #include "mpi_types.h"
 
-module advect1d_assimilate_interfaces
+module per_member_model_interfaces
   use assimilation_model_interface, ONLY: base_model_interface
   use system_mpi
   use iso_c_binding
@@ -309,4 +309,4 @@ contains
 
   end subroutine write_state
 
-end module advect1d_assimilate_interfaces
+end module per_member_model_interfaces
