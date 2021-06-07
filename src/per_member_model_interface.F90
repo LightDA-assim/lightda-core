@@ -15,11 +15,9 @@ module per_member_model_interfaces
 
     private
     real(kind=8), allocatable::local_io_data(:, :)
-    real(kind=8)::cutoff, cutoff_u_a
     integer, allocatable::io_ranks(:)
     integer::state_size, local_io_size
-    logical::observations_read = .false., predictions_computed = .false., &
-              state_loaded = .false.
+    logical::state_loaded = .false.
     integer::istep
   contains
     procedure::set_state_subset
