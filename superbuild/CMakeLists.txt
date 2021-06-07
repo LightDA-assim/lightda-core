@@ -6,12 +6,12 @@ project(lenkf-rsm)
 
 set(
   system_mpi_GIT_URL
-  "git@gitlab.hpc.mil:john.haiducek.ctr/system_mpi.git" CACHE STRING
+  "https://github.com/LightDA-assim/system_mpi.git" CACHE STRING
   "URL of system_mpi git repository")
 
 set(
   fortran_exceptions_GIT_URL
-  "git@gitlab.hpc.mil:john.haiducek.ctr/fortran_exceptions.git" CACHE STRING
+  "https://github.com/LightDA-assim/fortran_exceptions.git" CACHE STRING
   "URL of fortran_exceptions git repository")
 
 ExternalProject_Add(
