@@ -20,6 +20,8 @@ module per_member_model_interfaces
     logical::state_loaded = .false.
     integer::istep
   contains
+    procedure::initialize
+    procedure::get_state_size
     procedure::set_state_subset
     procedure::read_state
     procedure::write_state
@@ -29,6 +31,7 @@ module per_member_model_interfaces
   end type per_member_model_interface
 
   abstract interface
+
     subroutine I_store_member_state( &
       this, imember, n_ensemble, member_state, state_size, status)
 
@@ -78,6 +81,45 @@ module per_member_model_interfaces
   end interface
 
 contains
+
+  subroutine initialize( &
+    this, n_ensemble, state_size, comm)
+
+    class(per_member_model_interface)::this
+    integer(c_int), intent(in)::n_ensemble, state_size
+    MPI_COMM_TYPE, intent(in)::comm
+    integer::ierr, rank, comm_size
+
+    this%n_ensemble = n_ensemble
+    this%state_size = state_size
+    this%comm = comm
+    this%state_loaded = .false.
+
+    call mpi_comm_rank(comm, rank, ierr)
+    call mpi_comm_size(comm, comm_size, ierr)
+
+    allocate (this%io_ranks(n_ensemble))
+
+    ! Assign ensemble members to processors for i/o purposes
+    this%io_ranks = get_member_ranks(comm_size, n_ensemble)
+
+    ! Get the number of ensemble members read and written locally
+    this%local_io_size = get_rank_io_size(n_ensemble, this%io_ranks, rank)
+
+    ! Allocate array for local i/o data
+    allocate (this%local_io_data(state_size, this%local_io_size))
+
+  end subroutine initialize
+
+  function get_state_size(this, status) result(size)
+    class(per_member_model_interface)::this
+    integer::size
+    type(error_container), intent(out), optional::status
+        !! Error status
+
+    size = this%state_size
+
+  end function get_state_size
 
   function get_member_ranks(comm_size, n_ensemble) result(io_ranks)
     !! Returns an array of rank assignments for ensemble members
