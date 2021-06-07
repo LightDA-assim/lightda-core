@@ -1,9 +1,12 @@
 program dummy_model_interface_tests
   use model_interface_tests, ONLY: run_all
   use dummy_model_interfaces, ONLY: dummy_model_interface, new_dummy_model
+  use per_member_dummy_model_interfaces, ONLY: &
+    per_member_dummy_model_interface, new_per_member_dummy_model
   use system_mpi
   implicit none
   type(dummy_model_interface)::model_interface
+  type(per_member_dummy_model_interface)::per_member_model_interface
   integer, parameter::n_observations = 5
   integer, parameter::state_size = 100
   integer, parameter::n_ensemble = 15
@@ -15,5 +18,11 @@ program dummy_model_interface_tests
                                     state_size, mpi_comm_world)
 
   call run_all(model_interface)
+
+  per_member_model_interface = new_per_member_dummy_model(n_ensemble, n_observations, &
+                                    state_size, mpi_comm_world)
+
+  call run_all(per_member_model_interface)
+
   call mpi_finalize(ierr)
 end program dummy_model_interface_tests

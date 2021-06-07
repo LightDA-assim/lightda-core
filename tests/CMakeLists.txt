@@ -11,7 +11,7 @@ if(FPRETTIFY_EXECUTABLE)
     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_and_check_regex.cmake)
 endif()
 
-add_library(test_types dummy_model_forward_operator.F90 random_observations.F90 dummy_model_interfaces.F90)
+add_library(test_types dummy_model_forward_operator.F90 random_observations.F90 dummy_model_interfaces.F90 per_member_dummy_model_interface.F90)
 target_link_libraries(test_types PRIVATE lightda)
 
 add_executable(dummy_assimilator_tests dummy_assimilator_tests.F90)

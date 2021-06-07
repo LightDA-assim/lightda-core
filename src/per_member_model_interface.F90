@@ -20,7 +20,8 @@ module per_member_model_interfaces
     logical::state_loaded = .false.
     integer::istep
   contains
-    procedure::initialize
+    procedure::initialize_per_member_model_interface
+    procedure::initialize => initialize_per_member_model_interface
     procedure::get_state_size
     procedure::set_state_subset
     procedure::read_state
@@ -82,10 +83,10 @@ module per_member_model_interfaces
 
 contains
 
-  subroutine initialize( &
+  subroutine initialize_per_member_model_interface( &
     this, n_ensemble, state_size, comm)
 
-    class(per_member_model_interface)::this
+    class(per_member_model_interface), intent(inout)::this
     integer(c_int), intent(in)::n_ensemble, state_size
     MPI_COMM_TYPE, intent(in)::comm
     integer::ierr, rank, comm_size
@@ -109,7 +110,7 @@ contains
     ! Allocate array for local i/o data
     allocate (this%local_io_data(state_size, this%local_io_size))
 
-  end subroutine initialize
+  end subroutine initialize_per_member_model_interface
 
   function get_state_size(this, status) result(size)
     class(per_member_model_interface)::this
