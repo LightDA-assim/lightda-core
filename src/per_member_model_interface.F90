@@ -18,7 +18,6 @@ module per_member_model_interfaces
     integer, allocatable::io_ranks(:)
     integer::state_size, local_io_size
     logical::state_loaded = .false.
-    integer::istep
   contains
     procedure::initialize_per_member_model_interface
     procedure::initialize => initialize_per_member_model_interface
@@ -34,7 +33,7 @@ module per_member_model_interfaces
   abstract interface
 
     subroutine I_store_member_state( &
-      this, istep, imember, n_ensemble, member_state, state_size, status)
+      this, imember, n_ensemble, member_state, state_size, status)
 
       !! Store the new state for one ensemble member
 
@@ -44,8 +43,6 @@ module per_member_model_interfaces
       ! Arguments
       class(per_member_model_interface)::this
           !! Model interface
-      integer, intent(in)::istep
-          !! Iteration number
       integer, intent(in)::imember
           !! Ensemble member index
       integer, intent(in)::n_ensemble
@@ -59,7 +56,7 @@ module per_member_model_interfaces
     end subroutine I_store_member_state
 
     subroutine I_load_member_state( &
-      this, istep, imember, member_state, state_size, status)
+      this, imember, member_state, state_size, status)
 
       !! Read the model state from disk for a given ensemble member
 
@@ -69,8 +66,6 @@ module per_member_model_interfaces
       ! Arguments
       class(per_member_model_interface)::this
           !! Model interface
-      integer, intent(in)::istep
-          !! Iteration number
       integer, intent(in)::imember
           !! Ensemble member index
       integer, intent(in)::state_size
@@ -222,7 +217,7 @@ contains
 
     do imember = 1, this%n_ensemble
       if (this%io_ranks(imember) == rank) then
-        call this%load_member_state(this%istep, imember, &
+        call this%load_member_state(imember, &
                                     this%local_io_data(:, local_io_counter), &
                                     this%state_size)
         local_io_counter = local_io_counter + 1
@@ -340,7 +335,7 @@ contains
       if (this%io_ranks(imember) == rank) then
 
         call this%store_member_state( &
-          this%istep, imember, this%n_ensemble, &
+          imember, this%n_ensemble, &
           this%local_io_data(:, imember_local), &
           this%state_size)
 

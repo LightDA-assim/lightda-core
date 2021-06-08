@@ -48,15 +48,13 @@ contains
   end function new_per_member_dummy_model
 
   subroutine load_member_state( &
-    this, istep, imember, member_state, state_size, status)
+    this, imember, member_state, state_size, status)
 
     !! Read the model state from disk for a given ensemble member
 
     ! Arguments
     class(per_member_dummy_model_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     integer, intent(in)::state_size
@@ -76,7 +74,7 @@ contains
   end subroutine load_member_state
 
   subroutine store_member_state( &
-    this, istep, imember, n_ensemble, member_state, state_size, status)
+    this, imember, n_ensemble, member_state, state_size, status)
 
     !! Store the new state for one ensemble member
 
@@ -85,8 +83,6 @@ contains
     ! Arguments
     class(per_member_dummy_model_interface)::this
         !! Model interface
-    integer, intent(in)::istep
-        !! Iteration number
     integer, intent(in)::imember
         !! Ensemble member index
     integer, intent(in)::n_ensemble
