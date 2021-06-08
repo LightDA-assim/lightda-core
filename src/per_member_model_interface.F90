@@ -34,7 +34,7 @@ module per_member_model_interfaces
   abstract interface
 
     subroutine I_store_member_state( &
-      this, imember, n_ensemble, member_state, state_size, status)
+      this, istep, imember, n_ensemble, member_state, state_size, status)
 
       !! Store the new state for one ensemble member
 
@@ -44,6 +44,8 @@ module per_member_model_interfaces
       ! Arguments
       class(per_member_model_interface)::this
           !! Model interface
+      integer, intent(in)::istep
+          !! Iteration number
       integer, intent(in)::imember
           !! Ensemble member index
       integer, intent(in)::n_ensemble
@@ -338,7 +340,7 @@ contains
       if (this%io_ranks(imember) == rank) then
 
         call this%store_member_state( &
-          imember, this%n_ensemble, &
+          this%istep, imember, this%n_ensemble, &
           this%local_io_data(:, imember_local), &
           this%state_size)
 
