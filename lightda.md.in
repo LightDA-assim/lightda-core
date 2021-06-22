@@ -14,7 +14,7 @@ license: by
 revision: DISTRIBUTION A: Approved for public release, distribution is unlimited
 ---
 
-LightDA is a lightweight, extensible data assimiltion library. It is designed with the following goals in mind:
+LightDA is a lightweight, extensible data assimilation library. It is designed with the following goals in mind:
 
 - The data assimilation process be model-agnostic, and adding a new model should be as simple as possible
 - Assimilation can be done in parallel if needed
