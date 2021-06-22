@@ -8,7 +8,7 @@ This repository contains the LightDA core library. It provides the infrastructur
 
 ## Requirements
 
-LightDA requires CMake 3.0.2 or later, a Fortran 2008 compiler (gcc 4.9.4 and later and ifort 2021 have been tested) and an MPI library. Building the LightDA documentation additionally requires Python 3.5 or later.
+LightDA requires CMake 3.0.2 or later, a Fortran 2008 compiler (gcc 4.9.4 and later and ifort 2021 have been tested) and an MPI library. Building the LightDA documentation additionally requires Python 3.5 or later. The LightDA examples also require HDF5.
 
 ## Quick start
 
