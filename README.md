@@ -36,7 +36,7 @@ cmake ../superbuild
 make
 ```
 
-The above commands build [system_mpi](https://github.com/LightDA-assim/system_mpi) and [system_mpi](https://github.com/LightDA-assim/fortran_exceptions) as part of the LightDA build. If you prefer to build these separately, this can be accomplished with by replacing the above ```cmake ../superbuild``` with ```cmake ..```. This requires building and installing system_mpi and fortran_exceptions first.
+The above commands build [system_mpi](https://github.com/LightDA-assim/system_mpi) and [fortran_exceptions](https://github.com/LightDA-assim/fortran_exceptions) as part of the LightDA build. If you prefer to build these separately, this can be accomplished with by replacing the above ```cmake ../superbuild``` with ```cmake ..```. This requires building and installing system_mpi and fortran_exceptions first.
 
 ## Extending
 
