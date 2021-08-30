@@ -113,8 +113,7 @@ contains
 
   end function new_assimilation_manager
 
-  subroutine assimilate( &
-    this)
+  subroutine assimilate(this)
 
     class(assimilation_manager), intent(inout)::this
         !! Assimilation manager
