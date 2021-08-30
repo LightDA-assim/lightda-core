@@ -20,8 +20,9 @@ module assimilation_manager_tests
 
 contains
 
-  subroutine test_assimilate_dummy(status)
+  subroutine test_assimilate_dummy(batch_size,status)
 
+    integer, intent(in)::batch_size
     type(error_container), intent(out), optional::status
         !! Error status
 
@@ -33,7 +34,6 @@ contains
     type(base_localizer)::localizer
     integer::comm_size, rank, ierr
     integer, parameter::state_size = 100
-    integer, parameter::batch_size = 15
     integer, parameter::istep = 1
     integer, parameter::n_ensemble = 15
     integer, parameter::n_observations = 20
@@ -184,7 +184,9 @@ program test_assimilatiion_manager
 
   call mpi_init(ierr)
 
-  call test_assimilate_dummy()
+  call test_assimilate_dummy(15)
+
+  call test_assimilate_dummy(0)
 
   call mpi_finalize(ierr)
 

@@ -48,6 +48,8 @@ contains
     forward_operator, observation_sets, max_batch_size, &
     localizer, filter, comm)
 
+    use, intrinsic :: iso_fortran_env, ONLY: stderr => error_unit
+
     !! Create a new assimilation_manager
 
     ! Arguments
@@ -78,10 +80,19 @@ contains
 
     type(base_localizer), target::default_localizer
 
+    integer, parameter::default_max_batch_size = 500
+
     if (present(max_batch_size)) then
-      actual_max_batch_size = max_batch_size
+      if (max_batch_size > 0) then
+        actual_max_batch_size = max_batch_size
+      else
+        actual_max_batch_size = default_max_batch_size
+        write (stderr, *) 'Invalid max_batch_size given (zero or negative).'// &
+          'Reverting to default batch size of '// &
+          str(default_max_batch_size)//'.'
+      end if
     else
-      actual_max_batch_size = 500
+      actual_max_batch_size = default_max_batch_size
     end if
 
     new_assimilation_manager%model_interface => model_interface
