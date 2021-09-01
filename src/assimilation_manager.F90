@@ -124,7 +124,7 @@ contains
     real(kind=8), allocatable :: batch_predictions(:, :)
     real(kind=8), allocatable::batch_mean_state(:), batch_states(:, :)
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
-              ibatch_local, batch_size, state_size, n_ensemble
+              ibatch_local, batch_size, state_size, n_ensemble, ibatch_size
     type(darray)::batches
     MPI_COMM_TYPE::comm
 
@@ -181,14 +181,15 @@ contains
       batch_predictions = reshape(this%predictions(ibatch)%data, &
                                   (/size(batch_observations), n_ensemble/))
 
-      batch_states = local_batches(:, ibatch_local, :)
+      ibatch_size = batches%segments(ibatch)%length
+      batch_states = local_batches(:ibatch_size, ibatch_local, :)
 
       call this%filter%assimilate( &
-        ibatch, batch_size, size(batch_observations), n_ensemble, &
+        ibatch, ibatch_size, size(batch_observations), n_ensemble, &
         batch_states, batch_predictions, &
         batch_observations, batch_obs_err, this)
 
-      local_batches(:, ibatch_local, :) = batch_states
+      local_batches(:ibatch_size, ibatch_local, :) = batch_states
 
     end do
 
