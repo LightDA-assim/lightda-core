@@ -126,6 +126,8 @@ contains
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
               ibatch_local, batch_size, state_size, n_ensemble, ibatch_size
     type(darray)::batches
+    logical, allocatable::batches_completed(:)
+
     MPI_COMM_TYPE::comm
 
     comm = this%batch_manager%get_comm()
@@ -141,6 +143,7 @@ contains
 
     allocate (batch_mean_state(batch_size))
     allocate (batch_states(batch_size, n_ensemble))
+    allocate (batches_completed(n_batches))
 
     ! Get number of local batches
     n_local_batches = this%batch_manager%get_rank_batch_count(rank)
@@ -168,6 +171,8 @@ contains
 
     this%predictions = this%obs_manager%get_batches_predictions(n_ensemble)
 
+    batches_completed = .false.
+
     ! Assimilate local batches
     do ibatch_local = 1, n_local_batches
 
@@ -191,12 +196,97 @@ contains
 
       local_batches(:ibatch_size, ibatch_local, :) = batch_states
 
+      call report_progress(batches_completed, comm, ibatch, report_interval=1)
     end do
+
+    if (rank == 0) then
+      ! Continue reporting progress until all batches are completed
+      do while (count(batches_completed) < size(batches_completed))
+        call report_progress(batches_completed, comm, report_interval=1)
+      end do
+    end if
 
     ! Write the ensemble state
     call this%batch_manager%store_results(local_batches)
 
   end subroutine assimilate
+
+  subroutine report_progress(elements_completed, comm, &
+                             i_completed, report_interval)
+
+    logical, intent(inout)::elements_completed(:)
+    MPI_COMM_TYPE, intent(in)::comm
+    integer, intent(in), optional::i_completed
+    integer, intent(in), optional::report_interval
+
+    integer::ierr
+    integer::rank
+    integer::comm_size
+    integer::iproc
+    logical::flag
+    integer::remote_completed
+    integer::actual_report_interval
+
+    integer::completed_count = 0
+    integer, save :: last_completed_count = 0
+
+    MPI_REQUEST_TYPE::req
+    MPI_STATUS_TYPE::status
+
+    if (present(report_interval)) then
+      actual_report_interval = report_interval
+    else
+      actual_report_interval = 1
+    end if
+
+    call mpi_comm_rank(comm, rank, ierr)
+    call mpi_comm_size(comm, comm_size, ierr)
+
+    if (rank == 0) then
+
+      if (present(i_completed)) then
+        ! Record that this element was completed
+        elements_completed(i_completed) = .true.
+      end if
+
+      do iproc = 1, comm_size - 1
+
+        ! Check for a message from the remote process
+        call MPI_Iprobe(iproc, 0, comm, flag, status, ierr)
+
+        if (flag) then
+
+          ! Find out what element was completed by the remote process
+          call MPI_Recv(remote_completed, 1, MPI_INTEGER, iproc, 0, comm, &
+                        status, ierr)
+
+          ! Record that this element was completed
+          elements_completed(remote_completed) = .true.
+
+        end if
+
+        completed_count = count(elements_completed)
+
+        if (completed_count > last_completed_count .and. &
+            mod(completed_count, actual_report_interval) == 0) then
+
+          print *, 'Completed '//str(completed_count)//' of '// &
+            str(size(elements_completed))
+
+        end if
+
+        last_completed_count = completed_count
+
+      end do
+
+    else
+      if (present(i_completed)) then
+        ! Send a message to the rank-0 process that this batch is complete
+        call MPI_Isend(i_completed, 1, MPI_INTEGER, 0, 0, comm, req, ierr)
+      end if
+    end if
+
+  end subroutine report_progress
 
   SUBROUTINE add_obs_err(this, ibatch, dim_obs, HPH, status)
     ! Add observation error covariance matrix
