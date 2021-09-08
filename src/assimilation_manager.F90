@@ -88,7 +88,7 @@ contains
       else
         actual_max_batch_size = default_max_batch_size
         write (stderr, *) 'Invalid max_batch_size given (zero or negative).'// &
-          'Reverting to default batch size of '// &
+          ' Reverting to default batch size of '// &
           str(default_max_batch_size)//'.'
       end if
     else
