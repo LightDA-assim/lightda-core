@@ -215,6 +215,8 @@ contains
       allocate (reqs(size(source_segments)*2))
     end if
 
+    ! Populate reqs array with MPI_REQUEST_NULL until we can fill it with
+    ! actual values
     reqs = MPI_REQUEST_NULL
 
     do i = 1, size(source_segments)
