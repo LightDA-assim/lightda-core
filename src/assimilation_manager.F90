@@ -228,10 +228,13 @@ contains
     integer::actual_report_interval
 
     integer::completed_count = 0
+    integer::total_count
     integer, save :: last_completed_count = 0
 
     MPI_REQUEST_TYPE::req
     MPI_STATUS_TYPE::status
+
+    total_count = size(elements_completed)
 
     if (present(report_interval)) then
       actual_report_interval = report_interval
@@ -271,7 +274,7 @@ contains
             mod(completed_count, actual_report_interval) == 0) then
 
           print *, 'Completed '//str(completed_count)//' of '// &
-            str(size(elements_completed))
+            str(total_count)
 
         end if
 
