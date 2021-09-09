@@ -173,7 +173,9 @@ contains
 
     batches_completed = .false.
 
-    print *, 'Assimilating batches'
+    if (rank == 0) then
+      print *, 'Assimilating batches'
+    end if
 
     ! Assimilate local batches
     do ibatch_local = 1, n_local_batches
