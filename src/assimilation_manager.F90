@@ -157,6 +157,10 @@ contains
 
     batches = this%batch_manager%get_batches_darray()
 
+    if (rank == 0) then
+      print *, 'Loading ensemble state'
+    end if
+
     ! Load the ensemble state
     call this%batch_manager%load_ensemble_state(local_batches)
 
@@ -165,9 +169,17 @@ contains
       this%model_interface, batches, this%forward_operator, &
       this%observation_sets, this%localizer)
 
+    if (rank == 0) then
+      print *, 'Loading observations'
+    end if
+
     this%observations = this%obs_manager%get_batches_obs_values()
 
     this%obs_errors = this%obs_manager%get_batches_obs_errors()
+
+    if (rank == 0) then
+      print *, 'Computing predictions'
+    end if
 
     this%predictions = this%obs_manager%get_batches_predictions(n_ensemble)
 
