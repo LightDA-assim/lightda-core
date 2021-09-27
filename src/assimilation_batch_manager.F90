@@ -465,6 +465,11 @@ contains
 
     do imember = 1, this%n_ensemble
 
+      if (rank == 0) then
+        print *, 'Loading ensemble member '//str(imember)//' of '// &
+          str(this%n_ensemble)
+      end if
+
       ! Get the model state darray from the model interface
       state_darray = this%model_interface%get_state_darray(imember)
 
