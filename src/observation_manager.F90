@@ -6,6 +6,7 @@ module mod_observation_manager
   use forward_operator, ONLY: base_forward_operator
   use distributed_array, ONLY: darray, darray_segment
   use exceptions, ONLY: error_container, throw, new_exception
+  use util, ONLY: str
 
   use system_mpi
 
@@ -416,8 +417,18 @@ contains
 
     do iobs_set = 1, size(this%observation_sets)
 
+      if (rank == 0) then
+        print *, 'Loading values from observation set '//str(iobs_set)// &
+          ' of '//str(size(this%observation_sets))
+      end if
+
       obs_set => this%observation_sets(iobs_set)
       values = obs_set%get_values()
+
+      if (rank == 0) then
+        print *, 'Read '//str(size(values))//' from observation set '// &
+          str(iobs_set)
+      end if
 
       do ibatch = 1, size(this%batches%segments)
 
