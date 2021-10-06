@@ -133,32 +133,17 @@ contains
 
     integer :: iobs, imodel ! Loop counters
 
-    real(kind=8)::w
+    real(kind=8), allocatable::w(:, :)
     ! Localization weight
 
     allocate (mask(obs_set%get_size()))
+    allocate (w(obs_set%get_size(), batch%length))
 
-    do iobs = 1, obs_set%get_size()
+    call this%localizer%get_weight_model_obs_range( &
+      obs_set, 1, obs_set%get_size(), this%model_interface, batch%offset + 1, &
+      batch%offset + batch%length, w, status)
 
-      ! Set mask to false initially
-      mask(iobs) = .false.
-
-      do imodel = batch%offset + 1, batch%offset + batch%length
-
-        w = this%localizer%get_weight_model_obs( &
-            obs_set, iobs, this%model_interface, imodel, status)
-
-        if (w > this%min_weight) then
-
-          mask(iobs) = .true.
-
-          cycle
-
-        end if
-
-      end do
-
-    end do
+    mask = (maxval(w, 2) > this%min_weight)
 
   end function get_batch_weight_mask
 
