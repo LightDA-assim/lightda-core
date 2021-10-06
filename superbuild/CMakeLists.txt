@@ -22,7 +22,8 @@ ExternalProject_Add(
   GIT_TAG main
   CMAKE_CACHE_ARGS
         -DPYTHON_EXECUTABLE:PATH=${PYTHON_EXECUTABLE}
-        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/system_mpi)
+        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/system_mpi
+	-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE})
 
 ExternalProject_Add(
   fortran_exceptions
@@ -30,7 +31,8 @@ ExternalProject_Add(
   GIT_TAG main
   CMAKE_CACHE_ARGS
         -DPYTHON_EXECUTABLE:PATH=${PYTHON_EXECUTABLE}
-        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/fortran_exceptions)
+        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/fortran_exceptions
+	-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE})
 
 ExternalProject_Add(lightda
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -39,4 +41,5 @@ ExternalProject_Add(lightda
     -Dfortran_exceptions_DIR:STRING=${CMAKE_CURRENT_BINARY_DIR}/fortran_exceptions/lib/cmake/fortran_exceptions
     -DPYTHON_EXECUTABLE:PATH=${PYTHON_EXECUTABLE}
     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/lightda
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
   DEPENDS system_mpi fortran_exceptions)
