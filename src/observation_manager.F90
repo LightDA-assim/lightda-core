@@ -410,23 +410,28 @@ contains
 
     integer::rank ! MPI rank
     integer::ierr ! MPI status code
+    integer::n_obs ! Number of observations in set
+    integer::n_sets ! Number of observation sets
 
     logical :: weight_mask, prediction_mask
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
+    n_sets = size(this%observation_sets)
+
     do iobs_set = 1, size(this%observation_sets)
 
       if (rank == 0) then
         print *, 'Loading values from observation set '//str(iobs_set)// &
-          ' of '//str(size(this%observation_sets))
+          ' of '//str(n_sets)
       end if
 
       obs_set => this%observation_sets(iobs_set)
       values = obs_set%get_values()
 
       if (rank == 0) then
-        print *, 'Read '//str(size(values))//' from observation set '// &
+        n_obs = size(values)
+        print *, 'Read '//str(n_obs)//' observations from observation set '// &
           str(iobs_set)
       end if
 
