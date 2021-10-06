@@ -36,6 +36,7 @@ contains
 
     this%observations_read = .false.
     this%predictions_computed = .false.
+    this%n_observations = n_observations
 
     call mpi_comm_rank(comm, rank, ierr)
     call mpi_comm_size(comm, comm_size, ierr)
