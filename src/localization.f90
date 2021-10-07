@@ -10,7 +10,6 @@ module localization
   contains
     procedure::get_weight_obs_obs
     procedure::get_weight_model_obs
-    procedure::get_weight_model_obs_range
   end type base_localizer
 
 contains
@@ -71,56 +70,6 @@ contains
     weight = 1
 
   end function get_weight_model_obs
-
-  subroutine get_weight_model_obs_range( &
-    this, obs_set, iobs1, iobs2, model_interface, imodel1, imodel2, weights, &
-    status)
-
-    !! Get localization weight for a given observation at a given index in the
-    !! model state. Default implementation returns 1 for any input (i.e., no
-    !! localization).
-
-    ! Arguments
-    class(base_localizer)::this
-        !! Model interface
-    class(base_model_interface)::model_interface
-        !! Model interface
-    integer, intent(in)::imodel1
-        !! Starting index in the model state array
-    integer, intent(in)::imodel2
-        !! Ending index in the model state array
-    class(observation_set)::obs_set
-        !! Observation set
-    integer, intent(in)::iobs1
-        !! Starting index in the observation set
-    integer, intent(in)::iobs2
-        !! Ending index in the observation set
-    real(kind=8)::weights(:, :)
-        !! Localization weights
-    type(error_container), intent(out), optional::status
-        !! Error status
-
-    integer :: iobs, imodel ! Loop counters
-
-    character(*), parameter::NameProc = 'get_weight_model_obs_range'
-
-    if (size(weights, 1) /= iobs2 - iobs1 + 1 .or. &
-        size(weights, 2) /= imodel2 - imodel1 + 1) then
-      call throw(status, &
-                 new_exception( &
-                 'Inconsistent dimensions in weights buffer passed to '// &
-                 NameProc, NameProc))
-    end if
-
-    do iobs = iobs1, iobs2
-      do imodel = imodel1, imodel2
-        weights(iobs - iobs1 + 1, imodel - imodel1 + 1) = &
-          this%get_weight_model_obs( &
-          obs_set, iobs, model_interface, imodel, status)
-      end do
-    end do
-
-  end subroutine get_weight_model_obs_range
 
   function gaspari_cohn_mid(z, c) result(f)
     real(kind=8), intent(in)::z, c
