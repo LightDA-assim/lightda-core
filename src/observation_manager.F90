@@ -591,7 +591,8 @@ contains
 
           end do
 
-          predictions(ibatch)%data = pack(batch_predictions, .true.)
+          allocate (predictions(ibatch)%data, &
+                    source=pack(batch_predictions, .true.))
 
           deallocate (batch_predictions)
 
