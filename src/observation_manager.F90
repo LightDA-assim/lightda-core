@@ -45,6 +45,8 @@ module mod_observation_manager
 
     real(kind=8) :: min_weight = 1e-10
 
+    integer::weight_chunk_size = 100
+
   contains
 
     procedure::get_batches_obs_values
@@ -131,19 +133,35 @@ contains
         !! Array indicating whether each observation has a weight greater than
         !! this%min_weight for at least one point in `batch`
 
-    integer :: iobs, imodel ! Loop counters
+    integer :: ichunk        ! Loop counter
+    integer :: nchunks       ! Number of chunks to be processed
+    integer :: chunk_offset  ! Chunk offset
+    integer :: chunk_size    ! Chunk size
 
     real(kind=8), allocatable::w(:, :)
     ! Localization weight
 
     allocate (mask(obs_set%get_size()))
-    allocate (w(obs_set%get_size(), batch%length))
+    allocate (w(this%weight_chunk_size, batch%length))
 
-    call this%localizer%get_weight_model_obs_range( &
-      obs_set, 1, obs_set%get_size(), this%model_interface, batch%offset + 1, &
-      batch%offset + batch%length, w, status)
+    nchunks = obs_set%get_size()/this%weight_chunk_size + &
+              min(mod(obs_set%get_size(), this%weight_chunk_size), 1)
 
-    mask = (maxval(w, 2) > this%min_weight)
+    do ichunk = 0, nchunks - 1
+
+      chunk_offset = min(ichunk*this%weight_chunk_size, obs_set%get_size())
+      chunk_size = min(chunk_offset + this%weight_chunk_size, &
+                       obs_set%get_size()) - chunk_offset
+
+      call this%localizer%get_weight_model_obs_range( &
+        obs_set, chunk_offset + 1, chunk_offset + chunk_size, &
+        this%model_interface, batch%offset + 1, batch%offset + batch%length, &
+        w(:chunk_size, :), status)
+
+      mask(chunk_offset + 1:chunk_offset + chunk_size) = &
+        (maxval(w(:chunk_size, :), 2) > this%min_weight)
+
+    end do
 
   end function get_batch_weight_mask
 
