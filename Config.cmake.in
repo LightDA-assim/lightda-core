@@ -12,6 +12,10 @@ if(NOT fortran_exceptions_FOUND AND NOT TARGET fortran_exceptions)
   find_dependency(fortran_exceptions REQUIRED)
 endif()
 
+if(NOT fhash_FOUND AND NOT TARGET fhash)
+  find_dependency(fhash REQUIRED)
+endif()
+
 check_required_components(lightda)
 
 set(lightda_DOCDIR @CMAKE_INSTALL_PREFIX@/share/doc/lightda)
