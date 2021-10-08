@@ -32,6 +32,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
 
 find_package(system_mpi REQUIRED NO_POLICY_SCOPE)
 find_package(fortran_exceptions REQUIRED)
+find_package(fhash REQUIRED)
 
 function(list_transform_prepend var prefix)
     set(temp "")
