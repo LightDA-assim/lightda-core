@@ -504,12 +504,12 @@ contains
           batch_obs_count = this%get_batch_obs_count(ibatch)
           allocate (obs_values(ibatch)%data(batch_obs_count))
 
+          mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
+                 this%get_prediction_mask(iobs_set)
+
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-            mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                   this%get_prediction_mask(iobs_set)
-
-            if (any(mask)) then
+            if (mask(iobs)) then
               obs_values(ibatch)%data(iobs_batch) = values(iobs)
               iobs_batch = iobs_batch + 1
             end if
@@ -571,12 +571,12 @@ contains
           obs_set => this%observation_sets(iobs_set)
           errors = obs_set%get_errors()
 
+          mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
+                 this%get_prediction_mask(iobs_set)
+
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-            mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                   this%get_prediction_mask(iobs_set)
-
-            if (any(mask)) then
+            if (mask(iobs)) then
               obs_errors(ibatch)%data(iobs_batch) = errors(iobs)
               iobs_batch = iobs_batch + 1
             end if
@@ -643,12 +643,12 @@ contains
 
           allocate (batch_predictions(batch_obs_count, n_ensemble))
 
+          mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
+                 this%get_prediction_mask(iobs_set)
+
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
-            mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                   this%get_prediction_mask(iobs_set)
-
-            if (any(mask)) then
+            if (mask(iobs)) then
               batch_predictions(iobs_batch, :) = set_predictions(iobs, :)
               iobs_batch = iobs_batch + 1
             end if
