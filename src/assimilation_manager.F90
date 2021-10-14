@@ -196,21 +196,23 @@ contains
 
       batch_observations = this%observations(ibatch)%data
 
-      if (size(batch_observations) == 0) cycle
+      if (size(batch_observations) > 0) then
 
-      batch_obs_err = this%obs_errors(ibatch)%data
-      batch_predictions = reshape(this%predictions(ibatch)%data, &
-                                  (/size(batch_observations), n_ensemble/))
+        batch_obs_err = this%obs_errors(ibatch)%data
+        batch_predictions = reshape(this%predictions(ibatch)%data, &
+                                    (/size(batch_observations), n_ensemble/))
 
-      ibatch_size = batches%segments(ibatch)%length
-      batch_states = local_batches(:ibatch_size, ibatch_local, :)
+        ibatch_size = batches%segments(ibatch)%length
+        batch_states = local_batches(:ibatch_size, ibatch_local, :)
 
-      call this%filter%assimilate( &
-        ibatch, ibatch_size, size(batch_observations), n_ensemble, &
-        batch_states, batch_predictions, &
-        batch_observations, batch_obs_err, this)
+        call this%filter%assimilate( &
+          ibatch, ibatch_size, size(batch_observations), n_ensemble, &
+          batch_states, batch_predictions, &
+          batch_observations, batch_obs_err, this)
 
-      local_batches(:ibatch_size, ibatch_local, :) = batch_states
+        local_batches(:ibatch_size, ibatch_local, :) = batch_states
+
+      end if
 
       call report_progress(batches_completed, comm, ibatch, report_interval=1)
     end do
