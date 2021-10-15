@@ -35,6 +35,7 @@ module mod_assimilation_manager
     type(darray_segment), allocatable, private :: obs_errors(:)
     type(darray_segment), allocatable, private :: predictions(:)
     type(observation_manager), private::obs_manager
+    integer::report_interval
   contains
     procedure::assimilate
     procedure::localize
@@ -46,7 +47,7 @@ contains
   function new_assimilation_manager( &
     model_interface, istep, n_ensemble, &
     forward_operator, observation_sets, max_batch_size, &
-    localizer, filter, comm)
+    localizer, filter, comm, report_interval)
 
     use, intrinsic :: iso_fortran_env, ONLY: stderr => error_unit
 
@@ -71,6 +72,8 @@ contains
         !! Maximum batch size
     MPI_COMM_TYPE :: comm
         !! MPI communicator
+    integer, optional::report_interval
+        !! Number of batches between progress messages
 
     ! Result
     type(assimilation_manager)::new_assimilation_manager
@@ -109,6 +112,12 @@ contains
       new_assimilation_manager%localizer => localizer
     else
       new_assimilation_manager%localizer => default_localizer
+    end if
+
+    if (present(report_interval)) then
+      new_assimilation_manager%report_interval = report_interval
+    else
+      new_assimilation_manager%report_interval = 1
     end if
 
   end function new_assimilation_manager
@@ -214,13 +223,15 @@ contains
 
       end if
 
-      call report_progress(batches_completed, comm, ibatch, report_interval=1)
+      call report_progress(batches_completed, comm, ibatch, &
+                           report_interval=this%report_interval)
     end do
 
     if (rank == 0) then
       ! Continue reporting progress until all batches are completed
       do while (count(batches_completed) < size(batches_completed))
-        call report_progress(batches_completed, comm, report_interval=1)
+        call report_progress(batches_completed, comm, &
+                             report_interval=this%report_interval)
       end do
     end if
 
