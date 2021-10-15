@@ -279,6 +279,13 @@ contains
       if (present(i_completed)) then
         ! Record that this element was completed
         elements_completed(i_completed) = .true.
+
+        completed_count = count(elements_completed)
+
+        call print_progress( &
+          completed_count, last_completed_count, total_count, &
+          actual_report_interval)
+
       end if
 
       do iproc = 1, comm_size - 1
@@ -299,13 +306,9 @@ contains
 
         completed_count = count(elements_completed)
 
-        if (completed_count > last_completed_count .and. &
-            mod(completed_count, actual_report_interval) == 0) then
-
-          print *, 'Completed '//str(completed_count)//' of '// &
-            str(total_count)
-
-        end if
+        call print_progress( &
+          completed_count, last_completed_count, total_count, &
+          actual_report_interval)
 
         last_completed_count = completed_count
 
@@ -319,6 +322,31 @@ contains
     end if
 
   end subroutine report_progress
+
+  subroutine print_progress( &
+    completed_count, last_completed_count, total_count, report_interval)
+
+    !! Print a progress message if at least report_interval items have been
+    !! completed since the last progress message.
+
+    integer, intent(in)::completed_count
+        !! Number of items completed
+    integer, intent(in)::last_completed_count
+        !! Number of items in last report
+    integer, intent(in)::report_interval
+        !! Interval between reports
+    integer, intent(in)::total_count
+        !! Total items to process
+
+    if (completed_count > last_completed_count .and. &
+        mod(completed_count, report_interval) == 0) then
+
+      print *, 'Completed '//str(completed_count)//' of '// &
+        str(total_count)
+
+    end if
+
+  end subroutine print_progress
 
   SUBROUTINE add_obs_err(this, ibatch, dim_obs, HPH, status)
     ! Add observation error covariance matrix
