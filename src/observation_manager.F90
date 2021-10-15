@@ -470,8 +470,9 @@ contains
     integer::ierr ! MPI status code
     integer::n_obs ! Number of observations in set
     integer::n_sets ! Number of observation sets
+    integer::usable_observations ! Number of predictable observations
 
-    logical, allocatable :: mask(:)
+    logical, allocatable :: mask(:), prediction_mask(:)
 
     call mpi_comm_rank(this%batches%comm, rank, ierr)
 
@@ -493,6 +494,14 @@ contains
           str(iobs_set)
       end if
 
+      prediction_mask = this%get_prediction_mask(iobs_set)
+      usable_observations = count(prediction_mask)
+
+      if (rank == 0) then
+        n_obs = size(values)
+        print *, '('//str(usable_observations)//' predictable by model)'
+      end if
+
       do ibatch = 1, size(this%batches%segments)
 
         batch => this%batches%segments(ibatch)
@@ -505,7 +514,7 @@ contains
           allocate (obs_values(ibatch)%data(batch_obs_count))
 
           mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                 this%get_prediction_mask(iobs_set)
+                 prediction_mask
 
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
