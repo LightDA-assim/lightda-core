@@ -126,12 +126,13 @@ contains
 
     class(assimilation_manager), intent(inout)::this
         !! Assimilation manager
-    real(kind=8), allocatable::local_batches(:, :, :)
+    real(kind=8), allocatable, target::local_batches(:, :, :)
     integer, allocatable::local_batch_inds(:)
     real(kind=8), allocatable :: batch_observations(:)
     real(kind=8), allocatable :: batch_obs_err(:)
     real(kind=8), allocatable :: batch_predictions(:, :)
-    real(kind=8), allocatable::batch_mean_state(:), batch_states(:, :)
+    real(kind=8), allocatable::batch_mean_state(:)
+    real(kind=8), pointer::batch_states(:, :)
     integer::rank, ierr, comm_size, n_batches, n_local_batches, ibatch, &
               ibatch_local, batch_size, state_size, n_ensemble, ibatch_size
     type(darray)::batches
@@ -212,14 +213,12 @@ contains
                                     (/size(batch_observations), n_ensemble/))
 
         ibatch_size = batches%segments(ibatch)%length
-        batch_states = local_batches(:ibatch_size, ibatch_local, :)
+        batch_states => local_batches(:ibatch_size, ibatch_local, :)
 
         call this%filter%assimilate( &
           ibatch, ibatch_size, size(batch_observations), n_ensemble, &
           batch_states, batch_predictions, &
           batch_observations, batch_obs_err, this)
-
-        local_batches(:ibatch_size, ibatch_local, :) = batch_states
 
       end if
 
