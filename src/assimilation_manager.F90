@@ -174,6 +174,8 @@ contains
     if (rank == 0) then
       t1 = MPI_Wtime()
       print *, t1 - t0, 's Loading ensemble state'
+      print *, 'Model state size = ', state_size
+      print *, 'Ensemble size = ', n_ensemble
     end if
 
     ! Load the ensemble state
