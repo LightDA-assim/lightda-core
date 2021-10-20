@@ -137,8 +137,12 @@ contains
               ibatch_local, batch_size, state_size, n_ensemble, ibatch_size
     type(darray)::batches
     logical, allocatable::batches_completed(:)
+    real(kind=8)::t0, t1
+        !! Timestamps for profiling
 
     MPI_COMM_TYPE::comm
+
+    t0 = MPI_Wtime()
 
     comm = this%batch_manager%get_comm()
     batch_size = this%batch_manager%get_batch_size()
@@ -168,7 +172,8 @@ contains
     batches = this%batch_manager%get_batches_darray()
 
     if (rank == 0) then
-      print *, 'Loading ensemble state'
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Loading ensemble state'
     end if
 
     ! Load the ensemble state
@@ -180,7 +185,8 @@ contains
       this%observation_sets, this%localizer)
 
     if (rank == 0) then
-      print *, 'Loading observations'
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Loading observations'
     end if
 
     this%observations = this%obs_manager%get_batches_obs_values()
@@ -188,7 +194,8 @@ contains
     this%obs_errors = this%obs_manager%get_batches_obs_errors()
 
     if (rank == 0) then
-      print *, 'Computing predictions'
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Computing predictions'
     end if
 
     this%predictions = this%obs_manager%get_batches_predictions(n_ensemble)
@@ -196,7 +203,8 @@ contains
     batches_completed = .false.
 
     if (rank == 0) then
-      print *, 'Assimilating batches'
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Assimilating batches'
     end if
 
     ! Assimilate local batches
@@ -223,14 +231,14 @@ contains
       end if
 
       call report_progress(batches_completed, comm, ibatch, &
-                           report_interval=this%report_interval)
+                           report_interval=this%report_interval, t0=t0)
     end do
 
     if (rank == 0) then
       ! Continue reporting progress until all batches are completed
       do while (count(batches_completed) < size(batches_completed))
         call report_progress(batches_completed, comm, &
-                             report_interval=this%report_interval)
+                             report_interval=this%report_interval, t0=t0)
       end do
     end if
 
@@ -240,12 +248,14 @@ contains
   end subroutine assimilate
 
   subroutine report_progress(elements_completed, comm, &
-                             i_completed, report_interval)
+                             i_completed, report_interval, t0)
 
     logical, intent(inout)::elements_completed(:)
     MPI_COMM_TYPE, intent(in)::comm
     integer, intent(in), optional::i_completed
     integer, intent(in), optional::report_interval
+    real(kind=8), intent(in), optional::t0
+        !! Reference time
 
     integer::ierr
     integer::rank
@@ -307,7 +317,7 @@ contains
 
         call print_progress( &
           completed_count, last_completed_count, total_count, &
-          actual_report_interval)
+          actual_report_interval, t0=t0)
 
         last_completed_count = completed_count
 
@@ -323,7 +333,7 @@ contains
   end subroutine report_progress
 
   subroutine print_progress( &
-    completed_count, last_completed_count, total_count, report_interval)
+    completed_count, last_completed_count, total_count, report_interval, t0)
 
     !! Print a progress message if at least report_interval items have been
     !! completed since the last progress message.
@@ -336,13 +346,22 @@ contains
         !! Interval between reports
     integer, intent(in)::total_count
         !! Total items to process
+    real(kind=8), intent(in), optional::t0
+        !! Reference time
+    real(kind=8)::t1
+        !! Current time
 
     if (completed_count > last_completed_count .and. &
         mod(completed_count, report_interval) == 0) then
 
-      print *, 'Completed '//str(completed_count)//' of '// &
-        str(total_count)
-
+      if (present(t0)) then
+        t1 = MPI_Wtime()
+        print *, t1 - t0, 's Completed '//str(completed_count)//' of '// &
+          str(total_count)
+      else
+        print *, 'Completed '//str(completed_count)//' of '// &
+          str(total_count)
+      end if
     end if
 
   end subroutine print_progress
