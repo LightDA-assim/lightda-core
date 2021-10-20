@@ -293,7 +293,7 @@ contains
 
         call print_progress( &
           completed_count, last_completed_count, total_count, &
-          actual_report_interval)
+          actual_report_interval, t0=t0)
 
       end if
 
