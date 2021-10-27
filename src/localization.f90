@@ -106,24 +106,34 @@ contains
                                        //'argument of get_weight_mask'))
     end if
 
-    do iobs = 1, obs_set%get_size()
+    select type (this)
 
-      do imodel = imodel_start, imodel_end
+    type is (base_localizer)
 
-        w = this%get_weight_model_obs( &
-            obs_set, iobs, model_interface, imodel, status)
+      mask = .true.
 
-        if (w > this%min_weight) then
+    class default
 
-          mask(iobs) = .true.
+      do iobs = 1, obs_set%get_size()
 
-          cycle
+        do imodel = imodel_start, imodel_end
 
-        end if
+          w = this%get_weight_model_obs( &
+              obs_set, iobs, model_interface, imodel, status)
+
+          if (w > this%min_weight) then
+
+            mask(iobs) = .true.
+
+            cycle
+
+          end if
+
+        end do
 
       end do
 
-    end do
+    end select
 
   end subroutine get_weight_mask
 
