@@ -462,42 +462,53 @@ contains
       return
     end if
 
-    do iobs_batch1 = 1, dim_obs
+    select type (localizer => this%localizer)
 
-      iobs_set1 = batch_obs_set_inds(iobs_batch1)
-      iobs_inset1 = batch_obs_inds(iobs_batch1)
+    type is (base_localizer)
 
-      obs_set1 => this%observation_sets(iobs_set1)
+      ! We don't have to do anything here since base_localizer sets all
+      ! weights to 1
 
-      do iobs_batch2 = 1, dim_obs
+    class default
 
-        iobs_set2 = batch_obs_set_inds(iobs_batch2)
-        iobs_inset2 = batch_obs_inds(iobs_batch2)
+      do iobs_batch1 = 1, dim_obs
 
-        obs_set2 => this%observation_sets(iobs_set2)
+        iobs_set1 = batch_obs_set_inds(iobs_batch1)
+        iobs_inset1 = batch_obs_inds(iobs_batch1)
 
-        ! Get localization weights
-        w = this%localizer%get_weight_obs_obs( &
-            obs_set1, iobs_inset1, obs_set2, iobs_inset2)
+        obs_set1 => this%observation_sets(iobs_set1)
 
-        ! Multiply HPH by the localization weights
-        HPH(iobs_batch1, iobs_batch2) = HPH(iobs_batch1, iobs_batch2)*w
+        do iobs_batch2 = 1, dim_obs
+
+          iobs_set2 = batch_obs_set_inds(iobs_batch2)
+          iobs_inset2 = batch_obs_inds(iobs_batch2)
+
+          obs_set2 => this%observation_sets(iobs_set2)
+
+          ! Get localization weights
+          w = this%localizer%get_weight_obs_obs( &
+              obs_set1, iobs_inset1, obs_set2, iobs_inset2)
+
+          ! Multiply HPH by the localization weights
+          HPH(iobs_batch1, iobs_batch2) = HPH(iobs_batch1, iobs_batch2)*w
+
+        end do
+
+        do ipos = 1, dim_p
+
+          ! Get localization weights
+          w = this%localizer%get_weight_model_obs( &
+              obs_set1, iobs_inset1, this%model_interface, &
+              ipos + batch_offset)
+
+          ! Multiply HP_p by the localization weights
+          HP_p(iobs_batch1, ipos) = HP_p(iobs_batch1, ipos)*w
+
+        end do
 
       end do
 
-      do ipos = 1, dim_p
-
-        ! Get localization weights
-        w = this%localizer%get_weight_model_obs( &
-            obs_set1, iobs_inset1, this%model_interface, &
-            ipos + batch_offset)
-
-        ! Multiply HP_p by the localization weights
-        HP_p(iobs_batch1, ipos) = HP_p(iobs_batch1, ipos)*w
-
-      end do
-
-    end do
+    end select
 
   END SUBROUTINE localize
 
