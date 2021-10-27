@@ -7,9 +7,11 @@ module localization
   implicit none
 
   type::base_localizer
+    real(kind=8) :: min_weight = 1e-10
   contains
     procedure::get_weight_obs_obs
     procedure::get_weight_model_obs
+    procedure::get_weight_mask
   end type base_localizer
 
 contains
@@ -70,6 +72,60 @@ contains
     weight = 1
 
   end function get_weight_model_obs
+
+  subroutine get_weight_mask(this, mask, obs_set, model_interface, &
+                             imodel_start, imodel_end, status)
+
+    !! Get a mask array whose values indicate which observations have nonzero
+    !! localization weights for the given subset of the model state array
+
+    ! Arguments
+    class(base_localizer)::this
+        !! Model interface
+    logical::mask(:)
+    class(base_model_interface)::model_interface
+        !! Model interface
+    integer, intent(in)::imodel_start
+        !! Subset start index in the model state array
+    integer, intent(in)::imodel_end
+        !! Subset end index in the model state array
+    class(observation_set)::obs_set
+        !! Observation set
+    type(error_container), intent(out), optional::status
+        !! Error status
+
+    integer::iobs
+        !! Index in the observation set
+    integer::imodel
+        !! Index in the model state array
+    real(kind=8)::w
+        !! Localization weight
+
+    if (size(mask) /= obs_set%get_size()) then
+      call throw(status, new_exception('Wrong size array passed to mask ' &
+                                       //'argument of get_weight_mask'))
+    end if
+
+    do iobs = 1, obs_set%get_size()
+
+      do imodel = imodel_start, imodel_end
+
+        w = this%get_weight_model_obs( &
+            obs_set, iobs, model_interface, imodel, status)
+
+        if (w > this%min_weight) then
+
+          mask(iobs) = .true.
+
+          cycle
+
+        end if
+
+      end do
+
+    end do
+
+  end subroutine get_weight_mask
 
   function gaspari_cohn_mid(z, c) result(f)
     real(kind=8), intent(in)::z, c

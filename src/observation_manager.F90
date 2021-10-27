@@ -44,8 +44,6 @@ module mod_observation_manager
     type(segment_mask), allocatable :: prediction_masks(:)
         !! Mask arrays of observations that can be predicted for each batch
 
-    real(kind=8) :: min_weight = 1e-10
-
   contains
 
     procedure::get_batches_obs_values
@@ -165,9 +163,6 @@ contains
     class(darray_segment), pointer::batch
         !! Batch segment
 
-    real(kind=8)::w
-    ! Localization weight
-
     integer::stat ! Status of key in table
     integer::nobs ! Number of observations
 
@@ -194,27 +189,9 @@ contains
     allocate (mask_container%mask(nobs))
     mask => mask_container%mask
 
-    ! Set mask to false initially
-    mask = .false.
-
-    do iobs = 1, nobs
-
-      do imodel = batch%offset + 1, batch%offset + batch%length
-
-        w = this%localizer%get_weight_model_obs( &
-            obs_set, iobs, this%model_interface, imodel, status)
-
-        if (w > this%min_weight) then
-
-          mask(iobs) = .true.
-
-          cycle
-
-        end if
-
-      end do
-
-    end do
+    call this%localizer%get_weight_mask( &
+      mask, obs_set, this%model_interface, batch%offset + 1, &
+      batch%offset + batch%length, status)
 
     call this%batches_weight_masks(iobs_set)%set( &
       key(ibatch), value=mask_container)
