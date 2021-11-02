@@ -11,6 +11,8 @@ install(TARGETS lightda_util EXPORT lightda
 
 set(RANDOM_SOURCES random.f90 random_integer.f90)
 add_library(lightda_random SHARED ${RANDOM_SOURCES})
+target_include_directories(lightda_random INTERFACE
+  $<INSTALL_INTERFACE:${Fortran_MODULE_DIRECTORY}>)
 install(TARGETS lightda_random EXPORT lightda
   LIBRARY DESTINATION lib ${CMAKE_INSTALL_LIBDIR})
 
