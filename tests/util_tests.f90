@@ -33,6 +33,24 @@ contains
 
   end subroutine test_append_array
 
+  subroutine test_str
+
+    character(:), allocatable::outstr
+
+    outstr=str(1)
+    if(outstr/='1') then
+       print *, "Wrong output from str(1), expected '1', got ", outstr, "."
+       error stop
+    end if
+
+    outstr=str(1.0)
+    if(outstr/='1.') then
+       print *, "Wrong output from str(1.0), expected '1.', got ", outstr, "."
+       error stop
+    end if
+
+  end subroutine test_str
+
 end module util_tests
 
 program test_util
@@ -40,4 +58,6 @@ program test_util
   implicit none
 
   call test_append_array
+
+  call test_str
 end program test_util

@@ -41,6 +41,12 @@ contains
       else
         write (str_tmp, '(I0)') x
       end if
+    type is (real)
+      if (present(fmt)) then
+        write (str_tmp, fmt) x
+      else
+        write (str_tmp, '(F0.0)') x
+      end if
     class default
       call throw(status, &
                  new_exception('Variable of unknown type passed to str()', &
