@@ -44,8 +44,8 @@ contains
     end if
 
     outstr=str(1.0)
-    if(outstr/='1.0') then
-       print *, "Wrong output from str(1.0), expected '1.0', got ", outstr, "."
+    if(outstr/='1.') then
+       print *, "Wrong output from str(1.0), expected '1.', got ", outstr, "."
        error stop
     end if
 
