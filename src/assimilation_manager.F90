@@ -494,7 +494,16 @@ contains
 
         end do
 
-        do ipos = 1, dim_p
+      end do
+
+      do ipos = 1, dim_p
+
+        do iobs_batch1 = 1, dim_obs
+
+          iobs_set1 = batch_obs_set_inds(iobs_batch1)
+          iobs_inset1 = batch_obs_inds(iobs_batch1)
+
+          obs_set1 => this%observation_sets(iobs_set1)
 
           ! Get localization weights
           w = this%localizer%get_weight_model_obs( &
