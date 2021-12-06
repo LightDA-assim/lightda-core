@@ -244,8 +244,18 @@ contains
       end do
     end if
 
+    if (rank == 0) then
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Storing results'
+    end if
+
     ! Write the ensemble state
     call this%batch_manager%store_results(local_batches)
+
+    if (rank == 0) then
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Assimilation complete'
+    end if
 
   end subroutine assimilate
 
