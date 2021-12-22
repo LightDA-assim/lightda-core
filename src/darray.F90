@@ -186,6 +186,8 @@ contains
         !! List of segments
     real(kind=8), pointer::source_data(:)
     real(kind=8), pointer::dest_data(:)
+    integer::dest_rank, source_rank
+        !! Ranks of source and destination processes for a message
 
     integer::comm_size
     integer::overlap_start, overlap_end
@@ -217,10 +219,13 @@ contains
       source_segments => source%get_segments_for_range( &
                          dest_segment%offset, dest_segment%length, status)
 
+      dest_rank = dest_segment%rank
+
       do isource = 1, size(source_segments)
 
-        if (source_segments(isource)%rank == rank &
-            .or. dest_segment%rank == rank) then
+        source_rank = source_segments(isource)%rank
+
+        if (source_rank == rank .or. dest_rank == rank) then
 
           ! Locate the overlapping region between source-segments(i) and
           ! dest_segment
@@ -230,8 +235,7 @@ contains
 
         end if
 
-        if (source_segments(isource)%rank == rank &
-            .and. dest_segment%rank /= rank) then
+        if (source_rank == rank .and. dest_rank /= rank) then
 
           if (source%bufs(dest_segment%rank + 1)%size == 0) then
             ! Sending to a new remote, increment source_reqs_cnt
@@ -239,12 +243,11 @@ contains
           end if
 
           ! Add the overlap size to the send buffer size
-          source%bufs(dest_segment%rank + 1)%size = &
-            source%bufs(dest_segment%rank + 1)%size + &
+          source%bufs(dest_rank + 1)%size = &
+            source%bufs(dest_rank + 1)%size + &
             overlap_end - overlap_start
 
-        else if (dest_segment%rank == rank .and. &
-                 source_segments(isource)%rank /= rank) then
+        else if (dest_rank == rank .and. source_rank /= rank) then
 
           if (dest%bufs(source_segments(isource)%rank + 1)%size == 0) then
             ! Receiving from a new remote, increment dest_reqs_cnt
@@ -252,9 +255,9 @@ contains
           end if
 
           ! Add the overlap size to the receive buffer size
-          dest%bufs(source_segments(isource)%rank + 1)%size = &
-            dest%bufs(source_segments(isource)%rank + 1)%size + &
-            overlap_end - overlap_start
+          dest%bufs(source_rank + 1)%size = &
+            dest%bufs(source_rank + 1)%size + overlap_end - overlap_start
+
         end if
 
       end do
@@ -274,6 +277,7 @@ contains
     do idest = 1, size(dest%segments)
 
       dest_segment => dest%segments(idest)
+      dest_rank = dest_segment%rank
 
       ! Get the segments in source array that overlap with the destination segment
       source_segments => source%get_segments_for_range( &
@@ -281,7 +285,9 @@ contains
 
       do isource = 1, size(source_segments)
 
-        if (source_segments(isource)%rank == rank) then
+        source_rank = source_segments(isource)%rank
+
+        if (source_rank == rank) then
 
           ! Locate the overlapping region between source-segments(i) and
           ! dest_segment
@@ -292,7 +298,7 @@ contains
                          overlap_start - source_segments(isource)%offset + 1: &
                          overlap_end - source_segments(isource)%offset)
 
-          if (dest_segment%rank == rank) then
+          if (dest_rank == rank) then
 
             ! Configure destination buffer
             dest_data => dest_segment%data( &
@@ -302,9 +308,9 @@ contains
             ! Copy from the source buffer to the destination buffer
             dest_data = source_data
           else
-            crsr => crsrs(dest_segment%rank + 1)
+            crsr => crsrs(dest_rank + 1)
             ! Copy segment data to the send buffer
-            source%bufs(dest_segment%rank + 1)%data( &
+            source%bufs(dest_rank + 1)%data( &
               crsr + 1:crsr + overlap_end - overlap_start) = source_data
 
             crsr = crsr + overlap_end - overlap_start
@@ -374,6 +380,8 @@ contains
     integer::rank
     integer::ierr
     integer::comm_size
+    integer::dest_rank, source_rank
+        !! Ranks of source and destination processes for a message
 
     dest => source%foreign
 
@@ -391,18 +399,21 @@ contains
     do idest = 1, size(dest%segments)
 
       dest_segment => dest%segments(idest)
+      dest_rank = dest_segment%rank
 
-      if (dest_segment%rank == rank) then
+      if (dest_rank == rank) then
         ! Get the segments in this array that overlap with the destination segment
         source_segments => source%get_segments_for_range( &
                            dest_segment%offset, dest_segment%length, status)
 
         do isource = 1, size(source_segments)
 
-          if (source_segments(isource)%rank /= rank) then
+          source_rank = source_segments(isource)%rank
+
+          if (source_rank /= rank) then
             ! Locate the overlapping region between source-segments(i) and
             ! dest_segment
-            crsr => crsrs(source_segments(isource)%rank + 1)
+            crsr => crsrs(source_rank + 1)
             call get_segment_overlap(source_segments(isource), dest_segment, &
                                      overlap_start, overlap_end)
 
@@ -412,7 +423,7 @@ contains
                          overlap_end - dest_segment%offset)
 
             ! Copy from the receive buffer to the destination segment
-            dest_data = dest%bufs(source_segments(isource)%rank + 1)%data( &
+            dest_data = dest%bufs(source_rank + 1)%data( &
                         crsr + 1:crsr + overlap_end - overlap_start)
 
             ! Move cursor
