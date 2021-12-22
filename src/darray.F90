@@ -44,8 +44,6 @@ module distributed_array
          !! Array of segments, each stored on one processor
     type(darray_buffer), allocatable, private::bufs(:)
         !! Array of send buffers
-    MPI_REQUEST_TYPE, allocatable::reqs(:)
-        !! Array of MPI requests
     class(darray_segment_set), pointer::foreign => null()
     logical::transfer_pending
     logical::is_transfer_dest
@@ -56,6 +54,13 @@ module distributed_array
   type, extends(darray_segment_set) :: darray
      !! Distributed array comprised of contiguous and nonoverlapping darray
      !! segments
+
+    MPI_REQUEST_TYPE, allocatable::reqs(:)
+        !! Array of MPI requests
+    integer, allocatable, private::sendcounts(:, :)
+        !! Send counts for MPI_Iscatterv
+    integer, allocatable, private::dspls(:, :)
+        !! Displacements for MPI_Iscatterv
 
   contains
     procedure::get_segments_for_range
@@ -179,9 +184,6 @@ contains
     integer, pointer::crsr ! Cursor into the send buffer
     integer, allocatable, target::crsrs(:)
         !! Array of cursors into all the send buffers
-    integer::source_reqs_cnt, dest_reqs_cnt
-        !! Number of MPI messages required for the transfer
-    integer::source_reqs_crsr, dest_reqs_crsr ! Cursors into the requests array
     class(darray_segment), pointer::source_segments(:)
         !! List of segments
     real(kind=8), pointer::source_data(:)
@@ -205,10 +207,11 @@ contains
 
     call mpi_comm_size(source%comm, comm_size, ierr)
 
-    allocate (source%bufs(comm_size), dest%bufs(comm_size), crsrs(comm_size))
+    allocate (source%bufs(comm_size), source%sendcounts(comm_size, comm_size), &
+              source%dspls(comm_size, comm_size), crsrs(comm_size), &
+              source%reqs(comm_size), dest%bufs(comm_size))
 
-    source_reqs_cnt = 0
-    dest_reqs_cnt = 0
+    source%sendcounts = 0
 
     ! Loop over the segments to determine the required sizes for the send and receive buffers
     do idest = 1, size(dest%segments)
@@ -237,22 +240,12 @@ contains
 
         if (source_rank == rank .and. dest_rank /= rank) then
 
-          if (source%bufs(dest_segment%rank + 1)%size == 0) then
-            ! Sending to a new remote, increment source_reqs_cnt
-            source_reqs_cnt = source_reqs_cnt + 1
-          end if
-
-          ! Add the overlap size to the send buffer size
-          source%bufs(dest_rank + 1)%size = &
-            source%bufs(dest_rank + 1)%size + &
-            overlap_end - overlap_start
+          ! Add the overlap size to the send count
+          source%sendcounts(dest_rank + 1, source_rank + 1) = &
+            source%sendcounts(dest_rank + 1, source_rank + 1) &
+            + overlap_end - overlap_start
 
         else if (dest_rank == rank .and. source_rank /= rank) then
-
-          if (dest%bufs(source_segments(isource)%rank + 1)%size == 0) then
-            ! Receiving from a new remote, increment dest_reqs_cnt
-            dest_reqs_cnt = dest_reqs_cnt + 1
-          end if
 
           ! Add the overlap size to the receive buffer size
           dest%bufs(source_rank + 1)%size = &
@@ -266,8 +259,19 @@ contains
 
     ! Allocate send/receive buffers
     do irank = 1, comm_size
+      source%bufs(irank)%size = sum(source%sendcounts(:, irank))
       allocate (source%bufs(irank)%data(source%bufs(irank)%size))
       allocate (dest%bufs(irank)%data(dest%bufs(irank)%size))
+    end do
+
+    ! Set displacements
+    do source_rank = 1, comm_size
+      source%dspls(:, source_rank) = 0
+      do dest_rank = 2, comm_size
+        source%dspls(dest_rank, source_rank) = &
+          source%dspls(dest_rank - 1, source_rank) &
+          + source%sendcounts(dest_rank - 1, source_rank)
+      end do
     end do
 
     ! Initialize cursors
@@ -308,9 +312,9 @@ contains
             ! Copy from the source buffer to the destination buffer
             dest_data = source_data
           else
-            crsr => crsrs(dest_rank + 1)
+            crsr => crsrs(source_rank + 1)
             ! Copy segment data to the send buffer
-            source%bufs(dest_rank + 1)%data( &
+            source%bufs(source_rank + 1)%data( &
               crsr + 1:crsr + overlap_end - overlap_start) = source_data
 
             crsr = crsr + overlap_end - overlap_start
@@ -322,27 +326,12 @@ contains
 
     end do
 
-    allocate (source%reqs(source_reqs_cnt), dest%reqs(dest_reqs_cnt))
-
-    source_reqs_crsr = 0
-    dest_reqs_crsr = 0
     do irank = 1, comm_size
-      if (irank - 1 /= rank) then
-        if (source%bufs(irank)%size > 0) then
-          call MPI_Isend(source%bufs(irank)%data, &
-                         source%bufs(irank)%size, MPI_DOUBLE_PRECISION, &
-                         irank - 1, 1, source%comm, &
-                         source%reqs(source_reqs_crsr + 1), ierr)
-          source_reqs_crsr = source_reqs_crsr + 1
-        end if
-        if (dest%bufs(irank)%size > 0) then
-          call MPI_Irecv(dest%bufs(irank)%data, &
-                         dest%bufs(irank)%size, MPI_DOUBLE_PRECISION, &
-                         irank - 1, 1, source%comm, &
-                         dest%reqs(dest_reqs_crsr + 1), ierr)
-          dest_reqs_crsr = dest_reqs_crsr + 1
-        end if
-      end if
+      call MPI_Iscatterv( &
+        source%bufs(irank)%data, source%sendcounts(:, irank), &
+        source%dspls(:, irank), MPI_DOUBLE_PRECISION, dest%bufs(irank)%data, &
+        dest%bufs(irank)%size, MPI_DOUBLE_PRECISION, irank - 1, source%comm, &
+        source%reqs(irank), ierr)
     end do
 
     source%foreign => dest
@@ -363,7 +352,6 @@ contains
     type(error_container), intent(out), optional::status
         !! Error status
     class(darray_segment_set), pointer::dest
-    MPI_REQUEST_TYPE, allocatable::reqs(:)
     integer, allocatable, target::crsrs(:)
         !! Array of cursors into all the receive buffers
     integer, pointer::crsr ! Cursor into the current receive buffer
@@ -390,9 +378,7 @@ contains
 
     allocate (crsrs(comm_size))
 
-    reqs = [source%reqs, dest%reqs]
-
-    call system_mpi_waitall(reqs)
+    call system_mpi_waitall(source%reqs)
 
     crsrs = 0
 
@@ -435,7 +421,8 @@ contains
 
     end do
 
-    deallocate (source%reqs, dest%reqs, source%bufs, dest%bufs)
+    deallocate (source%reqs, source%bufs, source%sendcounts, source%dspls, &
+                dest%bufs)
 
     source%transfer_pending = .false.
     dest%transfer_pending = .false.
