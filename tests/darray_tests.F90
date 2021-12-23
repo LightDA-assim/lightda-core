@@ -2,7 +2,7 @@
 
 module darray_tests
   use system_mpi
-  use distributed_array, ONLY: darray, darray_segment, new_darray, transfer_data
+  use distributed_array, ONLY: darray, darray_segment, darray_segment_set, new_darray, transfer_data
   use exceptions, ONLY: throw, error_container, new_exception
   use util, ONLY: str
 
@@ -62,7 +62,7 @@ contains
     ! Arguments
     real(kind=8), intent(in), target::arr(:)
         !! Array to distribute
-    type(darray), intent(in), target::check_darray
+    class(darray_segment_set), intent(in), target::check_darray
         !! Built darray
     type(error_container), intent(out), optional::status
         !! Error status
@@ -115,14 +115,17 @@ contains
     integer, parameter::n = 98     ! Number of array elements
     integer, parameter::np_src = 4  ! Number of source processes
     integer, parameter::np_dest = 3 ! Number of dest processes
-    integer::step                ! Maximum segment size
-    real(kind=8)::src_arr(n)     ! Source array data
-    real(kind=8)::dest_arr(n)    ! Destination array data
-    type(darray)::src_darray     ! Source darray
-    type(darray)::dest_darray    ! Destination darray
-    integer::rank                ! MPI processor rank
-    integer::ierr                ! MPI error code
-    integer::nproc               ! Number of processes
+    integer::step                      ! Maximum segment size
+    real(kind=8)::src_arr(n)           ! Source array data
+    real(kind=8)::dest_arr(n)          ! Destination array data
+    type(darray)::src_darray           ! Source darray
+    type(darray)::dest_darray          ! Destination darray
+    type(darray_segment_set)::dest_set ! Destination darray segment set
+    type(darray_segment), allocatable::segments(:)
+                                       ! Segments to go in dest_set
+    integer::rank                      ! MPI processor rank
+    integer::ierr                      ! MPI error code
+    integer::nproc                     ! Number of processes
 
     character(:), allocatable::errstr ! Error string
 
@@ -140,6 +143,9 @@ contains
       return
     end if
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test transferring to dest_darray
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do i = 1, n
       src_arr(i) = i
       dest_arr(i) = 0
@@ -151,6 +157,44 @@ contains
     call transfer_data(src_darray, dest_darray)
 
     call check_darray_contents(dest_darray, src_arr)
+
+    do i = 1, n
+      src_arr(i) = i
+      dest_arr(i) = 0
+    end do
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test transferring back to src_darray
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    src_darray = build_darray(dest_arr, np_src, MPI_COMM_WORLD)
+
+    call transfer_data(dest_darray, src_darray)
+
+    call check_darray_contents(src_darray, src_arr)
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test transferring to a segment set with overlapping segment ranges
+    ! and non-increasing ranks
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    dest_arr = 0
+
+    allocate (segments(2))
+    segments(1)%offset = 60
+    segments(1)%length = 10
+    segments(1)%rank = 1
+    segments(1)%comm = MPI_COMM_WORLD
+    segments(1)%data = dest_arr(1:segments(1)%length)
+    segments(2)%offset = 40
+    segments(2)%length = 30
+    segments(2)%rank = 0
+    segments(2)%comm = MPI_COMM_WORLD
+    segments(2)%data = dest_arr(1:segments(2)%length)
+    dest_set%segments = segments
+    dest_set%comm = MPI_COMM_WORLD
+
+    call transfer_data(src_darray, dest_set)
+
+    call check_darray_contents(dest_set, src_arr)
 
   end subroutine test_darray_transfer
 
