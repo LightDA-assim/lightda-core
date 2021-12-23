@@ -278,49 +278,54 @@ contains
     crsrs = 0
 
     ! Loop over the segments and populate the send buffers
-    do idest = 1, size(dest%segments)
+    do irank = 1, comm_size
+      do idest = 1, size(dest%segments)
 
-      dest_segment => dest%segments(idest)
-      dest_rank = dest_segment%rank
+        dest_segment => dest%segments(idest)
+        dest_rank = dest_segment%rank
 
-      ! Get the segments in source array that overlap with the destination segment
-      source_segments => source%get_segments_for_range( &
-                         dest_segment%offset, dest_segment%length, status)
+        if (dest_rank /= irank - 1) cycle
 
-      do isource = 1, size(source_segments)
+        ! Get the segments in source array that overlap with the destination segment
+        source_segments => source%get_segments_for_range( &
+                           dest_segment%offset, dest_segment%length, status)
 
-        source_rank = source_segments(isource)%rank
+        do isource = 1, size(source_segments)
 
-        if (source_rank == rank) then
+          source_rank = source_segments(isource)%rank
 
-          ! Locate the overlapping region between source-segments(i) and
-          ! dest_segment
-          call get_segment_overlap(source_segments(isource), dest_segment, &
-                                   overlap_start, overlap_end)
+          if (source_rank == rank) then
 
-          source_data => source_segments(isource)%data( &
-                         overlap_start - source_segments(isource)%offset + 1: &
-                         overlap_end - source_segments(isource)%offset)
+            ! Locate the overlapping region between source-segments(i) and
+            ! dest_segment
+            call get_segment_overlap(source_segments(isource), dest_segment, &
+                                     overlap_start, overlap_end)
 
-          if (dest_rank == rank) then
+            source_data => source_segments(isource)%data( &
+                           overlap_start - source_segments(isource)%offset + 1: &
+                           overlap_end - source_segments(isource)%offset)
 
-            ! Configure destination buffer
-            dest_data => dest_segment%data( &
-                         overlap_start - dest_segment%offset + 1: &
-                         overlap_end - dest_segment%offset)
+            if (dest_rank == rank) then
 
-            ! Copy from the source buffer to the destination buffer
-            dest_data = source_data
-          else
-            crsr => crsrs(source_rank + 1)
-            ! Copy segment data to the send buffer
-            source%bufs(source_rank + 1)%data( &
-              crsr + 1:crsr + overlap_end - overlap_start) = source_data
+              ! Configure destination buffer
+              dest_data => dest_segment%data( &
+                           overlap_start - dest_segment%offset + 1: &
+                           overlap_end - dest_segment%offset)
 
-            crsr = crsr + overlap_end - overlap_start
+              ! Copy from the source buffer to the destination buffer
+              dest_data = source_data
+            else
+              crsr => crsrs(source_rank + 1)
+              ! Copy segment data to the send buffer
+              source%bufs(source_rank + 1)%data( &
+                crsr + 1:crsr + overlap_end - overlap_start) = source_data
+
+              crsr = crsr + overlap_end - overlap_start
+            end if
+
           end if
 
-        end if
+        end do
 
       end do
 
