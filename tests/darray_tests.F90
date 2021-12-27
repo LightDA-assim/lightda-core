@@ -160,8 +160,8 @@ contains
 
     call transfer_data(src_darray, dest_darray)
 
+    ! Call finish_transfer (should be a no-op since finish_immediately defaults to .false.)
     call src_darray%finish_transfer()
-
     call dest_darray%finish_transfer()
 
     call check_darray_contents(dest_darray, src_arr)
