@@ -2,8 +2,9 @@
 
 module darray_tests
   use system_mpi
-  use distributed_array, ONLY: darray, darray_segment, darray_segment_set, new_darray, transfer_data
-  use exceptions, ONLY: throw, error_container, new_exception
+  use distributed_array, ONLY: darray, darray_segment, darray_segment_set, &
+       new_darray, transfer_data, darray_transfer_error
+  use exceptions, ONLY: throw, error_container, new_exception, transfer_error
   use util, ONLY: str
 
   implicit none
@@ -131,6 +132,9 @@ contains
 
     integer::i    ! Loop counter
 
+    type(error_container)::child_status
+        !! Error status of called procedures
+
     call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
 
     call MPI_Comm_size(MPI_COMM_WORLD, nproc, ierr)
@@ -159,6 +163,42 @@ contains
     call src_darray%finish_transfer()
 
     call dest_darray%finish_transfer()
+
+    call check_darray_contents(dest_darray, src_arr)
+
+    do i = 1, n
+      src_arr(i) = i
+      dest_arr(i) = 0
+    end do
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test deferred call to finish_transfer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    do i = 1, n
+      src_arr(i) = i
+      dest_arr(i) = 0
+    end do
+
+    src_darray = build_darray(src_arr, np_src, MPI_COMM_WORLD)
+    dest_darray = build_darray(dest_arr, np_dest, MPI_COMM_WORLD)
+
+    call transfer_data(src_darray, dest_darray, finish_immediately = .false.)
+
+    ! Call finish_transfer on the destination darray (should throw a darray_transfer_error)
+    call dest_darray%finish_transfer(child_status)
+
+    ! Check the exception thrown by finish_transfer
+    select type(error => child_status%info)
+    class is (darray_transfer_error)
+       ! We got the expected exception, mark it as handled
+       error%handled = .true.
+    class default
+       call throw(status, new_exception('Did not catch a darray_transfer_error as expected.'))
+       return
+    end select
+
+    ! Call finish_transfer on the source darray
+    call src_darray%finish_transfer(status)
 
     call check_darray_contents(dest_darray, src_arr)
 
