@@ -161,7 +161,7 @@ contains
 
   end subroutine get_segment_overlap
 
-  subroutine transfer_data(source, dest, status)
+  subroutine transfer_data(source, dest, finish_immediately, status)
     !! Transfer data between two distributed arrays
 
     ! Arguments
@@ -169,6 +169,8 @@ contains
         !! Source array
     class(darray_segment_set), target, intent(inout)::dest
         !! Destination segments
+    logical, optional::finish_immediately
+        !! Whether transfer should be finished immediately
     type(error_container), intent(out), optional::status
         !! Error status
 
@@ -194,6 +196,9 @@ contains
     integer::comm_size
     integer::overlap_start, overlap_end
     ! Start/end offsets of an overlapping array section
+    logical::call_finish
+        !! Whether the finish_transfer procedure
+        !! should be called
 
     if (source%comm /= dest%comm) then
       call throw(status, new_exception( &
@@ -203,6 +208,11 @@ contains
       return
     end if
 
+    if (present(finish_immediately)) then
+      call_finish = finish_immediately
+    else
+      call_finish = .true.
+    end if
     call mpi_comm_rank(source%comm, rank, ierr)
 
     call mpi_comm_size(source%comm, comm_size, ierr)
@@ -347,7 +357,7 @@ contains
     dest%transfer_pending = .true.
     dest%is_transfer_dest = .true.
 
-    call source%finish_transfer()
+    if (call_finish) call source%finish_transfer()
 
   end subroutine transfer_data
 
