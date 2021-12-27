@@ -363,6 +363,13 @@ contains
 
   subroutine finish_transfer(source, status)
 
+    !! Finish any pending transfers. Wait for any pending MPI requests to
+    !! complete, then transfer data from the receive buffers, free
+    !! arrays allocated by transfer_data, and set transfer_pending to .false.
+    !! on source and dest darrays.
+    !!
+    !! Calling this on a darray with no transfers pending is a no-op.
+
     class(darray), intent(inout), target::source
     type(error_container), intent(out), optional::status
         !! Error status
