@@ -236,6 +236,7 @@ contains
     else
       call_finish = .true.
     end if
+
     call mpi_comm_rank(source%comm, rank, ierr)
 
     call mpi_comm_size(source%comm, comm_size, ierr)
