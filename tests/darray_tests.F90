@@ -197,6 +197,20 @@ contains
        return
     end select
 
+    ! Try to start another transfer (should throw a darray_transfer_error)
+    call transfer_data(src_darray, dest_darray, finish_immediately = .false., &
+         status=child_status)
+
+    ! Check the exception thrown by finish_transfer
+    select type(error => child_status%info)
+    class is (darray_transfer_error)
+       ! We got the expected exception, mark it as handled
+       error%handled = .true.
+    class default
+       call throw(status, new_exception('Did not catch a darray_transfer_error as expected.'))
+       return
+    end select
+
     ! Call finish_transfer on the source darray
     call src_darray%finish_transfer(status)
 
