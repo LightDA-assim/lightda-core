@@ -223,6 +223,13 @@ contains
         !! Whether the finish_transfer procedure
         !! should be called
 
+    if (source%transfer_pending .or. dest%transfer_pending) then
+      call throw(status, new_darray_transfer_error( &
+                 'transfer_data called on an array or segment set ' &
+                 //'that already has a transfer pending.'))
+      return
+    end if
+
     if (source%comm /= dest%comm) then
       call throw(status, new_exception( &
            'source and destination arrays &
