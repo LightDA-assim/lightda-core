@@ -525,19 +525,21 @@ contains
     integer::ierr ! MPI status code
     integer::rank ! MPI processor rank
 
-    type(darray), target::state_darray
+    type(darray), allocatable, target::state_darray(:)
     ! Model state darray from the model interface
-    type(darray)::batches_darray
+    type(darray), allocatable::batches_darray(:)
     ! darray with segments aligning to batch ranks
 
     type(darray_segment), pointer::state_segment
 
     call mpi_comm_rank(this%comm, rank, ierr)
 
-    ! Get the assimilation batches darray
-    batches_darray = this%get_batches_darray()
+    allocate (state_darray(this%n_ensemble), batches_darray(this%n_ensemble))
 
     do imember = 1, this%n_ensemble
+
+      ! Get the assimilation batches darray
+      batches_darray(imember) = this%get_batches_darray()
 
       ! Reset local batch counter
       ibatch_local = 1
@@ -546,7 +548,7 @@ contains
         if (this%batch_ranks(ibatch) == rank) then
 
           ! Copy batch data to the local_batches array
-          batches_darray%segments(ibatch)%data = &
+          batches_darray(imember)%segments(ibatch)%data = &
             local_batches(:, ibatch_local, imember)
 
           ! Increment the local batch counter
@@ -557,14 +559,21 @@ contains
       end do
 
       ! Get the model state darray from the model interface
-      state_darray = this%model_interface%get_state_darray(imember)
+      state_darray(imember) = this%model_interface%get_state_darray(imember)
 
       ! Transfer the data to state_darray
-      call batches_darray%transfer_to_darray(state_darray)
+      call batches_darray(imember)%transfer_to_darray( &
+        state_darray(imember), finish_immediately=.false.)
 
-      do isegment = 1, size(state_darray%segments)
+    end do
 
-        state_segment => state_darray%segments(isegment)
+    do imember = 1, this%n_ensemble
+
+      call batches_darray(imember)%finish_transfer()
+
+      do isegment = 1, size(state_darray(imember)%segments)
+
+        state_segment => state_darray(imember)%segments(isegment)
 
         if (state_segment%rank == rank) then
 
