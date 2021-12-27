@@ -49,8 +49,8 @@ module distributed_array
     type(darray_buffer), allocatable, private::bufs(:)
         !! Array of send buffers
     class(darray_segment_set), pointer::foreign => null()
-    logical::transfer_pending
-    logical::is_transfer_dest
+    logical::transfer_pending = .false.
+    logical::is_transfer_dest = .false.
   contains
     procedure::get_local_data
   end type darray_segment_set
