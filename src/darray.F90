@@ -3,10 +3,14 @@
 module distributed_array
 
   use system_mpi
-  use exceptions, ONLY: throw, error_container, new_exception
+  use exceptions, ONLY: throw, error_container, new_exception, exception
   use util, ONLY: str
 
   implicit none
+
+  type, extends(exception)::darray_transfer_error
+     !! Error during darray transfer
+  end type darray_transfer_error
 
   type :: darray_buffer
      !! Process-local send/receive buffer
@@ -71,6 +75,25 @@ module distributed_array
   end type darray
 
 contains
+
+  function new_darray_transfer_error(message, procedure) result(exc)
+
+    !! Create a new darray transfer error
+
+    ! Arguments
+    character(*), intent(in)::message
+        !! Error message
+    character(*), intent(in), optional::procedure
+        !! Procedure where error occured
+
+    type(darray_transfer_error)::exc
+        !! New exception object
+
+    exc%message = message
+
+    if (present(procedure)) exc%procedure = procedure
+
+  end function new_darray_transfer_error
 
   function get_length(this) result(length)
 
@@ -396,6 +419,14 @@ contains
     dest => source%foreign
 
     if (.not. source%transfer_pending) return
+
+    if (source%is_transfer_dest) then
+      call throw(status, new_darray_transfer_error( &
+                 'finish_transfer should be called on ' &
+                 //'the transfer source darray, not the destination darray ' &
+                 //'or segment set.'))
+      return
+    end if
 
     call mpi_comm_rank(source%comm, rank, ierr)
     call mpi_comm_size(source%comm, comm_size, ierr)
