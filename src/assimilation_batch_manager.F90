@@ -450,8 +450,8 @@ contains
     integer::ierr ! MPI status code
     integer::imember, ibatch, ibatch_local ! Loop counters
 
-    type(darray)::state_darray   ! Model state darray from the model interface
-    type(darray)::batches_darray ! darray with segments aligning to batch ranks
+    type(darray), allocatable::state_darray(:)   ! Model state darray from the model interface
+    type(darray), allocatable::batches_darray(:) ! darray with segments aligning to batch ranks
     integer::segment_size
 
     call mpi_comm_rank(this%comm, rank, ierr)
@@ -460,8 +460,7 @@ contains
 
     local_batches = 0
 
-    ! Get the assimilation batches darray
-    batches_darray = this%get_batches_darray()
+    allocate (state_darray(this%n_ensemble), batches_darray(this%n_ensemble))
 
     do imember = 1, this%n_ensemble
 
@@ -470,12 +469,19 @@ contains
           str(this%n_ensemble)
       end if
 
+      ! Get the assimilation batches darray
+      batches_darray(imember) = this%get_batches_darray()
+
       ! Get the model state darray from the model interface
-      state_darray = this%model_interface%get_state_darray(imember)
+      state_darray(imember) = this%model_interface%get_state_darray(imember)
 
       ! Transfer the data to the batches array (this sends all the data to the
       ! correct processor ranks for processing)
-      call state_darray%transfer_to_darray(batches_darray)
+      call state_darray(imember)%transfer_to_darray(batches_darray(imember))
+
+    end do
+
+    do imember = 1, this%n_ensemble
 
       ! Reset the local batch counter
       ibatch_local = 1
@@ -483,11 +489,11 @@ contains
       do ibatch = 1, this%n_batches
         if (this%batch_ranks(ibatch) == rank) then
 
-          segment_size = batches_darray%segments(ibatch)%length
+          segment_size = batches_darray(imember)%segments(ibatch)%length
 
           ! Copy batch data to the local_batches array
           local_batches(1:segment_size, ibatch_local, imember) = &
-            batches_darray%segments(ibatch)%data
+            batches_darray(imember)%segments(ibatch)%data
 
           ! Increment the local batch counter
           ibatch_local = ibatch_local + 1
