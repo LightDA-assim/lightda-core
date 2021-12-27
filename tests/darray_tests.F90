@@ -156,6 +156,10 @@ contains
 
     call transfer_data(src_darray, dest_darray)
 
+    call src_darray%finish_transfer()
+
+    call dest_darray%finish_transfer()
+
     call check_darray_contents(dest_darray, src_arr)
 
     do i = 1, n

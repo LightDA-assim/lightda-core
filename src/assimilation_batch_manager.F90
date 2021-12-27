@@ -477,11 +477,15 @@ contains
 
       ! Transfer the data to the batches array (this sends all the data to the
       ! correct processor ranks for processing)
-      call state_darray(imember)%transfer_to_darray(batches_darray(imember))
+      call state_darray(imember)%transfer_to_darray( &
+        batches_darray(imember), finish_immediately=.false.)
 
     end do
 
     do imember = 1, this%n_ensemble
+
+      ! Finish the pending transfer
+      call state_darray(imember)%finish_transfer()
 
       ! Reset the local batch counter
       ibatch_local = 1
