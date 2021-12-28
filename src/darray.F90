@@ -5,22 +5,13 @@ module distributed_array
   use system_mpi
   use exceptions, ONLY: throw, error_container, new_exception, exception
   use util, ONLY: str
+  use iso_fortran_env, ONLY: real64
 
   implicit none
 
   type, extends(exception)::darray_transfer_error
      !! Error during darray transfer
   end type darray_transfer_error
-
-  type :: darray_buffer
-     !! Process-local send/receive buffer
-    integer::rank
-         !! Foreign processor rank
-    integer::size = 0
-        !! Buffer size
-    real(kind=8), allocatable::data(:)
-        !! Buffer data
-  end type darray_buffer
 
   type :: darray_segment
      !! Process-local contiguous segment of a distributed array
@@ -46,8 +37,8 @@ module distributed_array
          !! MPI communicator
     type(darray_segment), allocatable::segments(:)
          !! Array of segments, each stored on one processor
-    type(darray_buffer), allocatable, private::bufs(:)
-        !! Array of send buffers
+    real(real64), allocatable, private::buffer(:)
+        !! Send/receive buffer
     class(darray_segment_set), pointer::foreign => null()
     logical::transfer_pending = .false.
     logical::is_transfer_dest = .false.
@@ -59,12 +50,12 @@ module distributed_array
      !! Distributed array comprised of contiguous and nonoverlapping darray
      !! segments
 
-    MPI_REQUEST_TYPE, allocatable::reqs(:)
+    MPI_REQUEST_TYPE::req
         !! Array of MPI requests
-    integer, allocatable, private::sendcounts(:, :)
-        !! Send counts for MPI_Iscatterv
-    integer, allocatable, private::dspls(:, :)
-        !! Displacements for MPI_Iscatterv
+    integer, allocatable, private::sendcounts(:), recvcounts(:)
+        !! Send/receive counts for MPI_Ialltoallv
+    integer, allocatable, private::sdspls(:), rdspls(:)
+        !! Displacements for MPI_Ialltoallv
 
   contains
     procedure::get_segments_for_range
@@ -248,11 +239,12 @@ contains
 
     call mpi_comm_size(source%comm, comm_size, ierr)
 
-    allocate (source%bufs(comm_size), source%sendcounts(comm_size, comm_size), &
-              source%dspls(comm_size, comm_size), crsrs(comm_size), &
-              source%reqs(comm_size), dest%bufs(comm_size))
+    allocate (source%sendcounts(comm_size), source%recvcounts(comm_size), &
+              source%sdspls(comm_size), source%rdspls(comm_size), &
+              crsrs(comm_size))
 
     source%sendcounts = 0
+    source%recvcounts = 0
 
     ! Loop over the segments to determine the required sizes for the send and receive buffers
     do idest = 1, size(dest%segments)
@@ -282,15 +274,16 @@ contains
         if (source_rank == rank .and. dest_rank /= rank) then
 
           ! Add the overlap size to the send count
-          source%sendcounts(dest_rank + 1, source_rank + 1) = &
-            source%sendcounts(dest_rank + 1, source_rank + 1) &
+          source%sendcounts(dest_rank + 1) = &
+            source%sendcounts(dest_rank + 1) &
             + overlap_end - overlap_start
 
         else if (dest_rank == rank .and. source_rank /= rank) then
 
-          ! Add the overlap size to the receive buffer size
-          dest%bufs(source_rank + 1)%size = &
-            dest%bufs(source_rank + 1)%size + overlap_end - overlap_start
+          ! Add the overlap size to the receive count
+          source%recvcounts(source_rank + 1) = &
+            source%recvcounts(source_rank + 1) &
+            + overlap_end - overlap_start
 
         end if
 
@@ -299,26 +292,29 @@ contains
     end do
 
     ! Allocate send/receive buffers
-    do irank = 1, comm_size
-      source%bufs(irank)%size = sum(source%sendcounts(:, irank))
-      allocate (source%bufs(irank)%data(source%bufs(irank)%size))
-      allocate (dest%bufs(irank)%data(dest%bufs(irank)%size))
+    allocate (source%buffer(sum(source%sendcounts)))
+    allocate (dest%buffer(sum(source%recvcounts)))
+
+    ! Set send buffer displacements
+    source%sdspls(1) = 0
+    do dest_rank = 2, comm_size
+      source%sdspls(dest_rank) = &
+        source%sdspls(dest_rank - 1) &
+        + source%sendcounts(dest_rank - 1)
     end do
 
-    ! Set displacements
-    do source_rank = 1, comm_size
-      source%dspls(:, source_rank) = 0
-      do dest_rank = 2, comm_size
-        source%dspls(dest_rank, source_rank) = &
-          source%dspls(dest_rank - 1, source_rank) &
-          + source%sendcounts(dest_rank - 1, source_rank)
-      end do
+    ! Set receive buffer displacements
+    source%rdspls(1) = 0
+    do source_rank = 2, comm_size
+      source%rdspls(source_rank) = &
+        source%rdspls(source_rank - 1) &
+        + source%recvcounts(source_rank - 1)
     end do
 
     ! Initialize cursors
     crsrs = 0
 
-    ! Loop over the segments and populate the send buffers
+    ! Loop over the segments and populate the send buffer
     do irank = 1, comm_size
       do idest = 1, size(dest%segments)
 
@@ -357,8 +353,9 @@ contains
               dest_data = source_data
             else
               crsr => crsrs(source_rank + 1)
+
               ! Copy segment data to the send buffer
-              source%bufs(source_rank + 1)%data( &
+              source%buffer( &
                 crsr + 1:crsr + overlap_end - overlap_start) = source_data
 
               crsr = crsr + overlap_end - overlap_start
@@ -372,13 +369,10 @@ contains
 
     end do
 
-    do irank = 1, comm_size
-      call MPI_Iscatterv( &
-        source%bufs(irank)%data, source%sendcounts(:, irank), &
-        source%dspls(:, irank), MPI_DOUBLE_PRECISION, dest%bufs(irank)%data, &
-        dest%bufs(irank)%size, MPI_DOUBLE_PRECISION, irank - 1, source%comm, &
-        source%reqs(irank), ierr)
-    end do
+    call MPI_Ialltoallv( &
+      source%buffer, source%sendcounts, source%sdspls, MPI_DOUBLE_PRECISION, &
+      dest%buffer, source%recvcounts, source%rdspls, MPI_DOUBLE_PRECISION, &
+      source%comm, source%req, ierr)
 
     source%foreign => dest
     dest%foreign => source
@@ -405,9 +399,7 @@ contains
     type(error_container), intent(out), optional::status
         !! Error status
     class(darray_segment_set), pointer::dest
-    integer, allocatable, target::crsrs(:)
-        !! Array of cursors into all the receive buffers
-    integer, pointer::crsr ! Cursor into the current receive buffer
+    integer::crsr ! Cursor into the current receive buffer
     integer::idest, isource
     class(darray_segment), pointer::dest_segment
     ! Pointer to destination segment
@@ -419,6 +411,7 @@ contains
     real(kind=8), pointer::dest_data(:)
     integer::overlap_start, overlap_end
     integer::rank
+    integer::irank
     integer::ierr
     integer::comm_size
     integer::dest_rank, source_rank
@@ -439,56 +432,62 @@ contains
     call mpi_comm_rank(source%comm, rank, ierr)
     call mpi_comm_size(source%comm, comm_size, ierr)
 
-    allocate (crsrs(comm_size))
+    call MPI_Wait(source%req, MPI_STATUS_IGNORE)
 
-    call system_mpi_waitall(source%reqs)
+    crsr = 0
 
-    crsrs = 0
+    do irank = 1, comm_size
 
-    do idest = 1, size(dest%segments)
+      do idest = 1, size(dest%segments)
 
-      dest_segment => dest%segments(idest)
-      dest_rank = dest_segment%rank
+        dest_segment => dest%segments(idest)
+        dest_rank = dest_segment%rank
 
-      if (dest_rank == rank) then
-        ! Get the segments in this array that overlap with the destination segment
-        source_segments => source%get_segments_for_range( &
-                           dest_segment%offset, dest_segment%length, status)
+        if (dest_rank == rank) then
+          ! Get the segments in this array that overlap with the destination segment
+          source_segments => source%get_segments_for_range( &
+                             dest_segment%offset, dest_segment%length, status)
 
-        do isource = 1, size(source_segments)
+          do isource = 1, size(source_segments)
 
-          source_rank = source_segments(isource)%rank
+            source_rank = source_segments(isource)%rank
 
-          if (source_rank /= rank) then
-            ! Locate the overlapping region between source-segments(i) and
-            ! dest_segment
-            crsr => crsrs(source_rank + 1)
-            call get_segment_overlap(source_segments(isource), dest_segment, &
-                                     overlap_start, overlap_end)
+            if (source_rank /= rank .and. source_rank == irank - 1) then
 
-            ! Configure destination buffer
-            dest_data => dest_segment%data( &
-                         overlap_start - dest_segment%offset + 1: &
-                         overlap_end - dest_segment%offset)
+              ! Locate the overlapping region between source-segments(i) and
+              ! dest_segment
+              call get_segment_overlap(source_segments(isource), dest_segment, &
+                                       overlap_start, overlap_end)
 
-            ! Copy from the receive buffer to the destination segment
-            dest_data = dest%bufs(source_rank + 1)%data( &
-                        crsr + 1:crsr + overlap_end - overlap_start)
+              ! Configure destination buffer
+              dest_data => dest_segment%data( &
+                           overlap_start - dest_segment%offset + 1: &
+                           overlap_end - dest_segment%offset)
 
-            ! Move cursor
-            crsr = crsr + overlap_end - overlap_start
-          end if
-        end do
+              ! Copy from the receive buffer to the destination segment
+              dest_data = dest%buffer( &
+                          crsr + 1:crsr + overlap_end - overlap_start)
 
-      end if
+              ! Move cursor
+              crsr = crsr + overlap_end - overlap_start
+
+            end if
+
+          end do
+
+        end if
+
+      end do
 
     end do
 
-    deallocate (source%reqs, source%bufs, source%sendcounts, source%dspls, &
-                dest%bufs)
+    deallocate (source%buffer, source%sendcounts, source%recvcounts, &
+                source%sdspls, source%rdspls, dest%buffer)
 
     source%transfer_pending = .false.
     dest%transfer_pending = .false.
+
+    nullify (source%foreign, dest%foreign)
 
   end subroutine finish_transfer
 
