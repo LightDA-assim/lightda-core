@@ -432,7 +432,7 @@ contains
     call mpi_comm_rank(source%comm, rank, ierr)
     call mpi_comm_size(source%comm, comm_size, ierr)
 
-    call MPI_Wait(source%req, MPI_STATUS_IGNORE)
+    call MPI_Wait(source%req, MPI_STATUS_IGNORE, ierr)
 
     crsr = 0
 
