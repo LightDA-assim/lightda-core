@@ -27,6 +27,7 @@ contains
   end function append_array_mpi_request
 
   function str(x, fmt, status)
+    use, intrinsic::iso_fortran_env, only: int64
     class(*), intent(in)::x
     character(*), optional, intent(in)::fmt
     type(error_container), intent(out), optional::status
@@ -36,6 +37,12 @@ contains
 
     select type (x)
     type is (integer)
+      if (present(fmt)) then
+        write (str_tmp, fmt) x
+      else
+        write (str_tmp, '(I0)') x
+      end if
+    type is (integer(int64))
       if (present(fmt)) then
         write (str_tmp, fmt) x
       else
