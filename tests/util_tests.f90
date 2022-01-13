@@ -35,6 +35,8 @@ contains
 
   subroutine test_str
 
+    use, intrinsic::iso_fortran_env, only: int64
+
     character(:), allocatable::outstr
 
     outstr=str(1)
@@ -46,6 +48,12 @@ contains
     outstr=str(1.0)
     if(outstr/='1.') then
        print *, "Wrong output from str(1.0), expected '1.', got ", outstr, "."
+       error stop
+    end if
+
+    outstr=str(1_int64)
+    if(outstr/='1') then
+       print *, "Wrong output from str(1), expected '1', got ", outstr, "."
        error stop
     end if
 
