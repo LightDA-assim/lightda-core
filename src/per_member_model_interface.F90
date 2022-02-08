@@ -385,8 +385,6 @@ contains
     real(kind=8), pointer::member_state(:)
         !! Whether imember is stored locally
 
-    integer::rank, ierr, imember_local, imember1
-
     if (.not. this%is_local_member(imember)) then
       call throw( &
         status, new_exception( &
@@ -394,17 +392,7 @@ contains
         //'Call is_local_member first to check whether a member is local.'))
     end if
 
-    call MPI_Comm_rank(this%comm, rank, ierr)
-
-    imember_local = 0
-
-    do imember1 = 1, imember
-      if (this%io_ranks(imember1) == rank) then
-        imember_local = imember_local + 1
-      end if
-    end do
-
-    member_state => this%local_io_data(:, imember_local)
+    member_state => this%local_io_data(:, this%get_local_io_index(imember))
 
   end function get_local_member_state
 
