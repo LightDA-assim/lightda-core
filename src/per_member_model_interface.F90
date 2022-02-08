@@ -399,7 +399,7 @@ contains
     imember_local = 1
 
     do imember1 = 1, imember
-      if (this%io_ranks(imember) == rank) then
+      if (this%io_ranks(imember1) == rank) then
         imember_local = imember_local + 1
       end if
     end do
