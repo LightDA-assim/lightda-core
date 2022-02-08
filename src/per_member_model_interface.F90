@@ -26,6 +26,8 @@ module per_member_model_interfaces
     procedure::read_state
     procedure::write_state
     procedure::get_state_darray
+    procedure::is_local_member
+    procedure::get_local_member_state
     procedure(I_store_member_state), deferred::store_member_state
     procedure(I_load_member_state), deferred::load_member_state
   end type per_member_model_interface
@@ -346,5 +348,64 @@ contains
     end do
 
   end subroutine write_state
+
+  function is_local_member(this, imember, status) result(is_local)
+
+    ! Arguments
+    class(per_member_model_interface)::this
+        !! Model interface
+    integer, intent(in)::imember
+        !! Ensemble member index
+    type(error_container), intent(out), optional::status
+        !! Error status
+
+    logical::is_local
+        !! Whether imember is stored locally
+
+    integer::rank, ierr
+
+    call MPI_Comm_rank(this%comm, rank, ierr)
+
+    is_local = .false.
+
+    if (this%io_ranks(imember) == rank) is_local = .true.
+
+  end function is_local_member
+
+  function get_local_member_state(this, imember, status) result(member_state)
+
+    ! Arguments
+    class(per_member_model_interface), target::this
+        !! Model interface
+    integer, intent(in)::imember
+        !! Ensemble member index
+    type(error_container), intent(out), optional::status
+        !! Error status
+
+    real(kind=8), pointer::member_state(:)
+        !! Whether imember is stored locally
+
+    integer::rank, ierr, imember_local, imember1
+
+    if (.not. this%is_local_member(imember)) then
+      call throw( &
+        status, new_exception( &
+        'get_local_member_state called on a non-local ensemble member. ' &
+        //'Call is_local_member first to check whether a member is local.'))
+    end if
+
+    call MPI_Comm_rank(this%comm, rank, ierr)
+
+    imember_local = 1
+
+    do imember1 = 1, imember
+      if (this%io_ranks(imember) == rank) then
+        imember_local = imember_local + 1
+      end if
+    end do
+
+    member_state => this%local_io_data(:, imember_local)
+
+  end function get_local_member_state
 
 end module per_member_model_interfaces
