@@ -396,7 +396,7 @@ contains
 
     call MPI_Comm_rank(this%comm, rank, ierr)
 
-    imember_local = 1
+    imember_local = 0
 
     do imember1 = 1, imember
       if (this%io_ranks(imember1) == rank) then
