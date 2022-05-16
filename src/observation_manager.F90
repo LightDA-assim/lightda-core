@@ -319,7 +319,8 @@ contains
     do iobs_set = 1, size(this%observation_sets)
       obs_count = obs_count + count( &
                   this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                  this%get_prediction_mask(iobs_set))
+                  this%get_prediction_mask(iobs_set) .and. &
+                  this%observation_sets(iobs_set)%get_mask())
     end do
 
   end function get_batch_obs_count
@@ -355,7 +356,8 @@ contains
     do iobs_set = 1, size(this%observation_sets)
 
       mask = (this%get_batch_weight_mask(ibatch, iobs_set) &
-              .and. this%get_prediction_mask(iobs_set))
+              .and. this%get_prediction_mask(iobs_set) .and. &
+              this%observation_sets(iobs_set)%get_mask())
 
       do iobs_inset = 1, this%observation_sets(iobs_set)%get_size()
 
@@ -406,7 +408,8 @@ contains
       set_batch_overlap = &
         count( &
         this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-        this%get_prediction_mask(iobs_set))
+        this%get_prediction_mask(iobs_set) .and. &
+        this%observation_sets(iobs_set)%get_mask())
 
       ! Store the set index in set_inds
       set_inds(iobs_batch:iobs_batch + set_batch_overlap - 1) = iobs_set
@@ -558,7 +561,8 @@ contains
           errors = obs_set%get_errors()
 
           mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                 this%get_prediction_mask(iobs_set)
+                 this%get_prediction_mask(iobs_set) .and. &
+                 this%observation_sets(iobs_set)%get_mask()
 
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
@@ -630,7 +634,8 @@ contains
           allocate (batch_predictions(batch_obs_count, n_ensemble))
 
           mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                 this%get_prediction_mask(iobs_set)
+                 this%get_prediction_mask(iobs_set) .and. &
+                 this%observation_sets(iobs_set)%get_mask()
 
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
