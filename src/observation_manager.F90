@@ -494,7 +494,8 @@ contains
           allocate (obs_values(ibatch)%data(batch_obs_count))
 
           mask = this%get_batch_weight_mask(ibatch, iobs_set) .and. &
-                 prediction_mask
+                 prediction_mask .and. &
+                 this%observation_sets(iobs_set)%get_mask()
 
           do iobs = 1, this%observation_sets(iobs_set)%get_size()
 
