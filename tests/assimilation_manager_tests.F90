@@ -20,9 +20,10 @@ module assimilation_manager_tests
 
 contains
 
-  subroutine test_assimilate_dummy(batch_size,status)
+  subroutine test_assimilate_dummy(batch_size,obs_index,status)
 
     integer, intent(in)::batch_size
+    integer, intent(in), optional::obs_index
     type(error_container), intent(out), optional::status
         !! Error status
 
@@ -42,6 +43,7 @@ contains
     type(darray_segment), pointer:: &
       segment_before_filtering, segment_after_filtering
         !! Pointers to darray segments
+    logical, pointer::obs_mask(:)
 
     integer::imember, isegment ! Loop counters
 
@@ -52,6 +54,14 @@ contains
     ! Load observations
     observation_sets(1) = new_random_observation_set( &
                           n_observations, mpi_comm_world)
+
+    if (present(obs_index)) then
+      if (obs_index>0) then
+        obs_mask => observation_sets(1)%get_mask()
+        obs_mask = .false.
+        obs_mask(obs_index) = .true.
+      end if
+    end if
 
     ! Initialize i/o interface for accessing data for assimilation
     model_interface = new_dummy_model( &
@@ -187,6 +197,8 @@ program test_assimilatiion_manager
   call test_assimilate_dummy(15)
 
   call test_assimilate_dummy(0)
+
+  call test_assimilate_dummy(15,1)
 
   call mpi_finalize(ierr)
 
