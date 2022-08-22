@@ -15,6 +15,7 @@ module assimilation_manager_tests
   use distributed_array, ONLY: darray, darray_segment
   use exceptions, ONLY: error_container, throw, new_exception
   use util, ONLY: str
+  use, intrinsic::iso_fortran_env, ONLY: real64
 
   implicit none
 
@@ -182,6 +183,15 @@ contains
       end do
 
     end do
+
+    assim_mgr = new_assimilation_manager( &
+                model_interface, istep, n_ensemble, forward_operator, &
+                observation_sets, batch_size, localizer, filter, &
+                mpi_comm_world, prior_inflation_factor=1.1_real64, &
+                posterior_inflation_factor=1.1_real64)
+
+    ! Run the assimilation
+    call assim_mgr%assimilate()
 
   end subroutine test_assimilate_dummy
 
