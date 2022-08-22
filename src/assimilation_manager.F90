@@ -221,8 +221,8 @@ contains
     if (this%prior_inflation_factor /= 1) then
       call inflate_batches( &
         batches, local_batches, n_local_batches, &
-        local_batch_inds, this%n_ensemble, this%prior_inflation_factor, &
-        batches_completed, rank, comm, t0, this%report_interval, this)
+        local_batch_inds, n_ensemble, this%prior_inflation_factor, &
+        batches_completed, rank, comm, t0, this%report_interval, this, tag=1)
     end if
 
     if (rank == 0) then
@@ -263,23 +263,23 @@ contains
       end if
 
       call report_progress(batches_completed, comm, ibatch, &
-                           report_interval=this%report_interval, t0=t0)
+                           report_interval=this%report_interval, t0=t0, tag=2)
     end do
 
     if (rank == 0) then
       ! Continue reporting progress until all batches are completed
       do while (count(batches_completed) < size(batches_completed))
         call report_progress(batches_completed, comm, &
-                             report_interval=this%report_interval, t0=t0)
+                             report_interval=this%report_interval, t0=t0, tag=2)
       end do
     end if
 
     if (this%posterior_inflation_factor /= 1) then
       call inflate_batches( &
         batches, local_batches, n_local_batches, &
-        local_batch_inds, this%n_ensemble, &
+        local_batch_inds, n_ensemble, &
         this%posterior_inflation_factor, batches_completed, rank, comm, &
-        t0, this%report_interval, this)
+        t0, this%report_interval, this, tag=3)
     end if
 
     if (rank == 0) then
@@ -298,7 +298,7 @@ contains
   end subroutine assimilate
 
   subroutine report_progress(elements_completed, comm, &
-                             i_completed, report_interval, t0)
+                             i_completed, report_interval, t0, tag)
 
     logical, intent(inout)::elements_completed(:)
     MPI_COMM_TYPE, intent(in)::comm
@@ -306,6 +306,7 @@ contains
     integer, intent(in), optional::report_interval
     real(kind=8), intent(in), optional::t0
         !! Reference time
+    integer, intent(in), optional::tag
 
     integer::ierr
     integer::rank
@@ -318,9 +319,12 @@ contains
     integer::completed_count = 0
     integer::total_count
     integer, save :: last_completed_count = 0
+    integer::tag_int = 0
 
     MPI_REQUEST_TYPE::req
     MPI_STATUS_TYPE::status
+
+    if (present(tag)) tag_int = tag
 
     total_count = size(elements_completed)
 
@@ -350,12 +354,12 @@ contains
       do iproc = 1, comm_size - 1
 
         ! Check for a message from the remote process
-        call MPI_Iprobe(iproc, 0, comm, flag, status, ierr)
+        call MPI_Iprobe(iproc, tag_int, comm, flag, status, ierr)
 
         if (flag) then
 
           ! Find out what element was completed by the remote process
-          call MPI_Recv(remote_completed, 1, MPI_INTEGER, iproc, 0, comm, &
+          call MPI_Recv(remote_completed, 1, MPI_INTEGER, iproc, tag_int, comm, &
                         status, ierr)
 
           ! Record that this element was completed
@@ -376,7 +380,7 @@ contains
     else
       if (present(i_completed)) then
         ! Send a message to the rank-0 process that this batch is complete
-        call MPI_Isend(i_completed, 1, MPI_INTEGER, 0, 0, comm, req, ierr)
+        call MPI_Isend(i_completed, 1, MPI_INTEGER, 0, tag_int, comm, req, ierr)
       end if
     end if
 
@@ -572,7 +576,7 @@ contains
   subroutine inflate_batches( &
     batches, local_batches, n_local_batches, &
     local_batch_inds, n_ensemble, factor, batches_completed, rank, comm, &
-    t0, report_interval, mgr)
+    t0, report_interval, mgr, tag)
 
     type(darray), intent(inout)::batches
     real(kind=8), target::local_batches(:, :, :)
@@ -586,6 +590,7 @@ contains
     real(kind=8), intent(in)::t0
     integer, intent(in)::report_interval
     class(base_assimilation_manager)::mgr
+    integer, intent(in), optional::tag
 
     type(inflate_ensemble)::inflate
     real(kind=8)::t1
@@ -612,14 +617,15 @@ contains
       call inflate%execute(ibatch, ibatch_size, n_ensemble, batch_states, mgr)
 
       call report_progress(batches_completed, comm, ibatch, &
-                           report_interval=report_interval, t0=t0)
+                           report_interval=report_interval, t0=t0, tag=tag)
+
     end do
 
     if (rank == 0) then
       ! Continue reporting progress until all batches are completed
       do while (count(batches_completed) < size(batches_completed))
         call report_progress(batches_completed, comm, &
-                             report_interval=report_interval, t0=t0)
+                             report_interval=report_interval, t0=t0, tag=tag)
       end do
     end if
 
