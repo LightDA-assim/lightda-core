@@ -158,9 +158,9 @@ contains
 
     if (z == 0) then
       f = 1
-    else if (z <= c) then
+    else if (z <= c .and. z > 0) then
       f = gaspari_cohn_close(z, c)
-    else if (z <= 2*c) then
+    else if (z <= 2*c .and. z > 0) then
       f = max(gaspari_cohn_mid(z, c), 0.0_8)
     else if (z < 0) then
       call throw(status, new_exception( &
