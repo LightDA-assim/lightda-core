@@ -16,7 +16,7 @@ target_include_directories(lightda_random INTERFACE
 install(TARGETS lightda_random EXPORT lightda
   LIBRARY DESTINATION lib ${CMAKE_INSTALL_LIBDIR})
 
-set(LIGHTDA_SOURCES dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90 assimilation_batch_manager.F90 assimilation_model_interface.F90 observations.F90 localization.f90 observation_manager.F90 forward_operator.F90 assimilation_manager.F90 per_member_model_interface.F90)
+set(LIGHTDA_SOURCES dummy_assimilator.f90 base_assimilation_manager.F90 assimilation_filter.F90 assimilation_batch_manager.F90 assimilation_model_interface.F90 observations.F90 localization.f90 observation_manager.F90 forward_operator.F90 assimilation_manager.F90 per_member_model_interface.F90 ensemble_operator.F90)
 add_library(lightda SHARED ${LIGHTDA_SOURCES})
 target_link_libraries(lightda PUBLIC lightda_random lightda_util fhash)
 target_include_directories(lightda INTERFACE
