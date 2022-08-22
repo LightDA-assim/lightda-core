@@ -14,6 +14,7 @@ module mod_assimilation_manager
   use iso_c_binding
   use distributed_array, ONLY: darray, darray_segment
   use mod_assimilation_filter, ONLY: assimilation_filter
+  use mod_ensemble_operator, ONLY: inflate_ensemble
   use exceptions, ONLY: throw, new_exception, error_container
   use util, ONLY: str
 
@@ -36,6 +37,10 @@ module mod_assimilation_manager
     type(darray_segment), allocatable, private :: predictions(:)
     type(observation_manager), private::obs_manager
     integer::report_interval
+    real(c_double)::prior_inflation_factor
+        !! Prior inflation factor
+    real(c_double)::posterior_inflation_factor
+        !! Posterior inflation factor
   contains
     procedure::assimilate
     procedure::localize
@@ -47,7 +52,8 @@ contains
   function new_assimilation_manager( &
     model_interface, istep, n_ensemble, &
     forward_operator, observation_sets, max_batch_size, &
-    localizer, filter, comm, report_interval)
+    localizer, filter, comm, report_interval, prior_inflation_factor, &
+    posterior_inflation_factor)
 
     use, intrinsic :: iso_fortran_env, ONLY: stderr => error_unit
 
@@ -70,6 +76,10 @@ contains
         !! Localizer
     integer, optional::max_batch_size
         !! Maximum batch size
+    real(c_double), optional::prior_inflation_factor
+        !! Prior inflation factor
+    real(c_double), optional::posterior_inflation_factor
+        !! Posterior inflation factor
     MPI_COMM_TYPE :: comm
         !! MPI communicator
     integer, optional::report_interval
@@ -118,6 +128,19 @@ contains
       new_assimilation_manager%report_interval = report_interval
     else
       new_assimilation_manager%report_interval = 1
+    end if
+
+    if (present(prior_inflation_factor)) then
+      new_assimilation_manager%prior_inflation_factor = prior_inflation_factor
+    else
+      new_assimilation_manager%prior_inflation_factor = 1
+    end if
+
+    if (present(posterior_inflation_factor)) then
+      new_assimilation_manager%posterior_inflation_factor = &
+        posterior_inflation_factor
+    else
+      new_assimilation_manager%posterior_inflation_factor = 1
     end if
 
   end function new_assimilation_manager
@@ -195,6 +218,13 @@ contains
 
     this%obs_errors = this%obs_manager%get_batches_obs_errors()
 
+    if (this%prior_inflation_factor /= 1) then
+      call inflate_batches( &
+        batches, local_batches, n_local_batches, &
+        local_batch_inds, this%n_ensemble, this%prior_inflation_factor, &
+        batches_completed, rank, comm, t0, this%report_interval, this)
+    end if
+
     if (rank == 0) then
       t1 = MPI_Wtime()
       print *, t1 - t0, 's Computing predictions'
@@ -242,6 +272,14 @@ contains
         call report_progress(batches_completed, comm, &
                              report_interval=this%report_interval, t0=t0)
       end do
+    end if
+
+    if (this%posterior_inflation_factor /= 1) then
+      call inflate_batches( &
+        batches, local_batches, n_local_batches, &
+        local_batch_inds, this%n_ensemble, &
+        this%posterior_inflation_factor, batches_completed, rank, comm, &
+        t0, this%report_interval, this)
     end if
 
     if (rank == 0) then
@@ -530,5 +568,61 @@ contains
     end select
 
   END SUBROUTINE localize
+
+  subroutine inflate_batches( &
+    batches, local_batches, n_local_batches, &
+    local_batch_inds, n_ensemble, factor, batches_completed, rank, comm, &
+    t0, report_interval, mgr)
+
+    type(darray), intent(inout)::batches
+    real(kind=8), target::local_batches(:, :, :)
+    integer, intent(in)::n_local_batches
+    integer, intent(in)::local_batch_inds(:)
+    integer, intent(in)::n_ensemble
+    real(c_double), intent(in)::factor
+    logical, intent(inout)::batches_completed(:)
+    integer, intent(in)::rank
+    MPI_COMM_TYPE, intent(in)::comm
+    real(kind=8), intent(in)::t0
+    integer, intent(in)::report_interval
+    class(base_assimilation_manager)::mgr
+
+    type(inflate_ensemble)::inflate
+    real(kind=8)::t1
+    real(kind=8), pointer::batch_states(:, :)
+    integer::ibatch, ibatch_local, ibatch_size
+
+    inflate%factor = factor
+
+    batches_completed = .false.
+
+    if (rank == 0) then
+      t1 = MPI_Wtime()
+      print *, t1 - t0, 's Inflating ensemble'
+    end if
+
+    ! Inflate local batches
+    do ibatch_local = 1, n_local_batches
+
+      ibatch = local_batch_inds(ibatch_local)
+
+      ibatch_size = batches%segments(ibatch)%length
+      batch_states => local_batches(:ibatch_size, ibatch_local, :)
+
+      call inflate%execute(ibatch, ibatch_size, n_ensemble, batch_states, mgr)
+
+      call report_progress(batches_completed, comm, ibatch, &
+                           report_interval=report_interval, t0=t0)
+    end do
+
+    if (rank == 0) then
+      ! Continue reporting progress until all batches are completed
+      do while (count(batches_completed) < size(batches_completed))
+        call report_progress(batches_completed, comm, &
+                             report_interval=report_interval, t0=t0)
+      end do
+    end if
+
+  end subroutine inflate_batches
 
 end module mod_assimilation_manager
