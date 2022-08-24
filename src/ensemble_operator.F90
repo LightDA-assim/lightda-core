@@ -61,7 +61,7 @@ contains
 
       do imember = 1, dim_ens
         resid = ens_p(irow, imember) - row_mean
-        ens_p(irow, imember) = ens_p(irow, imember) + resid*this%factor
+        ens_p(irow, imember) = row_mean + resid*this%factor
       end do
     end do
 
