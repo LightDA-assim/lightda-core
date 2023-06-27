@@ -18,7 +18,7 @@ set(
 
 set(
   fhash_GIT_URL
-  "https://github.com/jhaiduce/fhash.git" CACHE STRING
+  "https://github.com/LKedward/fhash.git" CACHE STRING
   "URL of fortran_exceptions git repository")
 
 ExternalProject_Add(
@@ -42,7 +42,7 @@ ExternalProject_Add(
 ExternalProject_Add(
   fhash
   GIT_REPOSITORY ${fhash_GIT_URL}
-  GIT_TAG add_cmake_build_files
+  GIT_TAG master
   CMAKE_CACHE_ARGS
         -DPYTHON_EXECUTABLE:PATH=${PYTHON_EXECUTABLE}
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/fortran_exceptions
