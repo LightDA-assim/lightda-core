@@ -11,6 +11,12 @@ module distributed_array
 
   type, extends(exception)::darray_transfer_error
      !! Error during darray transfer
+
+     integer::gfortran_workaround_1 = 0
+       !! Workaround for gfortran bug #110987.
+       !! (prevents a segmentation fault triggered when finalizing
+       !! temporary objects that inherit from a parent type but don't
+       !! have any data members aside from those in the parent)
   end type darray_transfer_error
 
   type :: darray_segment
